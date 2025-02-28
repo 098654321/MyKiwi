@@ -6,7 +6,7 @@
 #include "circuit/net/types/btnet.hh"
 #include "circuit/net/types/tbnet.hh"
 #include <algo/router/maze/mazeroutestrategy.hh>
-#include <algo/router/route.hh>
+#include <circuit/path/pathpackage.hh>
 
 #include <std/collection.hh>
 #include <std/memory.hh>
@@ -26,6 +26,8 @@ namespace kiwi::algo
 
 namespace kiwi::circuit {
 
+    class PathPackage;
+
     class BumpToBumpNet;
     class BumpToTrackNet;
     class TrackToBumpNet;
@@ -41,12 +43,19 @@ namespace kiwi::circuit {
         
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void override;
-        virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> std::usize override;
+        virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void override;
         virtual auto update_priority(float bias) -> void override;
         virtual auto coords() const -> std::Vector<hardware::Coord> override;
         virtual auto check_accessable_cobunit() -> void override;
         virtual auto to_string() const -> std::String override;
         virtual auto port_number() const -> std::usize override;
+        virtual auto search_related_nets(std::Vector<Net*>& nets) -> void override;
+        virtual auto check_relativity(const hardware::Bump* node) const -> const Net* override;
+        virtual auto check_relativity(const hardware::Track* node) const -> const Net* override;
+        
+        auto show() const -> void override;
+        auto length() const -> std::usize override;
+        auto set_pathpackage(const circuit::PathPackage&) -> void override;
     
     public:
         auto btbnets() -> std::Vector<std::Box<BumpToBumpNet>>& {return this->_btbnets;}

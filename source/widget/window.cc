@@ -10,7 +10,7 @@
 #include "qaction.h"
 #include "qmessagebox.h"
 #include "widget/setting/settingwidget.h"
-#include <algo/router/route.hh>
+#include <algo/router/route_nets.hh>
 
 #include <parse/reader/module.hh>
 #include <widget/frame/msgexception.h>

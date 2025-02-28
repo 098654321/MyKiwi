@@ -4,7 +4,7 @@
 #include <std/file.hh>
 #include <debug/debug.hh>
 #include <parse/reader/module.hh>
-#include <algo/router/route.hh>
+#include <algo/router/route_nets.hh>
 #include <algo/router/maze/mazeroutestrategy.hh>
 #include <algo/netbuilder/netbuilder.hh>
 #include <hardware/interposer.hh>

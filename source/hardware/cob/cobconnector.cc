@@ -22,6 +22,10 @@ namespace kiwi::hardware {
         _c_to_t_sel_reg{c_to_t_sel_reg}
     {}
 
+    auto COBConnector::is_occupied() -> bool {
+        return this->_sw_reg->is_occupied();
+    }
+
     auto COBConnector::is_connected() -> bool {
         return this->_sw_reg->is_connected();
     }
@@ -30,6 +34,10 @@ namespace kiwi::hardware {
         this->_sw_reg->set(COBSwState::Connected);
         this->_t_to_c_sel_reg->set_track_to_cob();
         this->_c_to_t_sel_reg->set_cob_to_track();
+    }
+
+    auto COBConnector::suspend() -> void {
+        this->_sw_reg->set(COBSwState::Suspended);
     }
 
     auto COBConnector::disconnect() -> void {

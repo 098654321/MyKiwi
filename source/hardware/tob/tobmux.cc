@@ -11,16 +11,25 @@ namespace kiwi::hardware {
     TOBMuxConnector::TOBMuxConnector(
         std::usize input_index, 
         std::usize output_index, 
-        TOBMuxRegister* reg
+        std::Rc<TOBMuxRegister> reg
     ) :
         _input_index{input_index},
         _output_index{output_index},
         _register{reg}
-    {}
+    {
+    }
 
 
     auto TOBMuxConnector::connect() -> void {
         this->_register->set(this->_output_index);
+    }
+
+    auto TOBMuxConnector::give_out() -> void {
+        this->_register->give_out(this->_output_index);
+    }
+
+    auto TOBMuxConnector::stay_inside() -> void {
+        this->_register->stay_inside();
     }
 
     auto TOBMuxConnector::disconnect() -> void {
@@ -36,7 +45,8 @@ namespace kiwi::hardware {
     }
 
     auto TOBMux::available_connectors(std::usize input_index) -> std::Vector<TOBMuxConnector> {
-        if (this->_registers.at(input_index).get().has_value()) {
+        auto& reg = this->_registers.at(input_index);
+        if (reg.get().has_value() || reg.is_given_out()) {
             return {};
         }
     
@@ -45,7 +55,7 @@ namespace kiwi::hardware {
             connectors.emplace_back(
                 input_index,
                 output_index,
-                &this->_registers.at(input_index)
+                std::make_shared<TOBMuxRegister>(this->_registers.at(input_index))
             );
         }
 
@@ -56,8 +66,14 @@ namespace kiwi::hardware {
         auto useds = std::Vector<bool>(this->_mux_size, false);
         for (const auto& reg : this->_registers) {
             auto res = reg.get();
-            if (res.has_value()) {
+            if (res.has_value()) {    
                 useds.at(*res) = true;
+            }
+            else if (reg.is_given_out()) {
+                auto output_index = reg.given_out_index();
+                assert(output_index.has_value());
+                
+                useds.at(output_index.value()) = true;
             }
         }
 
@@ -77,8 +93,12 @@ namespace kiwi::hardware {
         std::usize index = 0;
         for (auto& reg : this->_registers) {
             if (!reg.get().has_value()) {
+                assert(!reg.is_given_out());
                 reg.set(unused_indexes.at(index));
                 index += 1;
+            }
+            else{
+                assert(reg.is_given_out());
             }
         }
         assert(index == unused_indexes.size());

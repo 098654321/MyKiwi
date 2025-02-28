@@ -4,7 +4,6 @@
 #include <std/collection.hh>
 #include <hardware/cob/cob.hh>
 #include <algo/router/maze/mazeroutestrategy.hh>
-#include <algo/router/route.hh>
 
 namespace kiwi::hardware {
     class Track;
@@ -21,12 +20,14 @@ namespace kiwi::circuit {
     
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void override;
-        virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> std::usize override;
+        virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void override;
         virtual auto update_priority(float bias) -> void override;
         virtual auto coords() const -> std::Vector<hardware::Coord> override;
         virtual auto check_accessable_cobunit() -> void override;
         virtual auto to_string() const -> std::String override;
         virtual auto port_number() const -> std::usize override;
+        virtual auto search_related_nets(std::Vector<Net*>& nets) -> void override;
+        virtual auto check_relativity(const hardware::Bump* node) const -> const Net* override;
 
         auto begin_bump() const -> hardware::Bump* { return this->_begin_bump; }
         auto end_bumps() const -> const std::Vector<hardware::Bump*>& { return this->_end_bumps; }

@@ -4,7 +4,7 @@
 #include <hardware/interposer.hh>
 #include <circuit/basedie.hh>
 
-#include <algo/router/route.hh>
+#include <algo/router/route_nets.hh>
 #include <algo/router/maze/mazeroutestrategy.hh>
 
 #include <parse/reader/module.hh>
@@ -23,10 +23,9 @@ namespace kiwi {
         auto [interposer, basedie] = kiwi::parse::read_config(config_path);
 
         algo::build_nets(basedie.get(), interposer.get());
-        auto l = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{});
-        debug::info_fmt("Length: '{}'", l);
+        algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{});
 
-        interposer->randomly_map_remain_indexes();
+        // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
 
         parse::write_control_bits(
             interposer.get(),

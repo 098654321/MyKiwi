@@ -21,7 +21,7 @@ namespace kiwi::parse
     auto Writer::fetch_and_write(const std::FilePath& file) -> void
     {
         build_regs();
-        fetch();
+        fetch();            
         write(file);
     }
 
@@ -37,7 +37,7 @@ namespace kiwi::parse
     {
         for(auto& p_r: _regs)
         {
-            p_r->fetch_controlbits(_rv);
+            p_r->fetch_controlbits(_rv);    
         }
     }
 

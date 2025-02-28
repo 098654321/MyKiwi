@@ -17,37 +17,123 @@
 
 namespace kiwi::algo {
 
-    auto MazeRouteStrategy::route_bump_to_bump_net(hardware::Interposer* interposer, circuit::BumpToBumpNet* net) const -> std::usize {
+    auto MazeRouteStrategy::route_bump_to_bump_net(
+        hardware::Interposer* interposer, circuit::BumpToBumpNet* net
+    ) const -> void {
         debug::debug("Maze routing for bump to bump net");
         
         auto begin_bump = net->begin_bump();
         auto end_bump = net->end_bump();
         debug::check(begin_bump->tob() != end_bump->tob(), "Route bump in the same tob");
 
-        return this->route_node_to_node_net<hardware::Bump, hardware::Bump>(interposer, begin_bump, end_bump);
+        // existing path
+        auto begin_related_nets = net->related_nets<hardware::Bump>(begin_bump);
+        auto begin_tracks_vec = std::Vector<hardware::Track*> {};
+        for (auto net : begin_related_nets) {
+            auto path = net->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                begin_tracks_vec.emplace_back(t);
+            }
+        }
+
+        auto end_related_nets = net->related_nets<hardware::Bump>(end_bump);
+        auto end_tracks_set = std::HashSet<hardware::Track*> {};
+        for (auto net : end_related_nets) {
+            auto path = net->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                end_tracks_set.emplace(t);
+            }
+        }
+
+        auto head = std::Pair<hardware::Bump*, std::Vector<hardware::Track*>>{begin_bump, begin_tracks_vec};
+        auto tail = std::Pair<hardware::Bump*, std::HashSet<hardware::Track*>>{end_bump, end_tracks_set};
+        auto path_package = this->route_node_to_node_net<hardware::Bump, hardware::Bump>(
+            interposer, head, tail
+        );
+
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
     }
 
-    auto MazeRouteStrategy::route_track_to_bump_net(hardware::Interposer* interposer, circuit::TrackToBumpNet* net) const -> std::usize {
+    auto MazeRouteStrategy::route_track_to_bump_net(
+        hardware::Interposer* interposer, circuit::TrackToBumpNet* net
+    ) const -> void {
         debug::debug("Maze routing for track to bump net");
         
         auto begin_track = net->begin_track();
         auto end_bump = net->end_bump();
 
-        return this->route_node_to_node_net<hardware::Track, hardware::Bump>(interposer, begin_track, end_bump);
+        // existing path
+        auto begin_related_nets = net->related_nets<hardware::Track>(begin_track);
+        auto begin_tracks_vec = std::Vector<hardware::Track*> {};
+        for (auto net : begin_related_nets) {
+            auto path = net->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                begin_tracks_vec.emplace_back(t);
+            }
+        }
+
+        auto end_related_nets = net->related_nets<hardware::Bump>(end_bump);
+        auto end_tracks_set = std::HashSet<hardware::Track*> {};
+        for (auto net : end_related_nets) {
+            auto path = net->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                end_tracks_set.emplace(t);
+            }
+        }
+
+        auto head = std::Pair<hardware::Track*, std::Vector<hardware::Track*>>{begin_track, begin_tracks_vec};
+        auto tail = std::Pair<hardware::Bump*, std::HashSet<hardware::Track*>>{end_bump, end_tracks_set};
+        auto path_package = this->route_node_to_node_net<hardware::Track, hardware::Bump>(
+            interposer, head, tail
+        );
+
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
     }
 
-    auto MazeRouteStrategy::route_bump_to_track_net(hardware::Interposer* interposer, circuit::BumpToTrackNet* net) const -> std::usize {
+    auto MazeRouteStrategy::route_bump_to_track_net(
+        hardware::Interposer* interposer, circuit::BumpToTrackNet* net
+    ) const -> void {
         debug::debug("Maze routing for bump to track net");
         
         auto begin_bump = net->begin_bump();
         auto end_track = net->end_track();
 
-        return this->route_node_to_node_net<hardware::Bump, hardware::Track>(interposer, begin_bump, end_track);
+        // existing path
+        auto begin_related_nets = net->related_nets<hardware::Bump>(begin_bump);
+        auto begin_tracks_vec = std::Vector<hardware::Track*> {};
+        for (auto net : begin_related_nets) {
+            auto path = net->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                begin_tracks_vec.emplace_back(t);
+            }
+        }
+
+        auto end_related_nets = net->related_nets<hardware::Track>(end_track);
+        auto end_tracks_set = std::HashSet<hardware::Track*> {};
+        for (auto net : end_related_nets) {
+            auto path = net->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                end_tracks_set.emplace(t);
+            }
+        }
+
+        auto head = std::Pair<hardware::Bump*, std::Vector<hardware::Track*>>{begin_bump, begin_tracks_vec};
+        auto tail = std::Pair<hardware::Track*, std::HashSet<hardware::Track*>>{end_track, end_tracks_set};
+        auto path_package = this->route_node_to_node_net<hardware::Bump, hardware::Track>(
+            interposer, head, tail
+        );
+
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
     }
 
     template<class InputNode, class OutputNode>
-        auto MazeRouteStrategy::route_node_to_node_net(hardware::Interposer* interposer, InputNode* input_node, OutputNode* output_node) const -> std::usize {
-        std::Vector<hardware::Track*> path {};
+    auto MazeRouteStrategy::route_node_to_node_net(
+        hardware::Interposer* interposer, 
+        std::Pair<InputNode*, std::Vector<hardware::Track*>> input_node, std::Pair<OutputNode*, std::HashSet<hardware::Track*>> output_node
+    ) const -> circuit::PathPackage {
         std::usize path_l {0};
         std::Vector<hardware::Track*> begin_tracks_vec {};
         std::HashSet<hardware::Track*> end_tracks_set {};
@@ -56,88 +142,80 @@ namespace kiwi::algo {
         bool is_begin_connector_connected {false};
         bool is_end_connector_connected {false};
 
-        // track node
-        if constexpr (std::is_same<InputNode, hardware::Track>::value){
-            begin_tracks_vec.emplace_back(input_node);
+        // input node
+        if (!input_node.second.empty())  {
+            begin_tracks_vec = input_node.second;
         }
-        if constexpr( std::is_same<OutputNode, hardware::Track>::value){
-            end_tracks_set.emplace(output_node);
+        else {
+            if constexpr (std::is_same<InputNode, hardware::Bump>::value) {
+                begin_tracks_map = interposer->available_tracks_bump_to_track(input_node.first);
+                if (begin_tracks_map.empty()){
+                    throw RetryExpt(std::format("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for input node {}", input_node.first->coord()));
+                }
+                begin_tracks_vec = track_map_to_track_vec(begin_tracks_map, input_node.first->tob()->cobunit_resources());
+            }
+            if constexpr (std::is_same<InputNode, hardware::Track>::value) {
+                begin_tracks_vec.emplace_back(input_node.first);
+            }
         }
 
-        // bump node
-        if constexpr (std::is_same<InputNode, hardware::Bump>::value){
-            // not been connected yet
-            if (input_node->connected_track() == nullptr) {
-                begin_tracks_map = interposer->available_tracks_bump_to_track(input_node);
-                if (begin_tracks_map.empty()){
-                    throw RetryExpt(std::format("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for input node {}", input_node->coord()));
-                    // debug::exception_in("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for input node");
-                }
-                begin_tracks_vec = track_map_to_track_vec(begin_tracks_map, input_node->tob()->cobunit_resources());
-            }
-            // already been connected
-            else{
-                is_begin_connector_connected = true;
-                auto begin_track = input_node->connected_track();
-                while (begin_track != nullptr) {
-                    begin_tracks_vec.emplace_back(begin_track);
-                    begin_track = begin_track->next_track();
-                }
-            }
+        // output node
+        if (!output_node.second.empty()) {
+            end_tracks_set = output_node.second;
         }
-        if constexpr (std::is_same<OutputNode, hardware::Bump>::value){
-            // not been connected yet
-            if (output_node->connected_track() == nullptr) {
-                end_tracks_map = interposer->available_tracks_track_to_bump(output_node);
+        else {
+            if constexpr (std::is_same<OutputNode, hardware::Bump>::value) {
+                end_tracks_map = interposer->available_tracks_track_to_bump(output_node.first);
                 if (end_tracks_map.empty()){
-                    throw RetryExpt(std::format("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for output node {}", output_node->coord()));
-                    // debug::exception_in("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for output node");
+                    throw RetryExpt(std::format("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for output node {}", output_node.first->coord()));
                 }
                 end_tracks_set = track_map_to_track_set(end_tracks_map);
             }
-            // already been connected
-            else{
-                is_end_connector_connected = true;
-                auto end_track = output_node->connected_track();
-                while (end_track != nullptr) {
-                    end_tracks_set.emplace(end_track);
-                    end_track = end_track->prev_track();
-                }
+            if constexpr (std::is_same<OutputNode, hardware::Track>::value) {
+                end_tracks_set.emplace(output_node.first);
             }
         }
+
         if (begin_tracks_vec.empty() || end_tracks_set.empty()){
             throw FinalError("MazeRouteStrategy::route_node_to_node_net(): no available begin/end tracks for unknown reasons");
         }
 
         // route path
-        path = this->route_path(interposer, begin_tracks_vec, end_tracks_set);
-//!
-print_path(input_node, output_node, path);
-//!
-        auto begin_track = path.front();
-        auto end_track = path.back();
+        circuit::PathPackage path_package {};
+        path_package._regular_path = this->route_path(interposer, begin_tracks_vec, end_tracks_set);
+        auto begin_track = std::get<0>(path_package._regular_path.front());
+        auto end_track = std::get<0>(path_package._regular_path.back());
 
         // connect bump to track
         if constexpr(std::is_same<InputNode, hardware::Bump>::value){
             if (!is_begin_connector_connected){
-                input_node->set_connected_track(begin_track, hardware::TOBSignalDirection::BumpToTrack);
-                begin_tracks_map.find(begin_track)->second.connect();
+                auto begin_tob_connector = begin_tracks_map.find(begin_track)->second;
+                path_package._tob_to_track.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{input_node.first, begin_tob_connector, begin_track}
+                );
                 path_l += 1;
             }
         }
         if constexpr(std::is_same<OutputNode, hardware::Bump>::value){
             if (!is_end_connector_connected){
-                output_node->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
-                end_tracks_map.find(end_track)->second.connect();
+                auto end_tob_connector = end_tracks_map.find(end_track)->second;
+                path_package._track_to_tob.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{output_node.first, end_tob_connector, end_track}
+                );
                 path_l += 1;
             }
         }
 
-        path_l += path_length(path);
-        return path_l;
+        path_l += path_length(path_package._regular_path);
+        path_package._length = path_l;
+
+        return path_package;
     }
 
-    auto MazeRouteStrategy::route_bump_to_bumps_net(hardware::Interposer* interposer, circuit::BumpToBumpsNet* net)  const -> std::usize {
+    //! 加一下node复用
+    auto MazeRouteStrategy::route_bump_to_bumps_net(
+        hardware::Interposer* interposer, circuit::BumpToBumpsNet* net
+    )  const -> void {
         debug::debug("Maze routing for bump to bumps net");
         
         auto begin_bump = net->begin_bump();
@@ -146,6 +224,7 @@ print_path(input_node, output_node, path);
         auto begin_tracks_vec = std::Vector<hardware::Track*>{};
 
         std::usize total_length {0};
+        circuit::PathPackage path_package {};
         for (auto end_bump : end_bumps) {
             // Target: route begin_bump to end_bump?
             auto begin_tracks = interposer->available_tracks_bump_to_track(begin_bump);
@@ -154,7 +233,8 @@ print_path(input_node, output_node, path);
                 begin_tracks_vec.emplace_back(t);
             }
             
-            auto path = this->route_path(interposer, begin_tracks_vec, this->track_map_to_track_set(end_tracks));
+            auto regular_path = this->route_path(interposer, begin_tracks_vec, this->track_map_to_track_set(end_tracks));
+            path_package._regular_path = regular_path;
 
             for (auto it = begin_tracks_vec.begin(); it != begin_tracks_vec.end();) {
                 if (begin_tracks.contains(*it)){
@@ -166,6 +246,10 @@ print_path(input_node, output_node, path);
             }
 
             // Get begin and end track in path
+            auto path = std::Vector<hardware::Track*> {};
+            for (auto& [t, connector]: regular_path) {
+                path.emplace_back(t);
+            }
             auto begin_track = path.front();
             auto end_track = path.back();
 
@@ -174,16 +258,22 @@ print_path(input_node, output_node, path);
                 throw FinalError("MazeRouteStrategy::route_bump_to_bumps_net(): end track not in end tracks set");
             }
 
-            end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
-            end_tracks.find(end_track)->second.connect();
+            auto end_tob_connector = end_tracks.find(end_track)->second;
+            path_package._track_to_tob.emplace_back(
+                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{end_bump, end_tob_connector, end_track}
+            );
 
             // Is the begin from begin_tracks?
             auto find_res = begin_tracks.find(begin_track);
             if (find_res != begin_tracks.end()) {
                 // If `begin_track` is in `begin_tracks`, then we find a track which should be connected
                 // with begin bump!
-                begin_bump->set_connected_track(begin_track, hardware::TOBSignalDirection::BumpToTrack);
-                find_res->second.connect();
+                // begin_bump->set_connected_track(begin_track, hardware::TOBSignalDirection::BumpToTrack);
+                // find_res->second.connect();
+                auto begin_tob_connector = begin_tracks.find(begin_track)->second;
+                path_package._tob_to_track.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{begin_bump, begin_tob_connector, begin_track}
+                );
                 total_length += 1;  // head of path is calculate seperately 
             } else {
                 // `begin_track` is not the `begin_tracks`, so we find a track in path to connected with `end_bump`
@@ -196,15 +286,18 @@ print_path(input_node, output_node, path);
             } 
 
             total_length += path_length(path);    // path_length(path) + 1(end_bump) - 1(head of path)
-//!
-print_path<hardware::Bump, hardware::Bump>(begin_bump, end_bump, path);
-//!
         }
 
-        return total_length + 1;
+        path_package._length = total_length + 1;
+
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
+
     }
 
-    auto MazeRouteStrategy::route_track_to_bumps_net(hardware::Interposer* interposer, circuit::TrackToBumpsNet* net) const -> std::usize {
+    auto MazeRouteStrategy::route_track_to_bumps_net(
+        hardware::Interposer* interposer, circuit::TrackToBumpsNet* net
+    ) const -> void {
         debug::debug("Maze routing for track to bumps net");
         
         auto begin_track = net->begin_track();
@@ -213,11 +306,17 @@ print_path<hardware::Bump, hardware::Bump>(begin_bump, end_bump, path);
         auto begin_tracks_vec = std::Vector<hardware::Track *>{begin_track};
 
         std::usize total_length {0};
+        circuit::PathPackage path_package {};
         for (auto end_bump : end_bumps) {
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
-            auto path = this->route_path(interposer, begin_tracks_vec, this->track_map_to_track_set(end_tracks));
+            auto regular_path = this->route_path(interposer, begin_tracks_vec, this->track_map_to_track_set(end_tracks));
+            path_package._regular_path = regular_path;
 
             // Get begin and end track in path
+            auto path = std::Vector<hardware::Track*> {};
+            for (auto& [t, connector]: regular_path) {
+                path.emplace_back(t);
+            }
             auto begin_track = path.front();
             auto end_track = path.back();
 
@@ -225,25 +324,31 @@ print_path<hardware::Bump, hardware::Bump>(begin_bump, end_bump, path);
             if (!end_tracks.contains(end_track)){
                 throw FinalError("MazeRouteStrategy::route_track_to_bumps_net(): end track not in end tracks set");
             }
-            end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
-            end_tracks.find(end_track)->second.connect();
+            // end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
+            // end_tracks.find(end_track)->second.connect();
+            auto end_tob_connector = end_tracks.find(end_track)->second;
+            path_package._track_to_tob.emplace_back(
+                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, end_tob_connector, end_track)
+            );
 
             // All track in path can see as `begin_track_set`
+            
             for (auto t : path) {
                 begin_tracks_vec.emplace_back(t);
             } 
 
             total_length += path_length(path);  // +1(end_bump) - 1(head)
-//!
-print_path<hardware::Track, hardware::Bump>(begin_track, end_bump, path);
-//!
         }
 
-        return total_length + 1;
+        path_package._length = total_length + 1;
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
     }
     
 
-    auto MazeRouteStrategy::route_bump_to_tracks_net(hardware::Interposer* interposer, circuit::BumpToTracksNet* net) const -> std::usize {
+    auto MazeRouteStrategy::route_bump_to_tracks_net(
+        hardware::Interposer* interposer, circuit::BumpToTracksNet* net
+    ) const -> void {
         debug::debug("Maze routing for bump to tracks net");
 
         auto begin_bump = net->begin_bump();
@@ -252,13 +357,15 @@ print_path<hardware::Track, hardware::Bump>(begin_track, end_bump, path);
         auto begin_tracks_vec = std::Vector<hardware::Track*>{};
 
         std::usize total_length {0};
+        circuit::PathPackage path_package {};
         for (auto end_track : end_tracks) {
             auto begin_tracks = interposer->available_tracks_bump_to_track(begin_bump);
             for (auto& [t, _] : begin_tracks) {
                 begin_tracks_vec.emplace_back(t);
             }
     
-            auto path = this->route_path(interposer, begin_tracks_vec, std::HashSet<hardware::Track *>{end_track});
+            auto regular_path = this->route_path(interposer, begin_tracks_vec, std::HashSet<hardware::Track *>{end_track});
+            path_package._regular_path = regular_path;
 
             for (auto it = begin_tracks_vec.begin(); it != begin_tracks_vec.end();) {
                 if (begin_tracks.contains(*it)){
@@ -270,6 +377,10 @@ print_path<hardware::Track, hardware::Bump>(begin_track, end_bump, path);
             }
 
             // Get begin and end track in path
+            auto path = std::Vector<hardware::Track*> {};
+            for (auto& [t, connector]: regular_path) {
+                path.emplace_back(t);
+            }
             auto begin_track = path.front();
 
             // Is the begin is from begin_tracks?
@@ -277,8 +388,9 @@ print_path<hardware::Track, hardware::Bump>(begin_track, end_bump, path);
             if (find_res != begin_tracks.end()) {
                 // If `begin_track` is in `begin_tracks`, mean we find a track which is should be connected
                 // with begin bump!
-                find_res->second.connect();
-                begin_bump->set_connected_track(begin_track, hardware::TOBSignalDirection::BumpToTrack);
+                path_package._tob_to_track.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(begin_bump, find_res->second, begin_track)
+                );
                 total_length += 1;
             } else {
                 // `begin_track` is not the `begin_tracks`, so we find a track in path to connected with `end_bump`
@@ -291,15 +403,16 @@ print_path<hardware::Track, hardware::Bump>(begin_track, end_bump, path);
             } 
 
             total_length += path_length(path) - 1;  // -1 for removing head of path 
-//!
-print_path<hardware::Bump, hardware::Track>(begin_bump, end_track, path);
-//!
         }
 
-        return total_length + 1;
+        path_package._length = total_length + 1;
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
     }
 
-    auto MazeRouteStrategy::route_tracks_to_bumps_net(hardware::Interposer* interposer, circuit::TracksToBumpsNet* net) const -> std::usize {
+    auto MazeRouteStrategy::route_tracks_to_bumps_net(
+        hardware::Interposer* interposer, circuit::TracksToBumpsNet* net
+    ) const -> void {
         debug::debug("Maze routing for tracks to bumps net");
         
         auto& begin_tracks = net->begin_tracks();
@@ -311,40 +424,46 @@ print_path<hardware::Bump, hardware::Track>(begin_bump, end_track, path);
         }
 
         std::usize total_length {0};
+        circuit::PathPackage path_package {};
         for (auto end_bump : end_bumps) {
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
-            auto path = this->route_path(interposer, begin_tracks_vec, track_map_to_track_set(end_tracks));
-
+            auto regular_path = this->route_path(interposer, begin_tracks_vec, track_map_to_track_set(end_tracks));
+            
+            auto path = std::Vector<hardware::Track*> {};
+            for (auto& [t, connector]: regular_path) {
+                path.emplace_back(t);
+            }
             auto end_track = path.back();
             if (!end_tracks.contains(end_track)){
                 throw FinalError("MazeRouteStrategy::route_tracks_to_bumps_net(): end track not in end tracks set");
             }
-            end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
-            end_tracks.find(end_track)->second.connect();
+            // end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
+            // end_tracks.find(end_track)->second.connect();
+            auto end_tob_connector = end_tracks.find(end_track)->second;
+            path_package._track_to_tob.emplace_back(
+                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, end_tob_connector, end_track)
+            );
 
             for (auto t : path) {
                 begin_tracks_vec.emplace_back(t);
             }
 
             total_length += (path_length(path) + 1);
-//!
-print_path<hardware::Track, hardware::Bump>(path[0], end_bump, path);
-//!
         }
 
-        return total_length;
+        path_package._length = total_length;
+        this->set_connector_state(path_package);
+        net->set_pathpackage(path_package);
     }
 
-    auto MazeRouteStrategy::route_sync_net(hardware::Interposer* ptr_interposer, circuit::SyncNet* ptr_sync_net) const -> std::usize
+    auto MazeRouteStrategy::route_sync_net(
+        hardware::Interposer* ptr_interposer, circuit::SyncNet* ptr_sync_net
+    ) const -> void
     try{
         // three: [bump_to_bump, track_to_bump, bump_to_track]
 
         debug::debug("Maze routing for synchronized nets");
         
-        std::Array<std::Vector<routed_path>, 3> three_paths {};  
-        std::Array<std::Vector<std::Option<hardware::Bump*>>, 3> three_end_bumps {};    
-        std::Array<std::Vector<std::HashMap<hardware::Track*,\
-                                            hardware::TOBConnector>>, 3> three_end_track_to_tob_maps {};    // connections between track and TOB
         std::HashSet<hardware::Track*> occupied_tracks_vec {}; 
         std::usize max_length {0};
 
@@ -361,47 +480,50 @@ print_path<hardware::Track, hardware::Bump>(path[0], end_bump, path);
         // the first round of routing
         if (ptr_sync_net->btbnets().size() > 0){
             auto current_len = sync_preroute<circuit::BumpToBumpNet>(
-                ptr_interposer, ptr_sync_net->btbnets(),
-                three_paths.at(0), three_end_bumps.at(0), three_end_track_to_tob_maps.at(0),
-                occupied_tracks_vec
+                ptr_interposer, ptr_sync_net->btbnets(), occupied_tracks_vec
             );
             max_length = current_len > max_length ? current_len : max_length;
         }
         if (ptr_sync_net->ttbnets().size() > 0){
             auto current_len = sync_preroute<circuit::TrackToBumpNet>(
-                ptr_interposer, ptr_sync_net->ttbnets(),
-                three_paths.at(1), three_end_bumps.at(1), three_end_track_to_tob_maps.at(1),
-                occupied_tracks_vec
+                ptr_interposer, ptr_sync_net->ttbnets(), occupied_tracks_vec
             );
             max_length = current_len > max_length ? current_len : max_length;
         }
         if (ptr_sync_net->bttnets().size() > 0){
             auto current_len = sync_preroute<circuit::BumpToTrackNet>(
-                ptr_interposer, ptr_sync_net->bttnets(),
-                three_paths.at(2), three_end_bumps.at(2), three_end_track_to_tob_maps.at(2),
-                occupied_tracks_vec
+                ptr_interposer, ptr_sync_net->bttnets(), occupied_tracks_vec
             );
             max_length = current_len > max_length ? current_len : max_length;
         }
 
         // reroute for adjusting length
+        auto btb_packages = std::Vector<circuit::PathPackage*> {};
+        auto ttb_packages = std::Vector<circuit::PathPackage*> {};
+        auto btt_packages = std::Vector<circuit::PathPackage*> {};
+        for (auto& net: ptr_sync_net->btbnets()) {
+            btb_packages.emplace_back(&net->pathpackage());
+        }
+        for (auto& net: ptr_sync_net->ttbnets()) {
+            ttb_packages.emplace_back(&net->pathpackage());
+        }
+        for (auto& net: ptr_sync_net->bttnets()) {
+            btt_packages.emplace_back(&net->pathpackage());
+        }
         while (true){
             debug::debug("Route BumpToBump Synchronized Net");
             auto [success, ml] = sync_reroute(
-                ptr_interposer, three_paths.at(0), three_end_bumps.at(0), three_end_track_to_tob_maps.at(0),
-                2, max_length
+                ptr_interposer, btb_packages, max_length
             );
             if (success){
                 debug::debug("Route TrackToBump Synchronized Net");
                 auto [success, ml] = sync_reroute(
-                    ptr_interposer, three_paths.at(1), three_end_bumps.at(1), three_end_track_to_tob_maps.at(1),
-                    1, max_length
+                    ptr_interposer, ttb_packages, max_length
                 );
                 if (success){
                     debug::debug("Route BumpToTrack Synchronized Net");
                     auto [success, ml] = sync_reroute(
-                        ptr_interposer, three_paths.at(2), three_end_bumps.at(2), three_end_track_to_tob_maps.at(2),
-                        1, max_length
+                        ptr_interposer, btt_packages, max_length
                     );
                     max_length = ml;
                     if (success){
@@ -421,11 +543,21 @@ print_path<hardware::Track, hardware::Bump>(path[0], end_bump, path);
                 continue;
             }
         }
-//!
-print_sync_path(ptr_sync_net);
-//!
         std::usize total_nets {ptr_sync_net->btbnets().size() + ptr_sync_net->bttnets().size() + ptr_sync_net->ttbnets().size()};
-        return total_nets * max_length; 
+        std::usize total_length = total_nets * max_length;
+
+        // check
+        std::usize sum {0};
+        for (auto& net: ptr_sync_net->ttbnets()) {
+            sum += net->pathpackage()._length;
+        }
+        for (auto& net: ptr_sync_net->btbnets()) {
+            sum += net->pathpackage()._length;
+        }
+        for (auto& net: ptr_sync_net->bttnets()) {
+            sum += net->pathpackage()._length;
+        }
+        assert(sum == total_length);
     }
     catch (const RetryExpt& e){
         throw e;
@@ -454,11 +586,10 @@ print_sync_path(ptr_sync_net);
         const std::Vector<hardware::Track*>& begin_tracks,
         const std::HashSet<hardware::Track*>& end_tracks,
         const std::HashSet<hardware::Track*>& occupied_tracks
-    ) const -> std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>> {
+    ) const -> algo::routed_path {
         using namespace hardware;
 
         auto queue = std::Queue<Track*>{};
-        // HashMap<Track, Option<(Track, Connector)>>
         auto prev_track_infos = 
             std::HashMap<Track*, std::Option<std::Tuple<Track*, COBConnector>>>{};
 
@@ -509,32 +640,20 @@ print_sync_path(ptr_sync_net);
         throw RetryExpt("MazeRouteStrategy::maze_search(): path not found");
     }
 
+    // return routed path with positive sequence
     auto MazeRouteStrategy::route_path(
         hardware::Interposer* interposer, 
         const std::Vector<hardware::Track*>& begin_tracks,
         const std::HashSet<hardware::Track*>& end_tracks
-    ) const -> std::Vector<hardware::Track*> 
+    ) const -> algo::routed_path
     try {
         std::HashSet<hardware::Track*> empty {};
-        auto path_info = maze_search(interposer, begin_tracks, end_tracks, empty);
+        auto path_info = maze_search(interposer, begin_tracks, end_tracks, empty);  // negative sequence
 
-        auto path = std::Vector<hardware::Track*>{};
-
-        hardware::Track* prev_track = nullptr;      // the track after this
-        for (auto iter = path_info.rbegin(); iter != path_info.rend(); ++iter) {               
-            auto [track, connector] = *iter;       
-            path.emplace_back(track);
-
-            if (connector.has_value()) {
-                connector->connect();                
-            }
-
-            if (prev_track != nullptr) {
-                track->set_connected_track(prev_track);
-            }
-
-            prev_track = track;     
-        }
+        auto path = algo::routed_path {};
+        std::transform(path_info.rbegin(), path_info.rend(), std::back_inserter(path), [](const auto& p){
+            return p;
+        });
 
         return path;
     }
@@ -583,9 +702,6 @@ print_sync_path(ptr_sync_net);
     auto MazeRouteStrategy::sync_preroute(
             hardware::Interposer* interposer,
             std::Vector<std::Box<Net>>& sync_net,
-            std::Vector<routed_path>& paths,
-            std::Vector<std::Option<hardware::Bump*>>& end_bumps,
-            std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>>& end_track_to_tob_maps,
             std::HashSet<hardware::Track*>& occupied_tracks_vec 
         ) const -> std::usize{
         static_assert(
@@ -607,6 +723,7 @@ print_sync_path(ptr_sync_net);
 
         for (auto& uptr_net: sync_net){
             auto net = uptr_net.get();
+            circuit::PathPackage package {};
             
             // collect begin bumps & begin tracks
             if constexpr (std::is_same<Net, circuit::BumpToBumpNet>::value || std::is_same<Net, circuit::BumpToTrackNet>::value){
@@ -650,23 +767,14 @@ print_sync_path(ptr_sync_net);
             }
 
             // route and connect
-            auto path_info = maze_search(interposer, begin_tracks_vec, end_tracks_set, occupied_tracks_vec); // notice: negative sequence
-                                                                                        //  |
-            auto path = std::Vector<hardware::Track*>{};                                //  V
-            hardware::Track* prev_track = nullptr;                                      // prev_track is the track before this
-            for (auto iter = path_info.rbegin(); iter != path_info.rend(); ++iter) {    // get tracks in positive sequence        
-                auto [track, connector] = *iter;       
-                path.emplace_back(track);
-
-                if (connector.has_value()) {
-                    connector->connect();                
-                }
-
-                if (prev_track != nullptr) {
-                    track->set_connected_track(prev_track);
-                }
-
-                prev_track = track;     
+            auto path_info = maze_search(interposer, begin_tracks_vec, end_tracks_set, occupied_tracks_vec); // negative sequence
+            for(auto iter = path_info.rbegin(); iter != path_info.rend(); ++iter) { // positive sequence
+                package._regular_path.emplace_back(*iter);
+            }
+                                                                                        
+            auto path = std::Vector<hardware::Track*>{};                                                                 
+            for (auto& [t, connector]: package._regular_path) {    // get tracks in positive sequence        
+                path.emplace_back(t);
             }
 
             // connect begin bump / end bump
@@ -675,72 +783,60 @@ print_sync_path(ptr_sync_net);
                 if (!begin_track_to_tob_map.contains(begin_track)){
                     throw FinalError("MazeRouteStrategy::sync_preroute(): begin track not in begin track map");
                 }
-                begin_track_to_tob_map.find(begin_track)->second.connect();
-                begin_bump->set_connected_track(begin_track, hardware::TOBSignalDirection::BumpToTrack);
+                auto begin_tob_connector = begin_track_to_tob_map.find(begin_track)->second;
+                package._tob_to_track.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(begin_bump, begin_tob_connector, begin_track)
+                );
             }
             if (std::is_same<Net, circuit::BumpToBumpNet>::value || std::is_same<Net, circuit::TrackToBumpNet>::value){
                 auto end_track = path.back();
                 if (!end_track_to_tob_map.contains(end_track)){
                     throw FinalError("MazeRouteStrategy::sync_preroute(): end track not in end track map");
                 }
-                end_track_to_tob_map.find(end_track)->second.connect();
-                end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
-
-                end_bumps.emplace_back(end_bump);
-                end_track_to_tob_maps.emplace_back(std::HashMap<hardware::Track*, hardware::TOBConnector>{*end_track_to_tob_map.find(end_track)});
+                auto end_tob_connector = end_track_to_tob_map.find(end_track)->second;
+                package._track_to_tob.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, end_tob_connector, end_track)
+                );
             }
 
-            routed_path reversed_path_info {};     // collect whole path in positive sequence
-            std::transform(path_info.rbegin(), path_info.rend(), std::back_inserter(reversed_path_info), [](auto& pair) {
-                return pair; 
-            });
-            paths.emplace_back(reversed_path_info);
+            //calculate length
+            if constexpr(std::is_same<Net, circuit::BumpToBumpNet>::value){
+                package._length = path_length(package._regular_path) + 2;
+            }
+            else if constexpr(std::is_same<Net, circuit::TrackToBumpNet>::value || std::is_same<Net, circuit::BumpToTrackNet>::value){
+                package._length = path_length(package._regular_path) + 1;
+            }
+            
+            this->set_connector_state(package);
+            uptr_net->set_pathpackage(package);
         }
         
         // calculate length
         std::usize max_length = 0;
-        for (auto& path: paths) {
-            auto current_length = path_length(path);
-            max_length = max_length < current_length ? current_length : max_length;
+        for (auto& uptr_net: sync_net) {
+            auto& pathpackage = uptr_net->pathpackage();
+            max_length = max_length < pathpackage._length ? pathpackage._length : max_length;
         }
-        if constexpr(std::is_same<Net, circuit::BumpToBumpNet>::value){
-            return max_length + 2;
-        }
-        else if constexpr(std::is_same<Net, circuit::TrackToBumpNet>::value || std::is_same<Net, circuit::BumpToTrackNet>::value){
-            return max_length + 1;
-        }
+        
+        return max_length;
     }
 
+    // reroute for btb/btt/ttb net
     auto MazeRouteStrategy::sync_reroute(
-        hardware::Interposer* interposer,
-        std::Vector<routed_path>& paths,
-        const std::Vector<std::Option<hardware::Bump*>>& end_bumps,
-        std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>>& end_track_to_tob_maps,
-        std::usize bump_extra_length, std::usize max_length
+        hardware::Interposer* interposer, std::Vector<circuit::PathPackage*>& packages, std::usize max_length
     ) const -> std::tuple<bool, std::usize>{
-        std::Vector<routed_path*> nets_to_be_rerouted {};
-        std::Vector<std::Option<hardware::Bump*>> related_end_bumps {};
-        std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>*> related_maps {};
+        std::Vector<circuit::PathPackage*> nets_to_be_rerouted {};
 
         // collect nets to be rerouted, along with their end bumps and track to tob maps
-        for (std::usize i = 0; i < paths.size(); ++i) {
-            auto& path = paths.at(i);
-            if (path_length(path) + bump_extra_length < max_length) {
-                nets_to_be_rerouted.emplace_back((&path));
-                if (end_bumps.size() > 0){
-                    related_end_bumps.emplace_back(end_bumps.at(i));
-                }
-                if (end_track_to_tob_maps.size() > 0){
-                    related_maps.push_back(&end_track_to_tob_maps.at(i));
-                }
+        for (auto& package: packages) {
+            if (package->_length < max_length) {
+                nets_to_be_rerouted.push_back(package);
             }
         }
 
         // reroute
         if (nets_to_be_rerouted.size() > 0) {
-            auto [success, ml] = _rerouter->bus_reroute(
-                interposer, nets_to_be_rerouted, max_length, related_end_bumps, related_maps, bump_extra_length
-            );
+            auto [success, ml] = _rerouter->bus_reroute(interposer, nets_to_be_rerouted, max_length);
             
             if (success){   // routing done with ml == max_length
                 if (max_length != ml){
@@ -757,71 +853,18 @@ print_sync_path(ptr_sync_net);
         }
     }
 
-    auto MazeRouteStrategy::print_sync_path(circuit::SyncNet* sync_net) const -> void {
-        debug::debug("\nPrinting synchronized nets path...");
-        auto& btbnets {sync_net->btbnets()};
-        auto& bttnets {sync_net->bttnets()};
-        auto& ttbnets {sync_net->ttbnets()};
-
-        if (btbnets.size() > 0) {
-            debug::debug("BumpToBump sync nets:");
-            for (auto& net : btbnets) {
-                auto begin_bump {net->begin_bump()};
-                auto end_bump {net->end_bump()};
-                auto path {begin_bump->connected_track()->track_path()};
-                debug::debug_fmt("Begin_bump: {}", begin_bump->coord());
-                for (auto& t: path){
-                    debug::debug_fmt("{}", t->coord());
-                }
-                debug::debug_fmt("End_bump: {}", end_bump->coord());
+    //! 这个要改，每给出一个 cob_connector / tob_connector 就要 set 状态，而不是放到最后
+    auto MazeRouteStrategy::set_connector_state(circuit::PathPackage& package) const -> void {
+        for (auto& [t, cobconnector]: package._regular_path) {
+            if (cobconnector.has_value()) {
+                cobconnector.value().suspend();
             }
-            debug::debug("\n");
         }
-
-        if (bttnets.size() > 0) {
-            debug::debug("BumpToTrack sync nets:");
-            for (auto& net : bttnets) {
-                auto begin_bump {net->begin_bump()};
-                auto path {begin_bump->connected_track()->track_path()};
-                debug::debug_fmt("Begin_bump: ({}, index={})", begin_bump->coord(), begin_bump->index());
-                for (auto& t: path){
-                    debug::debug_fmt("{}", t->coord());
-                }
-            }
-            debug::debug("\n");
+        for (auto& [bump, tobconnector, track]: package._tob_to_track) {
+            tobconnector.give_out();
         }
-
-        if (ttbnets.size() > 0) {
-            debug::debug("TrackToBump sync nets:");
-            for (auto& net : ttbnets) {
-                auto begin_track {net->begin_track()};
-                auto end_bump {net->end_bump()};
-                auto path {begin_track->track_path()};
-                for (auto& t: path){
-                    debug::debug_fmt("{}", t->coord());
-                }
-                debug::debug_fmt("End_bump: ({}, index={})", end_bump->coord(), end_bump->index());
-            }
-            debug::debug("\n");
+        for (auto& [bump, tobconnector, track]: package._track_to_tob) {
+            tobconnector.give_out();
         }
-    }
-
-    template<class InputNode, class OutputNode>
-    auto MazeRouteStrategy::print_path(
-        InputNode* input_node, OutputNode* output_node, const std::Vector<hardware::Track*>& path
-    ) const -> void {
-        debug::debug("\nPrinting path...");
-        if constexpr (std::is_same<InputNode, hardware::Bump>::value){
-            debug::debug_fmt("Begin_bump: ({}, index={})", input_node->coord(), input_node->index());
-        }
-
-        for (auto& t: path){
-            debug::debug_fmt("{}", t->coord());
-        }
-
-        if constexpr (std::is_same<OutputNode, hardware::Bump>::value){
-            debug::debug_fmt("End_bump: ({}, index={})", output_node->coord(), output_node->index());
-        }
-        debug::debug("\n");
     }
 }

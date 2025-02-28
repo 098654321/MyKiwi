@@ -21,6 +21,10 @@ namespace kiwi::hardware{
     class COBConnector;
 }
 
+namespace kiwi::circuit {
+    struct PathPackage;
+}
+
 namespace kiwi::algo {
 
     using routed_path = std::Vector<std::Tuple<kiwi::hardware::Track*, std::Option<kiwi::hardware::COBConnector>>>;
@@ -30,21 +34,24 @@ namespace kiwi::algo {
         MazeRouteStrategy(): _rerouter(std::make_unique<MazeRerouter>(MazeRerouter{})) {}
 
     public:
-        virtual auto route_bump_to_bump_net(hardware::Interposer*, circuit::BumpToBumpNet*)  const -> std::usize override;
-        virtual auto route_track_to_bump_net(hardware::Interposer*, circuit::TrackToBumpNet*) const -> std::usize override;
-        virtual auto route_bump_to_track_net(hardware::Interposer*, circuit::BumpToTrackNet*) const -> std::usize override;
+        virtual auto route_bump_to_bump_net(hardware::Interposer*, circuit::BumpToBumpNet*)  const -> void override;
+        virtual auto route_track_to_bump_net(hardware::Interposer*, circuit::TrackToBumpNet*) const -> void override;
+        virtual auto route_bump_to_track_net(hardware::Interposer*, circuit::BumpToTrackNet*) const -> void override;
 
-        virtual auto route_bump_to_bumps_net(hardware::Interposer*, circuit::BumpToBumpsNet*)  const -> std::usize override;
-        virtual auto route_track_to_bumps_net(hardware::Interposer*, circuit::TrackToBumpsNet*) const -> std::usize override;
-        virtual auto route_bump_to_tracks_net(hardware::Interposer*, circuit::BumpToTracksNet*) const -> std::usize override;
+        virtual auto route_bump_to_bumps_net(hardware::Interposer*, circuit::BumpToBumpsNet*)  const -> void override;
+        virtual auto route_track_to_bumps_net(hardware::Interposer*, circuit::TrackToBumpsNet*) const -> void override;
+        virtual auto route_bump_to_tracks_net(hardware::Interposer*, circuit::BumpToTracksNet*) const -> void override;
 
-        virtual auto route_tracks_to_bumps_net(hardware::Interposer*, circuit::TracksToBumpsNet*) const -> std::usize override;
+        virtual auto route_tracks_to_bumps_net(hardware::Interposer*, circuit::TracksToBumpsNet*) const -> void override;
 
-        virtual auto route_sync_net(hardware::Interposer*, circuit::SyncNet*) const -> std::usize override;
+        virtual auto route_sync_net(hardware::Interposer*, circuit::SyncNet*) const -> void override;
     
     private:
         template<class InputNode, class OutputNode>
-        auto route_node_to_node_net(hardware::Interposer* interposer, InputNode* input_node, OutputNode* output_node) const -> std::usize;
+        auto route_node_to_node_net(
+            hardware::Interposer* interposer, 
+            std::Pair<InputNode*, std::Vector<hardware::Track*>>, std::Pair<OutputNode*, std::HashSet<hardware::Track*>> 
+        ) const -> circuit::PathPackage;
     
     // simple routing functions
     private:
@@ -53,13 +60,15 @@ namespace kiwi::algo {
             const std::Vector<hardware::Track*>& begin_tracks,
             const std::HashSet<hardware::Track*>& end_tracks,
             const std::HashSet<hardware::Track*>& occupied_tracks
-        ) const -> std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>>;
+        ) const -> algo::routed_path;
     
         auto route_path(
             hardware::Interposer* interposer, 
             const std::Vector<hardware::Track*>& begin_tracks,
             const std::HashSet<hardware::Track*>& end_tracks
-        ) const -> std::Vector<hardware::Track*>;
+        ) const -> algo::routed_path;
+
+        auto set_connector_state(circuit::PathPackage& package) const -> void;
 
         auto track_map_to_track_vec(
             const std::HashMap<hardware::Track*, 
@@ -84,25 +93,15 @@ namespace kiwi::algo {
         auto sync_preroute(
             hardware::Interposer* interposer,
             std::Vector<std::Box<Net>>& sync_net,
-            std::Vector<routed_path>& paths,
-            std::Vector<std::Option<hardware::Bump*>>& end_bumps,
-            std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>>& end_track_to_tob_maps,
             std::HashSet<hardware::Track*>& occupied_tracks_vec
         ) const -> std::usize;
 
         // the path is already stored in ascending order with vector index when return 
         auto sync_reroute(
             hardware::Interposer* interposer,
-            std::Vector<routed_path>& paths,
-            const std::Vector<std::Option<hardware::Bump*>>& end_bumps,
-            std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>>& end_track_to_tob_maps,
-            std::usize bump_length, std::usize max_length
+            std::Vector<circuit::PathPackage*>& packages,
+            std::usize max_length
         ) const -> std::tuple<bool, std::usize>;
-
-        auto print_sync_path(circuit::SyncNet*) const -> void;
-
-        template<class InputNode, class OutputNode>
-        auto print_path(InputNode* input_node, OutputNode* output_node, const std::Vector<hardware::Track*>& path) const -> void;
     
     private:
         std::Box<MazeRerouter> _rerouter;

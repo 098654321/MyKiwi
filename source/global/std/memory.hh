@@ -10,4 +10,7 @@ namespace std {
     template <typename T>
     using Box = unique_ptr<T>;
 
+    template <typename T>
+    using Weak = weak_ptr<T>;
+
 }

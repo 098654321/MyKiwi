@@ -29,6 +29,8 @@ namespace kiwi::hardware {
         );
 
         auto connect() -> void;
+        auto give_out() -> void;
+        auto stay_inside() -> void;
         auto disconnect() -> void;
 
         auto bump_index() const -> std::usize { return this->_bump_index; }

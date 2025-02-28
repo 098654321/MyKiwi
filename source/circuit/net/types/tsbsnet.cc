@@ -16,8 +16,8 @@ namespace kiwi::circuit {
         }
     }
 
-    auto TracksToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> std::usize {
-        return strategy.route_tracks_to_bumps_net(interposer, this);
+    auto TracksToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
+        strategy.route_tracks_to_bumps_net(interposer, this);
     }
 
     auto TracksToBumpsNet::update_priority(float bias) -> void {
@@ -74,5 +74,33 @@ namespace kiwi::circuit {
 
     auto TracksToBumpsNet::port_number() const -> std::usize {
         return this->_begin_tracks.size() + this->_end_bumps.size();
+    }
+
+    auto TracksToBumpsNet::check_relativity(const hardware::Bump* node) const -> const Net* {
+        for (auto bump: this->_end_bumps) {
+            if (bump->coord() == node->coord()) {
+                return this;
+            }
+        }
+        return nullptr;
+    }
+
+    auto TracksToBumpsNet::check_relativity(const hardware::Track* node) const -> const Net* {
+        for (auto track: this->_begin_tracks) {
+            if (track->coord() == node->coord()) {
+                return this;
+            }
+        }
+        return nullptr;
+    }
+
+    auto TracksToBumpsNet::search_related_nets(std::Vector<Net*>& nets) -> void {
+        clear_related_nets();
+        for (auto& track: this->_begin_tracks) {
+            this->_related_nets_track.emplace(track, search_nets_node<hardware::Track>(track, nets));
+        }
+        for (auto& bump: this->_end_bumps) {
+            this->_related_nets_bump.emplace(bump, search_nets_node<hardware::Bump>(bump, nets));
+        }
     }
 }
