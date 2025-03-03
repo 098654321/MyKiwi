@@ -46,5 +46,8 @@ namespace std {
 
     template <std::size_t N>
     using Bits = bitset<N>;
+
+    template <typename T>
+    using Deque = std::deque<T>;
     
 }

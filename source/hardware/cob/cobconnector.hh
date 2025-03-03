@@ -19,8 +19,10 @@ namespace kiwi::hardware {
             COBSelRegister* c_to_t_sel_reg
         );
 
+        auto is_occupied() -> bool;
         auto is_connected() -> bool;
         auto connect() -> void;
+        auto suspend() -> void;
         auto disconnect() -> void;
 
         auto from_dir() const -> COBDirection { return this->_from_dir; }

@@ -32,10 +32,20 @@ namespace kiwi::algo {
     class RetryExpt: public RouteExpt {
     public:
         RetryExpt(const std::string& msg) noexcept
-        : RouteExpt(msg)
+        : RouteExpt(msg), _net{nullptr}
+        {}
+        RetryExpt(const std::string& msg, circuit::Net* net) noexcept
+        : RouteExpt(msg), _net{net}
         {}
 
         ~RetryExpt() noexcept {}
+
+    public:
+        auto net() const -> circuit::Net* {return this->_net;}
+        auto set_net(circuit::Net* net) -> void {this->_net = net;}
+    
+    private:
+        circuit::Net* _net;
     };
 
     class FinalError: public RouteExpt {

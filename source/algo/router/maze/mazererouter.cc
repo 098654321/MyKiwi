@@ -69,37 +69,26 @@ namespace kiwi::algo{
     }
 
     auto MazeRerouter::bus_reroute(
-            hardware::Interposer* interposer, std::Vector<routed_path*>& path_ptrs,
-            std::usize max_length, const std::Vector<std::Option<hardware::Bump*>>& end_bumps,
-            std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>*>& end_track_to_tob_maps,
-            std::usize bump_length
+            hardware::Interposer* interposer, std::Vector<circuit::PathPackage*>& path_ptrs,
+            std::usize max_length
         ) const -> std::tuple<bool, std::usize>{
 
         for (std::usize i = 0; i < path_ptrs.size(); ++i){
             auto path_ptr {path_ptrs.at(i)};
-            std::HashMap<hardware::Track*, hardware::TOBConnector>* end_track_to_tob_map {nullptr};
-            if(end_track_to_tob_maps.size() > 0){
-                end_track_to_tob_map = end_track_to_tob_maps.at(i);
-            }
+            hardware::Bump* end_bump {nullptr};
+            std::usize bump_length = 0; // end bump
 
             std::HashSet<hardware::Track*> end_tracks_set {};
             std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> possible_end_tracks_map{};
 
             // if there is an end bump, then the tob state will be updated after removing end track
             // --> possible end tracks will be changed
-            if (end_track_to_tob_map != nullptr){
-                remove_tracks(path_ptr, end_track_to_tob_map);
+            if (!path_ptr->_track_to_tob.empty()){
+                remove_tracks(path_ptr);
 
-                // assert (path_ptrs.size() == end_bumps.size());
-                if (path_ptrs.size() != end_bumps.size()){
-                    throw FinalError("MazeRerouter::reroute: path vector is not end_bumps.size()");
-                }
-                auto end_bump {end_bumps.at(i)};
-                // assert(end_bump.has_value());
-                if (!end_bump.has_value()){
-                    throw FinalError("MazeRerouter::reroute: end bump not found");
-                }
-                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump.value());
+                end_bump = std::get<0>(path_ptr->_track_to_tob[0]);
+                bump_length = 1;
+                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump);
                 for (auto& [track, _]: possible_end_tracks_map){
                     if (track && !end_tracks_set.contains(track)){
                         end_tracks_set.emplace(track);
@@ -107,8 +96,8 @@ namespace kiwi::algo{
                 }
             }
             else{
-                end_tracks_set.emplace(std::get<0>(path_ptr->back()));
-                remove_tracks(path_ptr, end_track_to_tob_map);
+                end_tracks_set.emplace(std::get<0>(path_ptr->_regular_path.back()));
+                remove_tracks(path_ptr);
             }
 
             // if failed, then routing failed  
@@ -117,14 +106,13 @@ namespace kiwi::algo{
             }
 
             // construct a path-tree for reroute
-            auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->back()), std::get<1>(path_ptr->back()).value()))};
+            auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value()))};
             auto [success, ml] = refind_path(interposer, tree, path_ptr, max_length, end_tracks_set, bump_length);
             max_length = ml;
 
             // connect end bump to end track
-            if (end_track_to_tob_map != nullptr){
-                auto end_track {std::get<0>(path_ptr->back())};
-                auto end_bump {end_bumps.at(i)};
+            if (end_bump != nullptr){
+                auto end_track {std::get<0>(path_ptr->_regular_path.back())};
                 if (!check_found(end_tracks_set, end_track)){
                     throw FinalError("MazeRerouter::reroute: end track not found");
                 }
@@ -136,12 +124,13 @@ namespace kiwi::algo{
                 for (auto& t: possible_end_tracks_map){
                     auto& [track, connector] = t;
                     if (track->coord() == end_track->coord()){
-                        connector.connect();
-                        *end_track_to_tob_maps.at(i) = std::HashMap<hardware::Track*, hardware::TOBConnector>{t};
+                        path_ptr->_track_to_tob.emplace_back(
+                            std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, connector, end_track)
+                        );
+                        connector.give_out();
                         break;
                     }
                 }
-                end_bump.value()->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
             }
 
             if (!success){
@@ -152,45 +141,35 @@ namespace kiwi::algo{
     }
 
     auto MazeRerouter::remove_tracks(
-        routed_path* path_ptr, std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector>* end_tracks, int cut_rate
+        circuit::PathPackage* path_ptr, int cut_rate
     ) const -> void{
+        // check if the net is a btb/btt/ttb net, and only has two port
+        auto port_num = path_ptr->_tob_to_track.size() + path_ptr->_track_to_tob.size();
+        assert(port_num <= 2 && port_num >= 1);
+        assert(path_ptr->_regular_path.size() == path_ptr->_length - port_num);
+
         //remove end TOBConnector
-        if (end_tracks != nullptr){
-            auto [end_track, connector] {path_ptr->back()};
-
-            bool found = false;
-            for (auto& t: *end_tracks){
-                auto& [track, connector] = t;
-                if (track->coord() == end_track->coord()){
-                    found = true;
-                    connector.disconnect();
-                    break;
-                }
-            }
-
-            auto end_bump {end_track->connected_bump()};
-            if (!end_bump.has_value()){
-                throw FinalError("MazeRerouter::remove_tracks: end bump not found");
-            }
-            (*end_bump)->disconnect_track(end_track);
+        if (!path_ptr->_track_to_tob.empty()){
+            assert(path_ptr->_track_to_tob.size() == 1);
+            std::get<1>(path_ptr->_track_to_tob[0]).stay_inside();
+            path_ptr->_track_to_tob.clear();
+            path_ptr->_length -= 1;
         }
         
-        auto path_length {path_ptr->size()};        // notice: do not use function path_length() here
+        // notice: do not use function path_length() here
         hardware::Track* next_track = nullptr;
-        std::usize cut_length = path_length > 1 ? ((path_length * cut_rate) < 1 ? 1 : int(path_length * cut_rate)) : 0;
-        std::usize remain_length {path_length - cut_length};
-        for(std::usize i = remain_length; i < path_length; ++i){
-            auto& pair = (*path_ptr).at(i);
-            auto& [track, connector] = pair;
-            next_track = track->prev_track();
-            if (next_track){
-                track->disconnect_track(next_track);
-            }
-            if (connector.has_value()){
+        auto track_number = path_ptr->_regular_path.size();
+        std::usize cut_length = track_number > 1 ? ((track_number * cut_rate) < 1 ? 1 : int(track_number * cut_rate)) : 0;
+        std::usize remain_length {track_number - cut_length};
+
+        for (std::usize i = remain_length; i < track_number; ++i) {
+            auto& [t, connector] = path_ptr->_regular_path[i];
+            if (connector.has_value()) {
                 connector.value().disconnect();
             }
         }
-        path_ptr->resize(remain_length);
+        path_ptr->_regular_path.resize(remain_length);
+        path_ptr->_length -= cut_length;
     }
 
     auto MazeRerouter::Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize{
@@ -284,7 +263,7 @@ namespace kiwi::algo{
     }
 
     auto MazeRerouter::refind_path(
-            hardware::Interposer* interposer, Tree& tree, routed_path* path_ptr,\
+            hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
             std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
         ) const -> std::tuple<bool, std::usize>{
         std::Vector<std::Rc<Node>> queue {tree._root};
@@ -307,58 +286,24 @@ debug::debug("Rerouting...");
                 auto temp_node_list {tree.backtrace(node_sptr)};
                 auto temp_path {_node_track_interface.nodes_trackify(temp_node_list)};
                 auto temp_path_length {path_length(temp_path)};
-                auto current_path_length {path_length(*path_ptr)};
-
-                // find a longer path
-                if (current_path_length + temp_path_length + bump_length > max_length){
-                    // connect
-                    hardware::Track* prev_track = nullptr;
-                    for (auto it = temp_path.begin(); it != temp_path.end(); ++it){
-                        auto& [track, connector] = *it;
-                        if (prev_track != nullptr){
-                            track->set_connected_track(prev_track);
-                        }
-                        if (connector.has_value()){
-                            connector.value().connect();
-                        }
-                        prev_track = track;
-                    }   
-                    auto prev_path_tail {std::get<0>(path_ptr->back())};
-                    auto temp_path_head {std::get<0>(temp_path.front())};
-                    temp_path_head->set_connected_track(prev_path_tail);
-                    // add to path
-                    for (auto& tp: temp_path){
-                        path_ptr->push_back(tp);
+                // add to path, and set cobconnector to "suspend" state
+                for (auto& tp: temp_path){
+                    path_ptr->_regular_path.emplace_back(tp);
+                    auto& [_, cobconnector] = tp;
+                    if(cobconnector.has_value()) {
+                        cobconnector.value().suspend();
                     }
+                }
+                path_ptr->_length += temp_path_length + bump_length;
 //!
 // print_path(path_ptr);
 //!
-                    return {false, path_length(*path_ptr) + bump_length};
+                // find a longer path
+                if (path_ptr->_length + temp_path_length + bump_length > max_length){
+                    return {false, path_ptr->_length};
                 }
                 // find a equal path
-                else if(current_path_length + temp_path_length + bump_length == max_length){
-                    // connect
-                    hardware::Track* prev_track = nullptr;
-                    for (auto it = temp_path.begin(); it != temp_path.end(); ++it){
-                        auto& [track, connector] = *it;
-                        if (prev_track != nullptr){
-                            track->set_connected_track(prev_track);
-                        }
-                        if (connector.has_value()){
-                            connector.value().connect();
-                        }
-                        prev_track = track;
-                    }
-                    auto prev_path_tail {std::get<0>(path_ptr->back())};
-                    auto temp_path_head {std::get<0>(temp_path.front())};
-                    temp_path_head->set_connected_track(prev_path_tail);
-                    // add to path
-                    for (auto& tp: temp_path){
-                        path_ptr->push_back(tp);
-                    }
-//!
-// print_path(path_ptr);
-//!
+                else if(path_ptr->_length + temp_path_length + bump_length == max_length){
                     return {true, max_length};
                 }
                 // find a shorter path

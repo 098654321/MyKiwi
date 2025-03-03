@@ -1,0 +1,18 @@
+#pragma once
+
+#include <algo/router/command.hh>
+
+namespace kiwi::algo {
+
+class Route: public Command {
+public:
+    Route();
+    ~Route() = default;
+
+public:
+    auto execute(hardware::Interposer*, RouteEngine&, const RouteStrategy&) const -> void override;
+    auto to_string() const -> const std::String override;
+    
+};
+
+}

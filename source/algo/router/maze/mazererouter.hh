@@ -6,12 +6,17 @@
 #include <std/memory.hh>
 #include <std/utility.hh>
 #include <global/debug/debug.hh>
+#include <circuit/path/pathpackage.hh>
 
 
 namespace kiwi::hardware {
     class Interposer;
     class Track;
     class COBConnector;
+}
+
+namespace kiwi::circuit {
+    struct PathPackage;
 }
 
 
@@ -83,18 +88,15 @@ namespace kiwi::algo{
     
     public:
         auto bus_reroute(       // reroute through pointer path_ptrs
-            hardware::Interposer* interposer, std::Vector<routed_path*>& path_ptrs,
-            std::usize max_length, const std::Vector<std::Option<hardware::Bump*>>& end_bumps,
-            std::Vector<std::HashMap<hardware::Track*, hardware::TOBConnector>*>& end_track_to_tob_maps,
-            std::usize bump_length
+            hardware::Interposer* interposer, std::Vector<circuit::PathPackage*>& path_ptrs, std::usize max_length
         ) const -> std::tuple<bool, std::usize>;
     
     private:
         auto remove_tracks(
-            routed_path* path_ptr, std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector>* end_tracks, int cut_rate = MazeRerouter::CUT_RATE
+            circuit::PathPackage* path_ptr, int cut_rate = MazeRerouter::CUT_RATE
         ) const -> void;
         auto refind_path(
-            hardware::Interposer* interposer, Tree& tree, routed_path* path_ptr,\
+            hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
             std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
         ) const -> std::tuple<bool, std::usize>;
         auto Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize;\

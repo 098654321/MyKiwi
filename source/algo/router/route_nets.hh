@@ -4,6 +4,7 @@
 #include <circuit/net/net.hh>
 #include <std/algorithm.hh>
 #include <std/memory.hh>
+#include "./routeengine.hh"
 #include <std/collection.hh>
 
 namespace kiwi::hardware {
@@ -23,5 +24,13 @@ namespace kiwi::algo {
         circuit::BaseDie* basedie,
         const RouteStrategy& strategy
     ) -> std::usize;
+
+    auto analyze_results(
+        hardware::Interposer* interposer,
+        RouteEngine& engine,
+        const RouteStrategy& strategy
+    ) -> std::usize;
+
+    auto show_retry_expt(circuit::Net*, RouteEngine&, hardware::Interposer*) -> void;
 
 }
