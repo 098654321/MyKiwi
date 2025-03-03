@@ -31,4 +31,6 @@ namespace kiwi::algo {
         const RouteStrategy& strategy
     ) -> std::usize;
 
+    auto show_retry_expt(circuit::Net*, RouteEngine&, hardware::Interposer*) -> void;
+
 }

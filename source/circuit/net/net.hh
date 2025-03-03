@@ -47,10 +47,13 @@ namespace kiwi::circuit {
         virtual auto port_number() const -> std::usize = 0;
         virtual auto to_string() const -> std::String = 0;
         virtual auto search_related_nets(std::Vector<Net*>& nets) -> void = 0;
-    
+
+        // return: (bumps_routable, bumps_unroutable, tracks_unroutable)
+        virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> = 0;
+        
     public:
         virtual auto clear_related_nets() -> void;
-        virtual auto show() const -> void;
+        virtual auto show_path() const -> void;
         virtual auto length() const -> std::usize;
         virtual auto set_pathpackage(const PathPackage& path_package) -> void;
         virtual auto pathpackage() -> PathPackage& {return this->_path_package;}

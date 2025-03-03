@@ -30,6 +30,7 @@ namespace kiwi::circuit {
         virtual auto search_related_nets(std::Vector<Net*>& nets) -> void override;
         virtual auto check_relativity(const hardware::Bump* node) const -> const Net* override;
         virtual auto check_relativity(const hardware::Track* node) const -> const Net* override;
+        virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> override;
 
         auto begin_tracks() const -> const std::Vector<hardware::Track*>& { return this->_begin_tracks; }
         auto end_bumps() const -> const std::Vector<hardware::Bump*>& { return this->_end_bumps; }

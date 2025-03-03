@@ -52,7 +52,7 @@ namespace kiwi::circuit {
 
     auto BumpToTracksNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << std::format("Begin bump '{}' to End tracks '[", this->_begin_bump->coord());
+        ss << std::format("BumpToTracksNet: Begin bump '{}' to End tracks '[", this->_begin_bump->coord());
         for (int i = 0; i < this->_end_tracks.size(); ++i) {
             if (i != 0) {
                 ss << ", ";
@@ -91,6 +91,24 @@ namespace kiwi::circuit {
         for (auto track : this->_end_tracks) {
             this->_related_nets_track.emplace(track, search_nets_node<hardware::Track>(track, nets));
         }
+    }
+
+    auto BumpToTracksNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::Vector<const hardware::Bump*> routable_bumps{}, unroutable_bumps{};
+        std::Vector<const hardware::Track*> unroutable_tracks{};
+
+        const auto& package = this->pathpackage();
+
+        (package.find_bump(this->_begin_bump).has_value() ? routable_bumps : unroutable_bumps).emplace_back(this->_begin_bump);
+        for (auto& track: this->_end_tracks) {
+            if (!package.find_track(track).has_value()) {
+                unroutable_tracks.emplace_back(track);
+            }
+        }
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+            routable_bumps, unroutable_bumps, unroutable_tracks
+        };
     }
     
 }

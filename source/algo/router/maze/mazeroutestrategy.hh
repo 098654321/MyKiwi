@@ -23,6 +23,7 @@ namespace kiwi::hardware{
 
 namespace kiwi::circuit {
     struct PathPackage;
+    class Net;
 }
 
 namespace kiwi::algo {
@@ -65,10 +66,9 @@ namespace kiwi::algo {
         auto route_path(
             hardware::Interposer* interposer, 
             const std::Vector<hardware::Track*>& begin_tracks,
-            const std::HashSet<hardware::Track*>& end_tracks
+            const std::HashSet<hardware::Track*>& end_tracks,
+            const std::HashSet<hardware::Track*>& occupied_tracks
         ) const -> algo::routed_path;
-
-        auto set_connector_state(circuit::PathPackage& package) const -> void;
 
         auto track_map_to_track_vec(
             const std::HashMap<hardware::Track*, 
@@ -88,6 +88,12 @@ namespace kiwi::algo {
 
     // synchrnized rouitng functions
     private:
+        template <class Node>
+        auto existing_path_vec(Node*, circuit::Net*) const -> std::Vector<hardware::Track*>;
+
+        template <class Node>
+        auto existing_path_set(Node*, circuit::Net*) const -> std::HashSet<hardware::Track*>;
+
         // first round of routing & collecting paths 
         template <class Net>
         auto sync_preroute(

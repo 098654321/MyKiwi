@@ -153,15 +153,15 @@ namespace kiwi::circuit
         }
     }
 
-    auto SyncNet::show() const -> void {
+    auto SyncNet::show_path() const -> void {
         for (auto& net: this->_btbnets) {
-            net->show();
+            net->show_path();
         }
         for (auto& net: this->_bttnets) {
-            net->show();
+            net->show_path();
         }
         for (auto& net: this->_ttbnets) {
-            net->show();
+            net->show_path();
         }
     }
 
@@ -215,6 +215,32 @@ namespace kiwi::circuit
     auto SyncNet::search_related_nets(std::Vector<Net*>& nets) -> void {
         clear_related_nets();
         //* Unsupported operation for syncnet currently
+    }
+
+    auto SyncNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::Vector<const hardware::Bump*> routable_bumps{}, unroutable_bumps{};
+        std::Vector<const hardware::Track*> unroutable_tracks{};
+
+        auto collect_state = [&](circuit::Net* net) {
+            auto [rb, urb, urt] = net->connection_state();
+            routable_bumps.insert(routable_bumps.end(), rb.begin(), rb.end());
+            unroutable_bumps.insert(unroutable_bumps.end(), urb.begin(), urb.end());
+            unroutable_tracks.insert(unroutable_tracks.end(), urt.begin(), urt.end());
+        };
+
+        for (auto& net: this->_btbnets) {
+            collect_state(net.get());
+        }
+        for (auto& net: this->_bttnets) {
+            collect_state(net.get());
+        }
+        for (auto& net: this->_ttbnets) {
+            collect_state(net.get());
+        }
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+            routable_bumps, unroutable_bumps, unroutable_tracks
+        };
     }
 
  }

@@ -11,7 +11,7 @@ namespace kiwi::hardware {
     TOBMuxConnector::TOBMuxConnector(
         std::usize input_index, 
         std::usize output_index, 
-        std::Rc<TOBMuxRegister> reg
+        TOBMuxRegister* reg
     ) :
         _input_index{input_index},
         _output_index{output_index},
@@ -55,7 +55,7 @@ namespace kiwi::hardware {
             connectors.emplace_back(
                 input_index,
                 output_index,
-                std::make_shared<TOBMuxRegister>(this->_registers.at(input_index))
+                &this->_registers.at(input_index)
             );
         }
 

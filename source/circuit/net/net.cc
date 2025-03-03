@@ -10,7 +10,7 @@ namespace kiwi::circuit {
         this->_path_package = path_package;
     }
 
-    auto Net::show() const -> void {
+    auto Net::show_path() const -> void {
         this->_path_package.show();
     }
 

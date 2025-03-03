@@ -7,6 +7,7 @@
 #include <global/std/collection.hh>
 #include <global/std/utility.hh>
 #include <global/debug/debug.hh>
+#include <algorithm>
 
 
 namespace kiwi::hardware {
@@ -47,6 +48,29 @@ struct PathPackage {
             }
         }
         debug::debug("\n");
+    }
+
+    auto find_bump(const hardware::Bump* bump) const -> std::Option<std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>> {
+        for (auto& t: this->_tob_to_track) {
+            if (bump->coord() == std::get<0>(t)->coord()) {
+                return t;
+            }
+        }
+        for (auto& t: this->_track_to_tob) {
+            if (bump->coord() == std::get<0>(t)->coord()) {
+                return t;
+            }
+        }
+        return std::nullopt;
+    }
+
+    auto find_track(const hardware::Track* track) const -> std::Option<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>> {
+        for (auto& p: this->_regular_path) {
+            if (track->coord() == std::get<0>(p)->coord()) {
+                return p;
+            }
+        }
+        return std::nullopt;
     }
 
     // track & the COBConnector before track

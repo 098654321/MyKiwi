@@ -127,6 +127,7 @@ namespace kiwi::algo{
                         path_ptr->_track_to_tob.emplace_back(
                             std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, connector, end_track)
                         );
+                        connector.give_out();
                         break;
                     }
                 }
@@ -285,9 +286,13 @@ debug::debug("Rerouting...");
                 auto temp_node_list {tree.backtrace(node_sptr)};
                 auto temp_path {_node_track_interface.nodes_trackify(temp_node_list)};
                 auto temp_path_length {path_length(temp_path)};
-                // add to path
+                // add to path, and set cobconnector to "suspend" state
                 for (auto& tp: temp_path){
                     path_ptr->_regular_path.emplace_back(tp);
+                    auto& [_, cobconnector] = tp;
+                    if(cobconnector.has_value()) {
+                        cobconnector.value().suspend();
+                    }
                 }
                 path_ptr->_length += temp_path_length + bump_length;
 //!

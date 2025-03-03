@@ -1,6 +1,6 @@
 #include "./tbsnet.hh"
 #include <hardware/bump/bump.hh>
-
+#include <algorithm>
 
 
 namespace kiwi::circuit {
@@ -54,7 +54,7 @@ namespace kiwi::circuit {
 
     auto TrackToBumpsNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << std::format("Begin track '{}' to End bumps '[", this->_begin_track->coord());
+        ss << std::format("TrackToBumpsNet: Begin track '{}' to End bumps '[", this->_begin_track->coord());
         for (int i = 0; i < this->_end_bumps.size(); ++i) {
             if (i != 0) {
                 ss << ", ";
@@ -91,6 +91,25 @@ namespace kiwi::circuit {
         for (auto bump : this->_end_bumps) {
             this->_related_nets_bump.emplace(bump, search_nets_node<hardware::Bump>(bump, nets));
         }
+    }
+
+    auto TrackToBumpsNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::vector<const hardware::Bump*> routable_bumps{}, unroutable_bumps{};
+        std::Vector<const hardware::Track*> unroutable_tracks{};
+
+        const auto& package = this->pathpackage();
+        if (!package.find_track(this->_begin_track).has_value()) {
+            unroutable_tracks.emplace_back(this->_begin_track);
+        }
+
+        auto classify_bump = [&](hardware::Bump* bump) {
+            (package.find_bump(bump).has_value() ? routable_bumps : unroutable_bumps).emplace_back(bump);
+        };
+        std::for_each(this->_end_bumps.begin(), this->_end_bumps.end(), classify_bump);
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+            routable_bumps, unroutable_bumps, unroutable_tracks
+        };
     }
 
 }

@@ -4,13 +4,12 @@
 #include <std/collection.hh>
 #include <std/integer.hh>
 #include <std/utility.hh>
-#include <std/memory.hh>
 
 namespace kiwi::hardware {
 
     class TOBMuxConnector {
     public:
-        TOBMuxConnector(std::usize input_index, std::usize output_index, std::Rc<TOBMuxRegister> reg);
+        TOBMuxConnector(std::usize input_index, std::usize output_index, TOBMuxRegister* reg);
 
         auto connect() -> void;
         auto give_out() -> void;
@@ -23,7 +22,7 @@ namespace kiwi::hardware {
     private:
         std::usize _input_index;
         std::usize _output_index;
-        std::Rc<TOBMuxRegister> _register;
+        TOBMuxRegister* _register;
     };
 
     class TOBMux {

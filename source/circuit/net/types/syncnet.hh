@@ -52,8 +52,9 @@ namespace kiwi::circuit {
         virtual auto search_related_nets(std::Vector<Net*>& nets) -> void override;
         virtual auto check_relativity(const hardware::Bump* node) const -> const Net* override;
         virtual auto check_relativity(const hardware::Track* node) const -> const Net* override;
+        virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> override;
         
-        auto show() const -> void override;
+        auto show_path() const -> void override;
         auto length() const -> std::usize override;
         auto set_pathpackage(const circuit::PathPackage&) -> void override;
     

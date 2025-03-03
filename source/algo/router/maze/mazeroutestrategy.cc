@@ -9,6 +9,7 @@
 #include <std/integer.hh>
 #include <std/collection.hh>
 #include <std/utility.hh>
+#include <std/range.hh>
 #include <debug/debug.hh>
 #include <algorithm>
 
@@ -20,6 +21,7 @@ namespace kiwi::algo {
     auto MazeRouteStrategy::route_bump_to_bump_net(
         hardware::Interposer* interposer, circuit::BumpToBumpNet* net
     ) const -> void {
+    try {
         debug::debug("Maze routing for bump to bump net");
         
         auto begin_bump = net->begin_bump();
@@ -27,97 +29,64 @@ namespace kiwi::algo {
         debug::check(begin_bump->tob() != end_bump->tob(), "Route bump in the same tob");
 
         // existing path
-        auto begin_related_nets = net->related_nets<hardware::Bump>(begin_bump);
-        auto begin_tracks_vec = std::Vector<hardware::Track*> {};
-        for (auto net : begin_related_nets) {
-            auto path = net->pathpackage()._regular_path;
-            for (auto& [t, _] : path) {
-                begin_tracks_vec.emplace_back(t);
-            }
-        }
+        auto begin_tracks_vec = existing_path_vec<hardware::Bump>(begin_bump, net);
+        auto end_tracks_set = existing_path_set<hardware::Bump>(end_bump, net);
 
-        auto end_related_nets = net->related_nets<hardware::Bump>(end_bump);
-        auto end_tracks_set = std::HashSet<hardware::Track*> {};
-        for (auto net : end_related_nets) {
-            auto path = net->pathpackage()._regular_path;
-            for (auto& [t, _] : path) {
-                end_tracks_set.emplace(t);
-            }
-        }
-
+        // route
         auto head = std::Pair<hardware::Bump*, std::Vector<hardware::Track*>>{begin_bump, begin_tracks_vec};
         auto tail = std::Pair<hardware::Bump*, std::HashSet<hardware::Track*>>{end_bump, end_tracks_set};
         auto path_package = this->route_node_to_node_net<hardware::Bump, hardware::Bump>(
             interposer, head, tail
         );
 
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
+    }
+    catch(RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
 
     auto MazeRouteStrategy::route_track_to_bump_net(
         hardware::Interposer* interposer, circuit::TrackToBumpNet* net
     ) const -> void {
+    try {
         debug::debug("Maze routing for track to bump net");
         
         auto begin_track = net->begin_track();
         auto end_bump = net->end_bump();
 
         // existing path
-        auto begin_related_nets = net->related_nets<hardware::Track>(begin_track);
-        auto begin_tracks_vec = std::Vector<hardware::Track*> {};
-        for (auto net : begin_related_nets) {
-            auto path = net->pathpackage()._regular_path;
-            for (auto& [t, _] : path) {
-                begin_tracks_vec.emplace_back(t);
-            }
-        }
+        auto begin_tracks_vec = existing_path_vec<hardware::Track>(begin_track, net);
+        auto end_tracks_set = existing_path_set<hardware::Bump>(end_bump, net);
 
-        auto end_related_nets = net->related_nets<hardware::Bump>(end_bump);
-        auto end_tracks_set = std::HashSet<hardware::Track*> {};
-        for (auto net : end_related_nets) {
-            auto path = net->pathpackage()._regular_path;
-            for (auto& [t, _] : path) {
-                end_tracks_set.emplace(t);
-            }
-        }
-
+        // route
         auto head = std::Pair<hardware::Track*, std::Vector<hardware::Track*>>{begin_track, begin_tracks_vec};
         auto tail = std::Pair<hardware::Bump*, std::HashSet<hardware::Track*>>{end_bump, end_tracks_set};
         auto path_package = this->route_node_to_node_net<hardware::Track, hardware::Bump>(
             interposer, head, tail
         );
 
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
+    }
+    catch (RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
 
     auto MazeRouteStrategy::route_bump_to_track_net(
         hardware::Interposer* interposer, circuit::BumpToTrackNet* net
     ) const -> void {
+    try {
         debug::debug("Maze routing for bump to track net");
         
         auto begin_bump = net->begin_bump();
         auto end_track = net->end_track();
 
         // existing path
-        auto begin_related_nets = net->related_nets<hardware::Bump>(begin_bump);
-        auto begin_tracks_vec = std::Vector<hardware::Track*> {};
-        for (auto net : begin_related_nets) {
-            auto path = net->pathpackage()._regular_path;
-            for (auto& [t, _] : path) {
-                begin_tracks_vec.emplace_back(t);
-            }
-        }
-
-        auto end_related_nets = net->related_nets<hardware::Track>(end_track);
-        auto end_tracks_set = std::HashSet<hardware::Track*> {};
-        for (auto net : end_related_nets) {
-            auto path = net->pathpackage()._regular_path;
-            for (auto& [t, _] : path) {
-                end_tracks_set.emplace(t);
-            }
-        }
+        auto begin_tracks_vec = existing_path_vec<hardware::Bump>(begin_bump, net);
+        auto end_tracks_set = existing_path_set<hardware::Track>(end_track, net);
 
         auto head = std::Pair<hardware::Bump*, std::Vector<hardware::Track*>>{begin_bump, begin_tracks_vec};
         auto tail = std::Pair<hardware::Track*, std::HashSet<hardware::Track*>>{end_track, end_tracks_set};
@@ -125,8 +94,12 @@ namespace kiwi::algo {
             interposer, head, tail
         );
 
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
+    }
+    catch (RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
 
     template<class InputNode, class OutputNode>
@@ -139,68 +112,59 @@ namespace kiwi::algo {
         std::HashSet<hardware::Track*> end_tracks_set {};
         std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> begin_tracks_map {};
         std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> end_tracks_map {};
-        bool is_begin_connector_connected {false};
-        bool is_end_connector_connected {false};
 
         // input node
-        if (!input_node.second.empty())  {
-            begin_tracks_vec = input_node.second;
+        if constexpr (std::is_same<InputNode, hardware::Bump>::value) {
+            begin_tracks_map = interposer->available_tracks_bump_to_track(input_node.first);
+            begin_tracks_vec = track_map_to_track_vec(begin_tracks_map, input_node.first->tob()->cobunit_resources());
         }
-        else {
-            if constexpr (std::is_same<InputNode, hardware::Bump>::value) {
-                begin_tracks_map = interposer->available_tracks_bump_to_track(input_node.first);
-                if (begin_tracks_map.empty()){
-                    throw RetryExpt(std::format("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for input node {}", input_node.first->coord()));
-                }
-                begin_tracks_vec = track_map_to_track_vec(begin_tracks_map, input_node.first->tob()->cobunit_resources());
-            }
-            if constexpr (std::is_same<InputNode, hardware::Track>::value) {
-                begin_tracks_vec.emplace_back(input_node.first);
-            }
+        if constexpr (std::is_same<InputNode, hardware::Track>::value) {
+            begin_tracks_vec.emplace_back(input_node.first);
         }
+        begin_tracks_vec.insert(begin_tracks_vec.end(), input_node.second.begin(), input_node.second.end());
 
         // output node
-        if (!output_node.second.empty()) {
-            end_tracks_set = output_node.second;
+        if constexpr (std::is_same<OutputNode, hardware::Bump>::value) {
+            end_tracks_map = interposer->available_tracks_track_to_bump(output_node.first);
+            end_tracks_set = track_map_to_track_set(end_tracks_map);
         }
-        else {
-            if constexpr (std::is_same<OutputNode, hardware::Bump>::value) {
-                end_tracks_map = interposer->available_tracks_track_to_bump(output_node.first);
-                if (end_tracks_map.empty()){
-                    throw RetryExpt(std::format("MazeRouteStrategy::route_node_to_node_net()", "No available tracks for output node {}", output_node.first->coord()));
-                }
-                end_tracks_set = track_map_to_track_set(end_tracks_map);
-            }
-            if constexpr (std::is_same<OutputNode, hardware::Track>::value) {
-                end_tracks_set.emplace(output_node.first);
-            }
+        if constexpr (std::is_same<OutputNode, hardware::Track>::value) {
+            end_tracks_set.emplace(output_node.first);
         }
+        end_tracks_set.insert(output_node.second.begin(), output_node.second.end());
 
-        if (begin_tracks_vec.empty() || end_tracks_set.empty()){
-            throw FinalError("MazeRouteStrategy::route_node_to_node_net(): no available begin/end tracks for unknown reasons");
+        if (begin_tracks_vec.empty()){
+            throw RetryExpt("MazeRouteStrategy::route_node_to_node_net(): no available begin tracks");
+        }
+        if (end_tracks_set.empty()){
+            throw RetryExpt("MazeRouteStrategy::route_node_to_node_net(): no available end tracks");
         }
 
         // route path
         circuit::PathPackage path_package {};
-        path_package._regular_path = this->route_path(interposer, begin_tracks_vec, end_tracks_set);
+        path_package._regular_path = this->route_path(
+            interposer, begin_tracks_vec, end_tracks_set, std::HashSet<hardware::Track*>{}
+        );
         auto begin_track = std::get<0>(path_package._regular_path.front());
         auto end_track = std::get<0>(path_package._regular_path.back());
 
-        // connect bump to track
+        // store bump to track
         if constexpr(std::is_same<InputNode, hardware::Bump>::value){
-            if (!is_begin_connector_connected){
-                auto begin_tob_connector = begin_tracks_map.find(begin_track)->second;
+            auto begin_map = begin_tracks_map.find(begin_track);
+            if (begin_map != begin_tracks_map.end()) {
+                begin_map->second.give_out();
                 path_package._tob_to_track.emplace_back(
-                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{input_node.first, begin_tob_connector, begin_track}
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{input_node.first, begin_map->second, begin_track}
                 );
                 path_l += 1;
             }
         }
         if constexpr(std::is_same<OutputNode, hardware::Bump>::value){
-            if (!is_end_connector_connected){
-                auto end_tob_connector = end_tracks_map.find(end_track)->second;
+            auto end_map = end_tracks_map.find(end_track);
+            if (end_map != end_tracks_map.end()) {
+                end_map->second.give_out();
                 path_package._track_to_tob.emplace_back(
-                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{output_node.first, end_tob_connector, end_track}
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{output_node.first, end_map->second, end_track}
                 );
                 path_l += 1;
             }
@@ -212,38 +176,41 @@ namespace kiwi::algo {
         return path_package;
     }
 
-    //! 加一下node复用
     auto MazeRouteStrategy::route_bump_to_bumps_net(
         hardware::Interposer* interposer, circuit::BumpToBumpsNet* net
     )  const -> void {
+    try {
         debug::debug("Maze routing for bump to bumps net");
         
         auto begin_bump = net->begin_bump();
         const auto& end_bumps = net->end_bumps();
 
-        auto begin_tracks_vec = std::Vector<hardware::Track*>{};
+        auto begin_tracks_vec = existing_path_vec<hardware::Bump>(begin_bump, net);
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
         for (auto end_bump : end_bumps) {
-            // Target: route begin_bump to end_bump?
-            auto begin_tracks = interposer->available_tracks_bump_to_track(begin_bump);
+            auto current_begin_tracks_map = interposer->available_tracks_bump_to_track(begin_bump);
+            auto current_begin_tracks = track_map_to_track_vec(current_begin_tracks_map, begin_bump->tob()->cobunit_resources());
+            auto total_begin_tracks = begin_tracks_vec;
+            total_begin_tracks.insert(total_begin_tracks.end(), current_begin_tracks.begin(), current_begin_tracks.end());
+
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
-            for (auto& [t, _] : begin_tracks) {
-                begin_tracks_vec.emplace_back(t);
+            auto end_tracks_set = track_map_to_track_set(end_tracks);
+            auto existing_end_tracks = existing_path_set<hardware::Bump>(end_bump, net);
+            end_tracks_set.insert(existing_end_tracks.begin(), existing_end_tracks.end());
+
+            if (total_begin_tracks.empty()){
+                throw RetryExpt("MazeRouteStrategy::route_bump_to_bumps_net(): no available begin tracks");
+            }
+            if (end_tracks_set.empty()){
+                throw RetryExpt("MazeRouteStrategy::route_bump_to_bumps_net(): no available end tracks");
             }
             
-            auto regular_path = this->route_path(interposer, begin_tracks_vec, this->track_map_to_track_set(end_tracks));
+            auto regular_path = this->route_path(
+                interposer, total_begin_tracks, end_tracks_set, std::HashSet<hardware::Track*>{}
+            );
             path_package._regular_path = regular_path;
-
-            for (auto it = begin_tracks_vec.begin(); it != begin_tracks_vec.end();) {
-                if (begin_tracks.contains(*it)){
-                    it = begin_tracks_vec.erase(it);
-                }
-                else{
-                    ++it;
-                }
-            }
 
             // Get begin and end track in path
             auto path = std::Vector<hardware::Track*> {};
@@ -254,62 +221,74 @@ namespace kiwi::algo {
             auto end_track = path.back();
 
             // Connect the TOB from end track to end_bump
-            if (!end_tracks.contains(end_track)){
+            if (!end_tracks_set.contains(end_track)){
                 throw FinalError("MazeRouteStrategy::route_bump_to_bumps_net(): end track not in end tracks set");
             }
 
-            auto end_tob_connector = end_tracks.find(end_track)->second;
-            path_package._track_to_tob.emplace_back(
-                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{end_bump, end_tob_connector, end_track}
-            );
-
+            auto end_map = end_tracks.find(end_track);
+            if (end_map != end_tracks.end()) {
+                end_map->second.give_out();
+                path_package._track_to_tob.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{end_bump, end_map->second, end_track}
+                );
+            }
+            
             // Is the begin from begin_tracks?
-            auto find_res = begin_tracks.find(begin_track);
-            if (find_res != begin_tracks.end()) {
-                // If `begin_track` is in `begin_tracks`, then we find a track which should be connected
-                // with begin bump!
-                // begin_bump->set_connected_track(begin_track, hardware::TOBSignalDirection::BumpToTrack);
-                // find_res->second.connect();
-                auto begin_tob_connector = begin_tracks.find(begin_track)->second;
+            auto find_res = current_begin_tracks_map.find(begin_track);
+            if (find_res != current_begin_tracks_map.end()) {
+                find_res->second.give_out();
                 path_package._tob_to_track.emplace_back(
-                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{begin_bump, begin_tob_connector, begin_track}
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{begin_bump, find_res->second, begin_track}
                 );
                 total_length += 1;  // head of path is calculate seperately 
-            } else {
-                // `begin_track` is not the `begin_tracks`, so we find a track in path to connected with `end_bump`
-                // do not need to connect TOB!
             }
 
             // All track in path can see as `begin_track_set`
-            for (auto t : path) {
-                begin_tracks_vec.emplace_back(t);
-            } 
+            begin_tracks_vec.insert(begin_tracks_vec.end(), path.begin(), path.end());
 
             total_length += path_length(path);    // path_length(path) + 1(end_bump) - 1(head of path)
         }
 
         path_package._length = total_length + 1;
 
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
-
+    }
+    catch (RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
 
     auto MazeRouteStrategy::route_track_to_bumps_net(
         hardware::Interposer* interposer, circuit::TrackToBumpsNet* net
     ) const -> void {
+    try {
         debug::debug("Maze routing for track to bumps net");
         
         auto begin_track = net->begin_track();
         const auto& end_bumps = net->end_bumps();
 
-        auto begin_tracks_vec = std::Vector<hardware::Track *>{begin_track};
+        auto begin_tracks_vec = existing_path_vec<hardware::Track>(begin_track, net);
+        begin_tracks_vec.emplace_back(begin_track);
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
         for (auto end_bump : end_bumps) {
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
-            auto regular_path = this->route_path(interposer, begin_tracks_vec, this->track_map_to_track_set(end_tracks));
+            auto end_tracks_set = track_map_to_track_set(end_tracks);
+            auto existing_end_tracks = existing_path_set<hardware::Bump>(end_bump, net);
+            end_tracks_set.insert(existing_end_tracks.begin(), existing_end_tracks.end());
+
+            if (begin_tracks_vec.empty()){
+                throw RetryExpt("MazeRouteStrategy::route_track_to_bumps_net(): no available begin tracks", net);
+            }
+            if (end_tracks_set.empty()){
+                throw RetryExpt("MazeRouteStrategy::route_track_to_bumps_net(): no available end tracks", net);
+            }
+
+            auto regular_path = this->route_path(
+                interposer, begin_tracks_vec, end_tracks_set, std::HashSet<hardware::Track*>{}
+            );
             path_package._regular_path = regular_path;
 
             // Get begin and end track in path
@@ -320,61 +299,63 @@ namespace kiwi::algo {
             auto begin_track = path.front();
             auto end_track = path.back();
 
-            // Connect the TOB from end track to end_bump
-            if (!end_tracks.contains(end_track)){
-                throw FinalError("MazeRouteStrategy::route_track_to_bumps_net(): end track not in end tracks set");
+            auto find_res = end_tracks.find(end_track);
+            if (find_res != end_tracks.end()) {
+                find_res->second.give_out();
+                path_package._track_to_tob.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>{end_bump, find_res->second, end_track}
+                );
             }
-            // end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
-            // end_tracks.find(end_track)->second.connect();
-            auto end_tob_connector = end_tracks.find(end_track)->second;
-            path_package._track_to_tob.emplace_back(
-                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, end_tob_connector, end_track)
-            );
 
             // All track in path can see as `begin_track_set`
-            
-            for (auto t : path) {
-                begin_tracks_vec.emplace_back(t);
-            } 
+            begin_tracks_vec.insert(begin_tracks_vec.end(), path.begin(), path.end());
 
             total_length += path_length(path);  // +1(end_bump) - 1(head)
         }
 
         path_package._length = total_length + 1;
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
+    }
+    catch (RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
     
 
     auto MazeRouteStrategy::route_bump_to_tracks_net(
         hardware::Interposer* interposer, circuit::BumpToTracksNet* net
     ) const -> void {
+    try {
         debug::debug("Maze routing for bump to tracks net");
 
         auto begin_bump = net->begin_bump();
         const auto& end_tracks = net->end_tracks();
 
-        auto begin_tracks_vec = std::Vector<hardware::Track*>{};
+        auto begin_tracks_vec = existing_path_vec<hardware::Bump>(begin_bump, net);
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
         for (auto end_track : end_tracks) {
-            auto begin_tracks = interposer->available_tracks_bump_to_track(begin_bump);
-            for (auto& [t, _] : begin_tracks) {
-                begin_tracks_vec.emplace_back(t);
+            auto current_begin_tracks_map = interposer->available_tracks_bump_to_track(begin_bump);
+            auto current_begin_tracks = track_map_to_track_vec(current_begin_tracks_map, begin_bump->tob()->cobunit_resources());
+            auto total_begin_tracks = begin_tracks_vec;
+            total_begin_tracks.insert(total_begin_tracks.end(), current_begin_tracks.begin(), current_begin_tracks.end());
+
+            auto end_tracks_set = existing_path_set<hardware::Track>(end_track, net);
+            end_tracks_set.emplace(end_track);
+
+            if (begin_tracks_vec.empty()){
+                throw RetryExpt("MazeRouteStrategy::route_bump_to_tracks_net(): no available begin tracks", net);
+            }
+            if (end_tracks_set.empty()){
+                throw RetryExpt("MazeRouteStrategy::route_bump_to_tracks_net(): no available end tracks", net);
             }
     
-            auto regular_path = this->route_path(interposer, begin_tracks_vec, std::HashSet<hardware::Track *>{end_track});
+            auto regular_path = this->route_path(
+                interposer, total_begin_tracks, end_tracks_set, std::HashSet<hardware::Track*>{}
+            );
             path_package._regular_path = regular_path;
-
-            for (auto it = begin_tracks_vec.begin(); it != begin_tracks_vec.end();) {
-                if (begin_tracks.contains(*it)){
-                    it = begin_tracks_vec.erase(it);
-                }
-                else{
-                    ++it;
-                }
-            }
 
             // Get begin and end track in path
             auto path = std::Vector<hardware::Track*> {};
@@ -384,35 +365,34 @@ namespace kiwi::algo {
             auto begin_track = path.front();
 
             // Is the begin is from begin_tracks?
-            auto find_res = begin_tracks.find(begin_track);
-            if (find_res != begin_tracks.end()) {
-                // If `begin_track` is in `begin_tracks`, mean we find a track which is should be connected
-                // with begin bump!
+            auto find_res = current_begin_tracks_map.find(begin_track);
+            if (find_res != current_begin_tracks_map.end()) {
+                find_res->second.give_out();
                 path_package._tob_to_track.emplace_back(
                     std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(begin_bump, find_res->second, begin_track)
                 );
                 total_length += 1;
-            } else {
-                // `begin_track` is not the `begin_tracks`, so we find a track in path to connected with `end_bump`
-                // do not need to connect TOB!
             }
 
             // All track in path can see as `begin_track_set`
-            for (auto t : path) {
-                begin_tracks_vec.emplace_back(t);
-            } 
+            begin_tracks_vec.insert(begin_tracks_vec.end(), path.begin(), path.end());
 
             total_length += path_length(path) - 1;  // -1 for removing head of path 
         }
 
         path_package._length = total_length + 1;
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
+    }
+    catch (RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
 
     auto MazeRouteStrategy::route_tracks_to_bumps_net(
         hardware::Interposer* interposer, circuit::TracksToBumpsNet* net
     ) const -> void {
+    try {
         debug::debug("Maze routing for tracks to bumps net");
         
         auto& begin_tracks = net->begin_tracks();
@@ -427,7 +407,9 @@ namespace kiwi::algo {
         circuit::PathPackage path_package {};
         for (auto end_bump : end_bumps) {
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
-            auto regular_path = this->route_path(interposer, begin_tracks_vec, track_map_to_track_set(end_tracks));
+            auto regular_path = this->route_path(
+                interposer, begin_tracks_vec, track_map_to_track_set(end_tracks), std::HashSet<hardware::Track*>{}
+            );
             
             auto path = std::Vector<hardware::Track*> {};
             for (auto& [t, connector]: regular_path) {
@@ -439,7 +421,8 @@ namespace kiwi::algo {
             }
             // end_bump->set_connected_track(end_track, hardware::TOBSignalDirection::TrackToBump);
             // end_tracks.find(end_track)->second.connect();
-            auto end_tob_connector = end_tracks.find(end_track)->second;
+            auto& end_tob_connector = end_tracks.find(end_track)->second;
+            end_tob_connector.give_out();
             path_package._track_to_tob.emplace_back(
                 std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, end_tob_connector, end_track)
             );
@@ -452,8 +435,12 @@ namespace kiwi::algo {
         }
 
         path_package._length = total_length;
-        this->set_connector_state(path_package);
         net->set_pathpackage(path_package);
+    }
+    catch (RetryExpt& e){
+        e.set_net(net);
+        throw e;
+    }
     }
 
     auto MazeRouteStrategy::route_sync_net(
@@ -559,7 +546,8 @@ namespace kiwi::algo {
         }
         assert(sum == total_length);
     }
-    catch (const RetryExpt& e){
+    catch (RetryExpt& e){
+        e.set_net(ptr_sync_net);
         throw e;
     }
     catch (const std::exception& e){
@@ -640,20 +628,26 @@ namespace kiwi::algo {
         throw RetryExpt("MazeRouteStrategy::maze_search(): path not found");
     }
 
-    // return routed path with positive sequence
+    // return routed path with positive sequence, and suspend coresponding cobconnector
     auto MazeRouteStrategy::route_path(
         hardware::Interposer* interposer, 
         const std::Vector<hardware::Track*>& begin_tracks,
-        const std::HashSet<hardware::Track*>& end_tracks
+        const std::HashSet<hardware::Track*>& end_tracks,
+        const std::HashSet<hardware::Track*>& occupied_tracks
     ) const -> algo::routed_path
     try {
-        std::HashSet<hardware::Track*> empty {};
-        auto path_info = maze_search(interposer, begin_tracks, end_tracks, empty);  // negative sequence
+        auto path_info = maze_search(interposer, begin_tracks, end_tracks, occupied_tracks);  // negative sequence
 
-        auto path = algo::routed_path {};
+        auto path = algo::routed_path {};   // positive sequence
         std::transform(path_info.rbegin(), path_info.rend(), std::back_inserter(path), [](const auto& p){
             return p;
         });
+
+        for (auto& [track, cobconnector]: path) {
+            if (cobconnector.has_value()) {
+                cobconnector.value().suspend();
+            }
+        }
 
         return path;
     }
@@ -766,11 +760,8 @@ namespace kiwi::algo {
                 });
             }
 
-            // route and connect
-            auto path_info = maze_search(interposer, begin_tracks_vec, end_tracks_set, occupied_tracks_vec); // negative sequence
-            for(auto iter = path_info.rbegin(); iter != path_info.rend(); ++iter) { // positive sequence
-                package._regular_path.emplace_back(*iter);
-            }
+            // route and suspend connector
+            package._regular_path = route_path(interposer, begin_tracks_vec, end_tracks_set, occupied_tracks_vec);
                                                                                         
             auto path = std::Vector<hardware::Track*>{};                                                                 
             for (auto& [t, connector]: package._regular_path) {    // get tracks in positive sequence        
@@ -783,7 +774,8 @@ namespace kiwi::algo {
                 if (!begin_track_to_tob_map.contains(begin_track)){
                     throw FinalError("MazeRouteStrategy::sync_preroute(): begin track not in begin track map");
                 }
-                auto begin_tob_connector = begin_track_to_tob_map.find(begin_track)->second;
+                auto& begin_tob_connector = begin_track_to_tob_map.find(begin_track)->second;
+                begin_tob_connector.give_out();
                 package._tob_to_track.emplace_back(
                     std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(begin_bump, begin_tob_connector, begin_track)
                 );
@@ -793,7 +785,8 @@ namespace kiwi::algo {
                 if (!end_track_to_tob_map.contains(end_track)){
                     throw FinalError("MazeRouteStrategy::sync_preroute(): end track not in end track map");
                 }
-                auto end_tob_connector = end_track_to_tob_map.find(end_track)->second;
+                auto& end_tob_connector = end_track_to_tob_map.find(end_track)->second;
+                end_tob_connector.give_out();
                 package._track_to_tob.emplace_back(
                     std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, end_tob_connector, end_track)
                 );
@@ -807,7 +800,6 @@ namespace kiwi::algo {
                 package._length = path_length(package._regular_path) + 1;
             }
             
-            this->set_connector_state(package);
             uptr_net->set_pathpackage(package);
         }
         
@@ -853,18 +845,31 @@ namespace kiwi::algo {
         }
     }
 
-    //! 这个要改，每给出一个 cob_connector / tob_connector 就要 set 状态，而不是放到最后
-    auto MazeRouteStrategy::set_connector_state(circuit::PathPackage& package) const -> void {
-        for (auto& [t, cobconnector]: package._regular_path) {
-            if (cobconnector.has_value()) {
-                cobconnector.value().suspend();
+    template <class Node>
+    auto MazeRouteStrategy::existing_path_vec(Node* node, circuit::Net* net) const -> std::Vector<hardware::Track*> {
+        static_assert(
+            std::is_same<Node, hardware::Bump>::value || std::is_same<Node, hardware::Track>::value,
+            "MazeRouteStrategy::existing_path() >> Invalid Node type"
+        );
+
+        auto related_nets = net->related_nets<Node>(node);
+        auto tracks_vec = std::Vector<hardware::Track*> {};
+        for (auto n : related_nets) {
+            auto path = n->pathpackage()._regular_path;
+            for (auto& [t, _] : path) {
+                tracks_vec.emplace_back(t);
             }
         }
-        for (auto& [bump, tobconnector, track]: package._tob_to_track) {
-            tobconnector.give_out();
+        return tracks_vec;
+    }
+
+    template <class Node>
+    auto MazeRouteStrategy::existing_path_set(Node* node, circuit::Net* net) const -> std::HashSet<hardware::Track*> {
+        auto vec = existing_path_vec<Node>(node, net);
+        auto set = std::HashSet<hardware::Track*>{};
+        for (auto t : vec) {
+            set.emplace(t);
         }
-        for (auto& [bump, tobconnector, track]: package._track_to_tob) {
-            tobconnector.give_out();
-        }
+        return set;
     }
 }

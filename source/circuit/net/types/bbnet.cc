@@ -48,7 +48,9 @@ namespace kiwi::circuit {
     }
 
     auto BumpToBumpNet::to_string() const -> std::String {
-        return std::format("Begin bump: '{}' to End bump '{}'", this->_begin_bump->coord(), this->_end_bump->coord());
+        return std::format(
+            "BumpToBumpNet: Begin bump: '{}' to End bump '{}'", this->_begin_bump->coord(), this->_end_bump->coord()
+        );
     }
 
     auto BumpToBumpNet::check_relativity(const hardware::Bump* node) const -> const Net* {
@@ -64,6 +66,22 @@ namespace kiwi::circuit {
         clear_related_nets();
         this->_related_nets_bump.emplace(this->_begin_bump, search_nets_node<hardware::Bump>(this->_begin_bump, nets));
         this->_related_nets_bump.emplace(this->_end_bump, search_nets_node<hardware::Bump>(this->_end_bump, nets));
+    }
+
+    auto BumpToBumpNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::Vector<const hardware::Bump*> routable_bumps {}, unroutable_bumps {};
+
+        const auto& package = this->pathpackage();
+
+        auto classify_bump = [&](const hardware::Bump* bump) {
+            (package.find_bump(bump).has_value() ? routable_bumps : unroutable_bumps).emplace_back(bump);
+        };
+        classify_bump(this->_begin_bump);
+        classify_bump(this->_end_bump);
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>>{
+            routable_bumps, unroutable_bumps, std::Vector<const hardware::Track*>{}
+        };
     }
 
 }
