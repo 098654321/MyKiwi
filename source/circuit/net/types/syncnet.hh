@@ -57,6 +57,9 @@ namespace kiwi::circuit {
         auto show_path() const -> void override;
         auto length() const -> std::usize override;
         auto set_pathpackage(const circuit::PathPackage&) -> void override;
+
+        // return false if this->_path_package is already filled
+        auto collect_package() -> bool;
     
     public:
         auto btbnets() -> std::Vector<std::Box<BumpToBumpNet>>& {return this->_btbnets;}

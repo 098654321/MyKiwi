@@ -13,7 +13,7 @@ namespace kiwi::hardware {
         COBSwRegister(COBSwState state):
             _state{state} {}
         
-        COBSwRegister(): COBSwRegister{COBSwState::DisConnected} {}
+        COBSwRegister(): _state{COBSwState::DisConnected} {}
         
 
         auto get() const -> COBSwState {

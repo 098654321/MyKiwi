@@ -19,7 +19,7 @@ namespace kiwi::hardware {
             _index{index}, _state{std::Tuple<TOBMuxRegState, std::Option<std::usize>>{TOBMuxRegState::Stay_inside, std::nullopt}} {}
 
         TOBMuxRegister():
-            _state{std::Tuple<TOBMuxRegState, std::Option<std::usize>>{TOBMuxRegState::Stay_inside, std::nullopt}} {} 
+            _index{std::nullopt}, _state{std::Tuple<TOBMuxRegState, std::Option<std::usize>>{TOBMuxRegState::Stay_inside, std::nullopt}} {} 
 
         auto get() const -> std::Option<std::usize> {
             return this->_index;

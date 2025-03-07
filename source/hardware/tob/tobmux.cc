@@ -39,9 +39,12 @@ namespace kiwi::hardware {
     ////////////////////////////////////////////////////////////////
 
     TOBMux::TOBMux(std::usize mux_size) :
-        _mux_size{mux_size},
-        _registers(mux_size)
+        _mux_size{mux_size}
     {
+        // avoid initializing _registers in initialization list for some unknown in-memory seizure
+        for (std::size_t i = 0; i < mux_size; ++i) {
+            this->_registers.emplace_back(TOBMuxRegister());
+        }
     }
 
     auto TOBMux::available_connectors(std::usize input_index) -> std::Vector<TOBMuxConnector> {

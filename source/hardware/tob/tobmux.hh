@@ -40,6 +40,7 @@ namespace kiwi::hardware {
         auto index_map(std::usize input_index) const -> std::Option<std::usize>;
         auto registerr(std::usize input_index) -> TOBMuxRegister*;
         auto registerr(std::usize input_index) const -> const TOBMuxRegister*;
+        auto registers() const -> const std::Vector<TOBMuxRegister>& {return this->_registers;}
 
     public:
         auto mux_size() const -> std::usize { return this->_mux_size; }

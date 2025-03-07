@@ -545,6 +545,8 @@ namespace kiwi::algo {
             sum += net->pathpackage()._length;
         }
         assert(sum == total_length);
+
+        ptr_sync_net->collect_package();
     }
     catch (RetryExpt& e){
         e.set_net(ptr_sync_net);

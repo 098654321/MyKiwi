@@ -8,7 +8,7 @@ auto Connect::execute(hardware::Interposer* interposer, RouteEngine& engine, con
     debug::debug("connecting paths ...");
     auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
     for (auto& net : nets) {
-        auto& path_package = net->pathpackage();
+        auto& path_package = net->pathpackage();    
         // connect the path
         hardware::Track* prev_track = nullptr;
         for (auto iter = path_package._regular_path.begin(); iter != path_package._regular_path.end(); ++iter) {
