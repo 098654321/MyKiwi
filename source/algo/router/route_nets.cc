@@ -293,8 +293,7 @@ namespace kiwi::algo {
         }
         const auto& vert_muxs = tob->vert_to_track_muxs();
         std::erase_if(unoccupied_vert_mux, [&](std::usize i) {
-            auto group = i / 2;
-            auto group_index = i % 2;
+            auto [group, group_index] = tob->vert_to_track_mux_info(i);
             return tob->vert_to_track_register_nth(group, group_index)->is_given_out();
         });
         std::String msg {"necessary & unoccupied vert to track mux: "};
@@ -317,8 +316,7 @@ namespace kiwi::algo {
             }
         }
         std::erase_if(unoccupied_hori_mux, [&](std::usize i) {
-            auto group = i / 8;
-            auto group_index = i % 8;
+            auto [group, group_index] = tob->hori_to_vert_mux_info(i);
             return tob->hori_to_vert_register_nth(group, group_index)->is_given_out();
         });
         std::String msg = "necessary & unoccupied hori to vert mux: ";
@@ -342,8 +340,7 @@ namespace kiwi::algo {
             }
         }
         std::erase_if(unoccupied_bump_mux, [&](std::usize i) {
-            auto group = i / 8;
-            auto group_index = i % 8;
+            auto [group, group_index] = tob->bump_to_hori_mux_info(i);
             return tob->bump_to_hori_register_nth(group, group_index)->is_given_out();
         });
         std::String msg = "necessary & unoccupied bump to hori mux: ";

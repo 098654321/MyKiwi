@@ -189,6 +189,7 @@ namespace kiwi::algo {
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
+        routed_path total_regular_path {};
         for (auto end_bump : end_bumps) {
             auto current_begin_tracks_map = interposer->available_tracks_bump_to_track(begin_bump);
             auto current_begin_tracks = track_map_to_track_vec(current_begin_tracks_map, begin_bump->tob()->cobunit_resources());
@@ -210,7 +211,7 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, total_begin_tracks, end_tracks_set, std::HashSet<hardware::Track*>{}
             );
-            path_package._regular_path = regular_path;
+            total_regular_path.insert(total_regular_path.begin(), regular_path.begin(), regular_path.end());
 
             // Get begin and end track in path
             auto path = std::Vector<hardware::Track*> {};
@@ -249,8 +250,8 @@ namespace kiwi::algo {
             total_length += path_length(path);    // path_length(path) + 1(end_bump) - 1(head of path)
         }
 
+        path_package._regular_path = total_regular_path;
         path_package._length = total_length + 1;
-
         net->set_pathpackage(path_package);
     }
     catch (RetryExpt& e){
@@ -273,6 +274,7 @@ namespace kiwi::algo {
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
+        routed_path total_regular_path {};
         for (auto end_bump : end_bumps) {
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
             auto end_tracks_set = track_map_to_track_set(end_tracks);
@@ -289,7 +291,7 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, begin_tracks_vec, end_tracks_set, std::HashSet<hardware::Track*>{}
             );
-            path_package._regular_path = regular_path;
+            total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
             // Get begin and end track in path
             auto path = std::Vector<hardware::Track*> {};
@@ -313,6 +315,7 @@ namespace kiwi::algo {
             total_length += path_length(path);  // +1(end_bump) - 1(head)
         }
 
+        path_package._regular_path = total_regular_path;
         path_package._length = total_length + 1;
         net->set_pathpackage(path_package);
     }
@@ -336,6 +339,7 @@ namespace kiwi::algo {
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
+        routed_path total_regular_path {};
         for (auto end_track : end_tracks) {
             auto current_begin_tracks_map = interposer->available_tracks_bump_to_track(begin_bump);
             auto current_begin_tracks = track_map_to_track_vec(current_begin_tracks_map, begin_bump->tob()->cobunit_resources());
@@ -355,7 +359,7 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, total_begin_tracks, end_tracks_set, std::HashSet<hardware::Track*>{}
             );
-            path_package._regular_path = regular_path;
+            total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
             // Get begin and end track in path
             auto path = std::Vector<hardware::Track*> {};
@@ -380,6 +384,7 @@ namespace kiwi::algo {
             total_length += path_length(path) - 1;  // -1 for removing head of path 
         }
 
+        path_package._regular_path = total_regular_path;
         path_package._length = total_length + 1;
         net->set_pathpackage(path_package);
     }
@@ -405,11 +410,13 @@ namespace kiwi::algo {
 
         std::usize total_length {0};
         circuit::PathPackage path_package {};
+        routed_path total_regular_path {};
         for (auto end_bump : end_bumps) {
             auto end_tracks = interposer->available_tracks_track_to_bump(end_bump);
             auto regular_path = this->route_path(
                 interposer, begin_tracks_vec, track_map_to_track_set(end_tracks), std::HashSet<hardware::Track*>{}
             );
+            total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
             
             auto path = std::Vector<hardware::Track*> {};
             for (auto& [t, connector]: regular_path) {
@@ -434,6 +441,7 @@ namespace kiwi::algo {
             total_length += (path_length(path) + 1);
         }
 
+        path_package._regular_path = total_regular_path;
         path_package._length = total_length;
         net->set_pathpackage(path_package);
     }

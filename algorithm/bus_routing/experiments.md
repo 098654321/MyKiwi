@@ -8,7 +8,7 @@
 
 1. 从 bump 到 track 的过程中对于 mux 的使用冲突是造成资源冲突的主要原因。可以尝试将这一过程与 track 上的迷宫搜索过程分开做，对这一过程用 pathfinder 单独优化。  
 
-2. 还有布线顺序对布线成功率有影响。
+2. 还有布线顺序对布线成功率有影响，可以在RetryExpt中加入应对策略
 
 3. [VPR](https://github.com/verilog-to-routing/vtr-verilog-to-routing)
 

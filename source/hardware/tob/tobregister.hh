@@ -69,7 +69,7 @@ namespace kiwi::hardware {
         }
 
     private:
-        std::Option<std::usize> _index;
+        std::Option<std::usize> _index; // target mux index
         std::Tuple<TOBMuxRegState, std::Option<std::usize>> _state;
     };
 
