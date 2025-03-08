@@ -12,6 +12,8 @@ namespace kiwi::hardware {
         TOBMuxConnector(std::usize input_index, std::usize output_index, TOBMuxRegister* reg);
 
         auto connect() -> void;
+        auto give_out() -> void;
+        auto stay_inside() -> void;
         auto disconnect() -> void;
 
         auto input_index() const -> std::usize { return this->_input_index; }
@@ -38,13 +40,13 @@ namespace kiwi::hardware {
         auto index_map(std::usize input_index) const -> std::Option<std::usize>;
         auto registerr(std::usize input_index) -> TOBMuxRegister*;
         auto registerr(std::usize input_index) const -> const TOBMuxRegister*;
+        auto registers() const -> const std::Vector<TOBMuxRegister>& {return this->_registers;}
 
     public:
         auto mux_size() const -> std::usize { return this->_mux_size; }
     
     private:
         std::usize _mux_size;
-        // std::Vector<std::Box<TOBMuxRegister>> _registers;
         std::Vector<TOBMuxRegister> _registers;
     };
 

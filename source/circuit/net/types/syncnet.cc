@@ -1,6 +1,8 @@
 #include "./syncnet.hh"
 
 #include <hardware/coord.hh>
+#include <assert.h>
+#include <algorithm>
 
 
 
@@ -33,8 +35,8 @@ namespace kiwi::circuit
         }
     }
 
-    auto SyncNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> std::usize {
-        return strategy.route_sync_net(interposer, this);
+    auto SyncNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
+        strategy.route_sync_net(interposer, this);
     }
 
     auto SyncNet::update_priority(float bias) -> void {
@@ -117,6 +119,168 @@ namespace kiwi::circuit
         }
         return port_number;
     }
+
+    auto SyncNet::set_pathpackage(const circuit::PathPackage& package) -> void {
+        if (!package._tob_to_track.empty() && package._track_to_tob.empty()) {
+            assert(package._tob_to_track.size() == 1);
+            auto bump = std::get<0>(package._tob_to_track[0]);
+            for (auto& net: _bttnets) {
+                if (net->begin_bump()->coord() == bump->coord())
+                {
+                    net->set_pathpackage(package);
+                }
+            }
+        }
+        else if (package._tob_to_track.empty() && !package._track_to_tob.empty()) {
+            assert(package._track_to_tob.size() == 1);
+            auto bump = std::get<0>(package._track_to_tob[0]);
+            for (auto& net: _ttbnets) {
+                if (net->end_bump()->coord() == bump->coord())
+                {
+                    net->set_pathpackage(package);
+                }
+            }
+        }
+        else if (!package._tob_to_track.empty() && !package._track_to_tob.empty()) {
+            assert(package._track_to_tob.size() == 1 && package._tob_to_track.size() == 1);
+            auto bump_begin = std::get<0>(package._tob_to_track[0]);
+            auto bump_end = std::get<0>(package._track_to_tob[0]);
+            for (auto& net: _btbnets) {
+                if (net->begin_bump()->coord() == bump_begin->coord() && net->end_bump()->coord() == bump_end->coord()){
+                    net->set_pathpackage(package);
+                }
+            }
+        }
+    }
+
+    auto SyncNet::show_path() const -> void {
+        for (auto& net: this->_btbnets) {
+            net->show_path();
+        }
+        for (auto& net: this->_bttnets) {
+            net->show_path();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->show_path();
+        }
+    }
+
+    auto SyncNet::length() const -> std::usize {
+        auto total_length = std::usize{0};
+        for (auto& net: this->_btbnets) {
+            total_length += net->length();
+        }
+        for (auto& net: this->_bttnets) {
+            total_length += net->length();
+        }
+        for (auto& net: this->_ttbnets) {
+            total_length += net->length();
+        }
+        return total_length;
+    }
+
+    auto SyncNet::check_relativity(const hardware::Bump* node) const -> const Net* {
+        for (auto& net: this->_btbnets) {
+            if (net->check_relativity(node) != nullptr) {
+                return net.get();
+            }
+        }
+        for (auto& net: this->_bttnets) {
+            if (net->check_relativity(node) != nullptr) {
+                return net.get();
+            }
+        }
+        for (auto& net: this->_ttbnets) {
+            if (net->check_relativity(node) != nullptr) {
+                return net.get();
+            }
+        }
+        return nullptr;
+    }
+
+    auto SyncNet::check_relativity(const hardware::Track* node) const -> const Net* {
+        for (auto& net: this->_bttnets) {
+            if (net->check_relativity(node) != nullptr) {
+                return net.get();
+            }
+        }
+        for (auto& net: this->_ttbnets) {
+            if (net->check_relativity(node) != nullptr) {
+                return net.get();
+            }
+        }
+        return nullptr;
+    }
+
+    auto SyncNet::search_related_nets(std::Vector<Net*>& nets) -> void {
+        clear_related_nets();
+        //* Unsupported operation for syncnet currently
+    }
+
+    auto SyncNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::Vector<const hardware::Bump*> routable_bumps{}, unroutable_bumps{};
+        std::Vector<const hardware::Track*> unroutable_tracks{};
+
+        auto collect_state = [&](circuit::Net* net) {
+            auto [rb, urb, urt] = net->connection_state();
+            routable_bumps.insert(routable_bumps.end(), rb.begin(), rb.end());
+            unroutable_bumps.insert(unroutable_bumps.end(), urb.begin(), urb.end());
+            unroutable_tracks.insert(unroutable_tracks.end(), urt.begin(), urt.end());
+        };
+
+        for (auto& net: this->_btbnets) {
+            collect_state(net.get());
+        }
+        for (auto& net: this->_bttnets) {
+            collect_state(net.get());
+        }
+        for (auto& net: this->_ttbnets) {
+            collect_state(net.get());
+        }
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+            routable_bumps, unroutable_bumps, unroutable_tracks
+        };
+    }
+
+    auto SyncNet::collect_package() -> bool {
+        if (
+            this->_path_package._regular_path.empty()\
+            && this->_path_package._tob_to_track.empty()\
+            && this->_path_package._track_to_tob.empty()
+        ) {
+            auto collect = [&](circuit::Net* net) {
+                auto& package = net->pathpackage();
+    
+                auto& path = this->_path_package._regular_path;
+                path.insert(path.end(), package._regular_path.begin(), package._regular_path.end());
+    
+                auto& tob_to_track = this->_path_package._tob_to_track;
+                tob_to_track.insert(tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
+    
+                auto& track_to_tob = this->_path_package._track_to_tob;
+                track_to_tob.insert(track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
+    
+                this->_path_package._length += package._length;
+            };
+    
+            for (auto& net: this->_btbnets) {
+                collect(net.get());
+            }
+            for (auto& net: this->_bttnets) {
+                collect(net.get());
+            }
+            for (auto& net: this->_ttbnets) {
+                collect(net.get());
+            }
+
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
 }
 
 

@@ -1,5 +1,6 @@
 #include "./tsbsnet.hh"
 #include <hardware/bump/bump.hh>
+#include <algorithm>
 
 
 namespace kiwi::circuit {
@@ -16,8 +17,8 @@ namespace kiwi::circuit {
         }
     }
 
-    auto TracksToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> std::usize {
-        return strategy.route_tracks_to_bumps_net(interposer, this);
+    auto TracksToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
+        strategy.route_tracks_to_bumps_net(interposer, this);
     }
 
     auto TracksToBumpsNet::update_priority(float bias) -> void {
@@ -54,7 +55,7 @@ namespace kiwi::circuit {
     
     auto TracksToBumpsNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << "Begin tracks '[";
+        ss << "TracksToBumpsNet: Begin tracks '[";
         for (int i = 0; i < this->_begin_tracks.size(); ++i) {
             if (i != 0) {
                 ss << ", ";
@@ -74,5 +75,54 @@ namespace kiwi::circuit {
 
     auto TracksToBumpsNet::port_number() const -> std::usize {
         return this->_begin_tracks.size() + this->_end_bumps.size();
+    }
+
+    auto TracksToBumpsNet::check_relativity(const hardware::Bump* node) const -> const Net* {
+        for (auto bump: this->_end_bumps) {
+            if (bump->coord() == node->coord()) {
+                return this;
+            }
+        }
+        return nullptr;
+    }
+
+    auto TracksToBumpsNet::check_relativity(const hardware::Track* node) const -> const Net* {
+        for (auto track: this->_begin_tracks) {
+            if (track->coord() == node->coord()) {
+                return this;
+            }
+        }
+        return nullptr;
+    }
+
+    auto TracksToBumpsNet::search_related_nets(std::Vector<Net*>& nets) -> void {
+        clear_related_nets();
+        for (auto& track: this->_begin_tracks) {
+            this->_related_nets_track.emplace(track, search_nets_node<hardware::Track>(track, nets));
+        }
+        for (auto& bump: this->_end_bumps) {
+            this->_related_nets_bump.emplace(bump, search_nets_node<hardware::Bump>(bump, nets));
+        }
+    }
+
+    auto TracksToBumpsNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::Vector<const hardware::Bump*> routable_bumps{}, unroutable_bumps{};
+        std::Vector<const hardware::Track*> unroutable_tracks{};
+
+        const auto& package = this->pathpackage();
+        for (auto& track: this->_begin_tracks) {
+            if (!package.find_track(track).has_value()) {
+                unroutable_tracks.emplace_back(track);
+            }
+        }
+
+        auto classify_bump = [&](hardware::Bump* bump) {
+            (package.find_bump(bump).has_value() ? routable_bumps : unroutable_bumps).emplace_back(bump);
+        };
+        std::for_each(this->_end_bumps.begin(), this->_end_bumps.end(), classify_bump);
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+            routable_bumps, unroutable_bumps, unroutable_tracks
+        };
     }
 }

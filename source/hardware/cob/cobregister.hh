@@ -3,8 +3,9 @@
 namespace kiwi::hardware {
 
     enum class COBSwState {
-        DisConnected,
-        Connected,  
+        DisConnected,           // neither connected nor given out
+        Connected,              // connected(and given out)
+        Suspended               // given out(temperarily stored in PathPackage) but not connected
     };
 
     class COBSwRegister {
@@ -12,7 +13,7 @@ namespace kiwi::hardware {
         COBSwRegister(COBSwState state):
             _state{state} {}
         
-        COBSwRegister(): COBSwRegister{COBSwState::DisConnected} {}
+        COBSwRegister(): _state{COBSwState::DisConnected} {}
         
 
         auto get() const -> COBSwState {
@@ -21,6 +22,10 @@ namespace kiwi::hardware {
 
         auto set(COBSwState state) -> void {
             this->_state = state;
+        }
+
+        auto is_occupied() const -> bool {
+            return (this->get() == COBSwState::Connected || this->get() == COBSwState::Suspended);
         }
 
         auto is_connected() const -> bool {

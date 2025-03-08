@@ -112,7 +112,7 @@ namespace kiwi::hardware {
     auto Interposer::adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>> {
         auto result = std::Vector<std::Tuple<Track*, COBConnector>>{};
         for (auto [t, connector] : this->adjacent_tracks(track)) {
-            if (!connector.is_connected() && this->is_idle_tracks(t)) {
+            if (!connector.is_occupied() && this->is_idle_tracks(t)) {
                 result.emplace_back(t, connector);
             }
         }
@@ -151,7 +151,7 @@ namespace kiwi::hardware {
 
     auto Interposer::is_idle_tracks(Track* track) -> bool {
         for (auto [t, connector] : this->adjacent_tracks(track)) {
-            if (connector.is_connected()) {
+            if (connector.is_occupied()) {
                 return false;
             }
         }

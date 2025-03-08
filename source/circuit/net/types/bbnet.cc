@@ -21,8 +21,8 @@ namespace kiwi::circuit {
         this->_end_bump = hardware::Bump::update_bump(this->_end_bump, prev_tob, next_tob);
     }
 
-    auto BumpToBumpNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> std::usize {
-        return strategy.route_bump_to_bump_net(interposer, this);
+    auto BumpToBumpNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
+        strategy.route_bump_to_bump_net(interposer, this);
     }
 
     auto BumpToBumpNet::update_priority(float bias) -> void {
@@ -48,7 +48,40 @@ namespace kiwi::circuit {
     }
 
     auto BumpToBumpNet::to_string() const -> std::String {
-        return std::format("Begin bump: '{}' to End bump '{}'", this->_begin_bump->coord(), this->_end_bump->coord());
+        return std::format(
+            "BumpToBumpNet: Begin bump: '{}' to End bump '{}'", this->_begin_bump->coord(), this->_end_bump->coord()
+        );
+    }
+
+    auto BumpToBumpNet::check_relativity(const hardware::Bump* node) const -> const Net* {
+        if (node->coord() == this->_begin_bump->coord() || node->coord() == this->_end_bump->coord()) {
+            return dynamic_cast<const Net*>(this);
+        }
+        else {
+            return nullptr;
+        }
+    }
+
+    auto BumpToBumpNet::search_related_nets(std::Vector<Net*>& nets) -> void {
+        clear_related_nets();
+        this->_related_nets_bump.emplace(this->_begin_bump, search_nets_node<hardware::Bump>(this->_begin_bump, nets));
+        this->_related_nets_bump.emplace(this->_end_bump, search_nets_node<hardware::Bump>(this->_end_bump, nets));
+    }
+
+    auto BumpToBumpNet::connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
+        std::Vector<const hardware::Bump*> routable_bumps {}, unroutable_bumps {};
+
+        const auto& package = this->pathpackage();
+
+        auto classify_bump = [&](const hardware::Bump* bump) {
+            (package.find_bump(bump).has_value() ? routable_bumps : unroutable_bumps).emplace_back(bump);
+        };
+        classify_bump(this->_begin_bump);
+        classify_bump(this->_end_bump);
+
+        return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>>{
+            routable_bumps, unroutable_bumps, std::Vector<const hardware::Track*>{}
+        };
     }
 
 }

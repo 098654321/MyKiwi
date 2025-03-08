@@ -2,7 +2,7 @@
 
 #include <QThread>
 #include <debug/debug.hh>
-#include <algo/router/route.hh>
+#include <algo/router/route_nets.hh>
 #include <algo/netbuilder/netbuilder.hh>
 #include <algo/router/maze/mazeroutestrategy.hh>
 

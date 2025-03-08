@@ -61,6 +61,18 @@ namespace kiwi::hardware {
         }
     }
 
+    auto TOBConnector::give_out() -> void {
+        this->_bump_to_hori.give_out();
+        this->_hori_to_vert.give_out();
+        this->_vert_to_track.give_out();
+    }
+
+    auto TOBConnector::stay_inside() -> void {
+        this->_bump_to_hori.stay_inside();
+        this->_hori_to_vert.stay_inside();
+        this->_vert_to_track.stay_inside();
+    }
+
     auto TOBConnector::disconnect() -> void {
         this->_bump_to_hori.disconnect();   
         this->_hori_to_vert.disconnect();   

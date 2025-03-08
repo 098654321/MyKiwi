@@ -20,7 +20,7 @@ namespace kiwi::hardware {
     class Interposer {
     public:
         enum {
-            COB_ARRAY_WIDTH   = 12,
+            COB_ARRAY_WIDTH   = 13,
             COB_ARRAY_HEIGHT  = 9,
 
             TOB_ARRAY_WIDTH   = 4,
@@ -40,16 +40,16 @@ namespace kiwi::hardware {
         void clear();
 
     public:
-        auto available_tracks(Bump* bump, TOBSignalDirection dir) -> std::HashMap<Track*, TOBConnector>;
-        auto available_tracks_bump_to_track(Bump* bump) -> std::HashMap<Track*, TOBConnector>;
-        auto available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector>;
+        auto available_tracks(Bump* bump, TOBSignalDirection dir) -> std::HashMap<Track*, TOBConnector>;    
+        auto available_tracks_bump_to_track(Bump* bump) -> std::HashMap<Track*, TOBConnector>;              
+        auto available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector>;              
 
     public:
-        auto adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>>;
+        auto adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>>;           
         auto adjacent_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>>;
 
     public:
-        auto is_idle_tracks(Track* track) -> bool;
+        auto is_idle_tracks(Track* track) -> bool;                                                          
 
     public:
         auto get_cob(const COBCoord& coord) -> std::Option<COB*>;
@@ -64,10 +64,10 @@ namespace kiwi::hardware {
         auto get_bump(const TOBCoord& coord, std::usize index) -> std::Option<Bump*>;
         auto get_bump(std::i64 row, std::i64 col, std::usize index) -> std::Option<Bump*>;
 
-        auto get_a_idle_tob() -> std::Option<TOB*>;
+        auto get_a_idle_tob() -> std::Option<TOB*>;                                                         
         
     public:
-        auto randomly_map_remain_indexes() -> void;
+        auto randomly_map_remain_indexes() -> void;                                                         
         auto manage_cobunit_resources() -> void;
 
     private:

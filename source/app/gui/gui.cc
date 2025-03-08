@@ -1,13 +1,10 @@
 #include "./gui.hh"
-#include <widget/layout/layoutwidget.h>
-#include <widget/schematic/schematicwidget.h>
-
 #include <widget/window.h>
 
 #include <hardware/interposer.hh>
 #include <circuit/basedie.hh>
 
-#include <algo/router/route.hh>
+#include <algo/router/route_nets.hh>
 #include <algo/router/maze/mazeroutestrategy.hh>
 
 #include <parse/reader/module.hh>
@@ -20,7 +17,6 @@
 #include <std/algorithm.hh>
 
 #include <QApplication>
-#include <QDebug>
 
 namespace kiwi {
 
