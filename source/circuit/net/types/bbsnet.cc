@@ -53,6 +53,16 @@ namespace kiwi::circuit {
         }
     }
 
+    auto BumpToBumpsNet::accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> {
+        std::HashMap<hardware::Bump*, std::HashSet<std::usize>> map{};
+
+        map.emplace(this->_begin_bump, this->_begin_bump->accessable_cobunit());
+        for (auto& b: this->_end_bumps) {
+            map.emplace(b, b->accessable_cobunit());
+        }
+        return map;
+    }
+
     auto BumpToBumpsNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
         ss << std::format("BumpToBumpsNet: Begin bump '{}' to End bumps '[", this->_begin_bump->coord());
@@ -104,6 +114,26 @@ namespace kiwi::circuit {
         return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
             routable_bumps, unroutable_bumps, std::Vector<const hardware::Track*> {}
         };
+    }
+
+    auto BumpToBumpsNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+        std::HashSet<hardware::Bump*> bump_set {};
+        for (auto& end_bump: this->_end_bumps) {
+            bump_set.emplace(end_bump);
+        }
+
+        return std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+            {this->_begin_bump, bump_set}
+        };
+    }
+
+    auto BumpToBumpsNet::nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+        std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> map{};
+        map.emplace(this->_begin_bump, hardware::TOBBumpDirection::BumpToTOB);
+        for (auto& b: this->_end_bumps) {
+            map.emplace(b, hardware::TOBBumpDirection::TOBToBump);
+        }
+        return map;
     }
         
 }

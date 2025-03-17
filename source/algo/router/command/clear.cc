@@ -4,7 +4,7 @@
 
 namespace kiwi::algo {
 
-auto Clear::execute(hardware::Interposer* interposer, RouteEngine& engine, const RouteStrategy& strategy) const -> void {
+auto Clear::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("Clearing existing paths ...");
     auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
     for (auto& net : nets) {

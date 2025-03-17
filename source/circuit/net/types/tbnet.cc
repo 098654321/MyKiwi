@@ -41,6 +41,12 @@ namespace kiwi::circuit {
         _end_bump->intersect_access_unit(cobunit_ids);
     }
 
+    auto TrackToBumpNet::accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> {
+        std::HashMap<hardware::Bump*, std::HashSet<std::usize>> map{};
+        map.emplace(this->_end_bump, this->_end_bump->accessable_cobunit());
+        return map;
+    }
+
     
     auto TrackToBumpNet::to_string() const -> std::String {
         return std::format(
@@ -85,6 +91,16 @@ namespace kiwi::circuit {
 
         return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> {
             routable_bumps, unroutable_bumps, unroutable_tracks
+        };
+    }
+
+    auto TrackToBumpNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+        return std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>>{};
+    }
+
+    auto TrackToBumpNet::nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+        return std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+            {this->_end_bump, hardware::TOBBumpDirection::TOBToBump}
         };
     }
 }

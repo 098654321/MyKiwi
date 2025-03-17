@@ -30,6 +30,7 @@ enum class CommandType {
     Connect,
     Reroute,
     Resources,
+    Allocate,
     Route,
     Sort,
     CheckResult
@@ -41,7 +42,7 @@ public:
     ~Invoker() noexcept = default;
 
 public:
-    auto invoke(hardware::Interposer*, RouteEngine&, const RouteStrategy&) -> void;
+    auto invoke(hardware::Interposer*, RouteEngine&) -> void;
     auto set_route_commands() -> void;
     auto call_remediation(Command*) -> bool;
     auto check_command() -> bool;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <hardware/coord.hh>
+#include <hardware/tob/tobregister.hh>
 #include <std/collection.hh>
 #include <std/string.hh>
 #include <std/utility.hh>
@@ -44,9 +45,12 @@ namespace kiwi::circuit {
         virtual auto update_priority(float bias) -> void = 0;
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;
         virtual auto check_accessable_cobunit() -> void = 0;
+        virtual auto accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> = 0;
         virtual auto port_number() const -> std::usize = 0;
         virtual auto to_string() const -> std::String = 0;
         virtual auto search_related_nets(std::Vector<Net*>& nets) -> void = 0;
+        virtual auto nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> = 0;
+        virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> = 0;
 
         // return: (bumps_routable, bumps_unroutable, tracks_unroutable)
         virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> = 0;
@@ -79,6 +83,7 @@ namespace kiwi::circuit {
         }
     
     protected:
+        // search nets which share common nodes with this 
         template <class Node>
         auto search_nets_node(Node* node, std::Vector<Net*>& nets) -> std::Vector<Net*> {
             std::Vector<Net*> related_nets {};

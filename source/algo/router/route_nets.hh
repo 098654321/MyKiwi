@@ -18,17 +18,18 @@ namespace kiwi::circuit {
 namespace kiwi::algo {
 
     class RouteStrategy;
+    class AllocateStrategy;
     
     auto route_nets(
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        const RouteStrategy& strategy
+        const RouteStrategy& strategy,
+        const AllocateStrategy& allocator
     ) -> std::usize;
 
     auto analyze_results(
         hardware::Interposer* interposer,
-        RouteEngine& engine,
-        const RouteStrategy& strategy
+        RouteEngine& engine
     ) -> std::usize;
 
 

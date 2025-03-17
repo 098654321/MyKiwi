@@ -43,6 +43,14 @@ namespace kiwi::circuit {
         _end_bump->intersect_access_unit(accessable_cobunit);
     }
 
+    auto BumpToBumpNet::accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> {
+        std::HashMap<hardware::Bump*, std::HashSet<std::usize>> map {};
+
+        map.emplace(this->_begin_bump, this->_begin_bump->accessable_cobunit());
+        map.emplace(this->_end_bump, this->_end_bump->accessable_cobunit());
+        return map;
+    }
+
     auto BumpToBumpNet::port_number() const -> std::usize {
         return 2;
     }
@@ -81,6 +89,19 @@ namespace kiwi::circuit {
 
         return std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>>{
             routable_bumps, unroutable_bumps, std::Vector<const hardware::Track*>{}
+        };
+    }
+
+    auto BumpToBumpNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+        return std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+            {this->_begin_bump, std::HashSet<hardware::Bump*>{this->_end_bump}}
+        };
+    }
+
+    auto BumpToBumpNet::nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+        return std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+            {this->_begin_bump, hardware::TOBBumpDirection::BumpToTOB},
+            {this->_end_bump, hardware::TOBBumpDirection::TOBToBump}
         };
     }
 

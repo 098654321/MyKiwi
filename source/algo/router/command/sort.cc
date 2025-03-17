@@ -5,7 +5,7 @@
 
 namespace kiwi::algo {
 
-auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine, const RouteStrategy& strategy) const -> void {
+auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
     debug::debug("Sort by priority");
     std::usize max_port_num {0};

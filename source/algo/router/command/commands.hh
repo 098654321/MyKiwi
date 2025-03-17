@@ -6,3 +6,4 @@
 #include "./resources.hh"
 #include "./route.hh"
 #include "./sort.hh"
+#include "./allocate.hh"

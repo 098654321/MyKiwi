@@ -20,7 +20,7 @@ namespace kiwi::hardware {
     class Interposer {
     public:
         enum {
-            COB_ARRAY_WIDTH   = 13,
+            COB_ARRAY_WIDTH   = 12,
             COB_ARRAY_HEIGHT  = 9,
 
             TOB_ARRAY_WIDTH   = 4,
@@ -42,7 +42,7 @@ namespace kiwi::hardware {
     public:
         auto available_tracks(Bump* bump, TOBSignalDirection dir) -> std::HashMap<Track*, TOBConnector>;    
         auto available_tracks_bump_to_track(Bump* bump) -> std::HashMap<Track*, TOBConnector>;              
-        auto available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector>;              
+        auto available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector>;   
 
     public:
         auto adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>>;           

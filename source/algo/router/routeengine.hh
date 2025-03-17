@@ -1,6 +1,8 @@
 #pragma once
 
 #include <circuit/net/nets.hh>
+#include "./routestrategy.hh"
+#include "./allocatestrategy.hh"
 #include <std/collection.hh>
 #include <std/memory.hh>
 #include <hardware/bump/bump.hh>
@@ -22,7 +24,9 @@ namespace kiwi::algo {
  
 class RouteEngine {
 public:
-    RouteEngine(const std::Vector<std::Box<circuit::Net>>& nets);
+    RouteEngine(
+        const std::Vector<std::Box<circuit::Net>>& nets, const RouteStrategy& str, const AllocateStrategy& as
+    );
     ~RouteEngine() = default;
 
     auto routed_nets() const -> std::Vector<circuit::Net*>;
@@ -30,11 +34,18 @@ public:
 
 public:
     auto nets() const -> const std::Vector<circuit::Net*>& { return this->_nets; }
+    auto nets() -> std::Vector<circuit::Net*>& {return this->_nets;}
+
     auto position() const -> std::usize {return this->_posi;}
+    auto routestrategy() const -> const RouteStrategy& {return this->_routestrategy;}
+    auto allocatestrategy() const -> const AllocateStrategy& {return this->_allocator;}
 
 private:
     std::Vector<circuit::Net*> _nets;
     std::usize _posi;   // point to the net to be routed
+
+    const RouteStrategy& _routestrategy;
+    const AllocateStrategy& _allocator;
 };
 
 }

@@ -6,6 +6,7 @@
 
 #include <algo/router/route_nets.hh>
 #include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/allocate/hopcroft_karp.hh>
 
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>
@@ -23,7 +24,7 @@ namespace kiwi {
         auto [interposer, basedie] = kiwi::parse::read_config(config_path);
 
         algo::build_nets(basedie.get(), interposer.get());
-        algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{});
+        algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{});
 
         // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
 

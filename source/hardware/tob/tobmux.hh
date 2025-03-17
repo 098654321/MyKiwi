@@ -32,6 +32,7 @@ namespace kiwi::hardware {
     public:
         auto available_connectors(std::usize input_index) -> std::Vector<TOBMuxConnector>;
         auto available_output_indexes() const -> std::Vector<std::usize>;
+        auto connector(std::usize input_index, std::usize output_index) -> TOBMuxConnector;
 
     public:
         auto randomly_map_remain_indexes() -> void;

@@ -6,8 +6,10 @@
 
 namespace kiwi::algo {
 
-RouteEngine::RouteEngine(const std::Vector<std::Box<circuit::Net>>& nets)
-    : _posi{0}
+RouteEngine::RouteEngine(
+    const std::Vector<std::Box<circuit::Net>>& nets, const RouteStrategy& str, const AllocateStrategy& as
+)
+    : _posi{0}, _routestrategy{str}, _allocator{as}
 {
     for (auto& net: nets) {
         this->_nets.emplace_back(net.get());

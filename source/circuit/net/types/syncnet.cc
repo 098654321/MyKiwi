@@ -89,6 +89,25 @@ namespace kiwi::circuit
         }
     }
 
+    auto SyncNet::accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> {
+        std::HashMap<hardware::Bump*, std::HashSet<std::usize>> map{};
+
+        for (auto& net: _btbnets) {
+            const auto& net_map = net->accessable_cobunit();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: _bttnets) {
+            const auto& net_map = net->accessable_cobunit();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: _ttbnets) {
+            const auto& net_map = net->accessable_cobunit();
+            map.insert(net_map.begin(), net_map.end());
+        }
+
+        return map;
+    }
+
     
     auto SyncNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
@@ -279,6 +298,35 @@ namespace kiwi::circuit
         else {
             return false;
         }
+    }
+
+    auto SyncNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+        std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> map{};
+        for(auto& net: this->_btbnets) {
+            for (auto& m: net->nodes_map()) {
+                map.emplace(m);
+            }
+        }
+        return map;
+    }
+
+    auto SyncNet::nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+        std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> map{};
+
+        for (auto& net: this->_btbnets) {
+            auto net_map = net->nodes_direction();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: this->_bttnets) {
+            auto net_map = net->nodes_direction();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: this->_ttbnets) {
+            auto net_map = net->nodes_direction();
+            map.insert(net_map.begin(), net_map.end());
+        }
+
+        return map;
     }
 
 }

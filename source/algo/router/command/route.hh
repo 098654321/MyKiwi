@@ -10,7 +10,7 @@ public:
     ~Route() = default;
 
 public:
-    auto execute(hardware::Interposer*, RouteEngine&, const RouteStrategy&) const -> void override;
+    auto execute(hardware::Interposer*, RouteEngine&) const -> void override;
     auto to_string() const -> const std::String override;
     
 };

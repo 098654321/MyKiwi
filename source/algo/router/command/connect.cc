@@ -4,7 +4,7 @@
 
 namespace kiwi::algo {
 
-auto Connect::execute(hardware::Interposer* interposer, RouteEngine& engine, const RouteStrategy& strategy) const -> void {
+auto Connect::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("connecting paths ...");
     auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
     for (auto& net : nets) {

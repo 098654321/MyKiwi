@@ -11,6 +11,7 @@
 #include <std/range.hh>
 #include <std/utility.hh>
 #include <cassert>
+#include <stdexcept>
 
 namespace kiwi::hardware {
 
@@ -58,11 +59,11 @@ namespace kiwi::hardware {
 
         auto cs = std::Vector<TOBConnector>{};
 
-        auto bump_to_hori_info = TOB::bump_to_hori_mux_info(bump_index);
+        auto bump_to_hori_info = TOB::bump_to_hori_mux_info(bump_index);    // [mux, index_in_mux]
         
         for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info))) {
 
-            auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());
+            auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());    // within range [0, 127]
             auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);
 
             for (auto& hori_to_vert_cs : this->_hori_to_vert_muxs.at(std::get<0>(hori_to_vert_info))->available_connectors(std::get<1>(hori_to_vert_info))) {
@@ -95,6 +96,45 @@ namespace kiwi::hardware {
         }
     
         return cs;
+    }
+
+    auto TOB::bump_track_connectors_chain(std::usize bump_index, std::usize track_index, hardware::TOBBumpDirection direc) -> TOBConnector {
+    try {
+        auto bank = bump_index / (TOB::INDEX_SIZE/2);
+
+        auto vert_mux = track_index % (TOB::INDEX_SIZE/2);          // [0, 63]
+        auto vert_mux_output = track_index / (TOB::INDEX_SIZE/2);
+        auto vert_mux_input = bank;
+        auto vert_index = bank * 64 + vert_mux;
+        
+        auto hori_mux_input = vert_mux / TOB::HORI_TO_VERI_MUX_SIZE;
+        auto hori_mux = bump_index / TOB::BUMP_TO_HORI_MUX_SIZE;
+        auto hori_mux_output = vert_mux % TOB::VERI_TO_TRACK_MUX_SIZE;
+        auto hori_index = 8*hori_mux + hori_mux_input;
+        
+        auto bump_mux = bump_index / TOB::BUMP_TO_HORI_MUX_SIZE;
+        auto bump_mux_input = bump_index % TOB::BUMP_TO_HORI_MUX_SIZE;
+        auto bump_mux_output = hori_mux_input;
+
+        debug::debug_fmt("bump->track: {}->{}->{}->{}", bump_index, hori_index, vert_index, track_index);
+
+        auto vt_mux_connector = this->_vert_to_track_muxs.at(vert_mux)->connector(vert_mux_input, vert_mux_output);
+        auto hv_mux_connector = this->_hori_to_vert_muxs.at(hori_mux)->connector(hori_mux_input, hori_mux_output);
+        auto bh_mux_connector = this->_bump_to_hori_muxs.at(bump_mux)->connector(bump_mux_input, bump_mux_output);
+
+        auto& bump_dir_reg = this->_bump_dir_registers.at(bump_index);
+        auto& track_dir_reg = this->_track_dir_registers.at(track_index);
+        auto signal_dir = direc == hardware::TOBBumpDirection::BumpToTOB ? hardware::TOBSignalDirection::BumpToTrack : hardware::TOBSignalDirection::TrackToBump;
+        
+        return TOBConnector {
+            bump_index, hori_index, vert_index, track_index, 
+            bh_mux_connector, hv_mux_connector, vt_mux_connector, 
+            bump_dir_reg.get(), track_dir_reg.get(), signal_dir
+        };
+    }
+    catch (std::exception& e) {
+        throw std::runtime_error(std::format("bump_track_connectors_chain() >> {}", e.what())); 
+    }
     }
 
     auto TOB::bump_index_map_track_index(std::usize bump_index) const -> std::Option<std::usize> {

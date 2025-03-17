@@ -4,6 +4,8 @@
 #include <std/integer.hh>
 #include <cassert>
 #include <std/range.hh>
+#include <stdexcept>
+#include <format>
 
 namespace kiwi::hardware {
 
@@ -56,8 +58,8 @@ namespace kiwi::hardware {
         auto connectors = std::Vector<TOBMuxConnector>{};
         for (const auto output_index : this->available_output_indexes()) {
             connectors.emplace_back(
-                input_index,    // source
-                output_index,   // target
+                input_index,    // source, [0, 7]
+                output_index,   // target, [0, 7]
                 &this->_registers.at(input_index)
             );
         }
@@ -89,6 +91,21 @@ namespace kiwi::hardware {
         }
 
         return indexes;
+    }
+
+    auto TOBMux::connector(std::usize input_index, std::usize output_index) -> TOBMuxConnector {
+    try {
+        assert(this->_registers.size() > input_index);
+        assert(!this->_registers.at(input_index).is_given_out());
+
+        this->_registers.at(input_index).give_out(output_index);
+        return TOBMuxConnector {
+            input_index, output_index, &this->_registers.at(input_index)
+        };
+    }
+    catch (const std::exception& e) {
+        throw std::runtime_error(std::format("TOBMux::connector(): {}", e.what()));
+    }
     }
 
     auto TOBMux::randomly_map_remain_indexes() -> void {

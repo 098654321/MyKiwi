@@ -20,6 +20,7 @@ namespace kiwi::hardware {
     public:
         static auto update_bump(Bump* bump, TOB* prev_tob, TOB* next_tob) -> Bump*;
         auto set_connected_track(Track* track, TOBSignalDirection signal_dir) -> void;
+        auto set_allocated_track(Track* track) -> void; 
         auto disconnect_track(Track* track) -> void;
         auto intersect_access_unit(const std::HashSet<std::usize>& accessable_cobunit) -> void;
 
@@ -29,6 +30,7 @@ namespace kiwi::hardware {
         auto tob() const -> TOB* { return this->_tob; }
 
         auto connected_track() const -> Track* { return this->_connected_track; }
+        auto allocated_track() const -> Track* {return this->_allocated_track; }
         auto signal_dir() const -> TOBSignalDirection { return this->_signal_dir; }
         auto accessable_cobunit() const -> const std::HashSet<std::usize>& { return this->_accessable_cobunit; }
 
@@ -37,6 +39,7 @@ namespace kiwi::hardware {
         TOB* const _tob;
 
         Track* _connected_track; 
+        Track* _allocated_track;
         TOBSignalDirection _signal_dir;
         std::HashSet<std::usize> _accessable_cobunit;   // at least within the range
     };

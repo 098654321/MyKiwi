@@ -14,17 +14,18 @@ namespace kiwi::algo {
     auto route_nets(
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        const RouteStrategy& strateg
+        const RouteStrategy& strateg,
+        const AllocateStrategy& allocator
     ) -> std::usize {
         debug::info("Route nets");
         auto invoker = Invoker{};
-        auto engine = RouteEngine{basedie->nets()};
+        auto engine = RouteEngine{basedie->nets(), strateg, allocator};
         invoker.set_route_commands();
         
         // TODO: reroute_command
         while (!invoker.check_command())
         try {
-            invoker.invoke(interposer, engine, strateg);
+            invoker.invoke(interposer, engine);
         } 
         catch (const RetryExpt& err) {
             assert (err.net() != nullptr);
@@ -44,15 +45,14 @@ namespace kiwi::algo {
             throw std::runtime_error("route_nets() >> " + std::String(err.what()));
         }
 
-        auto total_length = analyze_results(interposer, engine, strateg);
+        auto total_length = analyze_results(interposer, engine);
         return total_length;
     }
 
     // return total length of all nets
     auto analyze_results(
         hardware::Interposer* interposer,
-        RouteEngine& engine,
-        const RouteStrategy& strategy
+        RouteEngine& engine
     ) -> std::usize {
         std::usize total_length {0};
         const auto& nets = engine.nets();

@@ -5,7 +5,7 @@
 namespace kiwi::algo {
 
 auto Invoker::invoke(
-    hardware::Interposer* interposer, RouteEngine& engine, const RouteStrategy& strategy
+    hardware::Interposer* interposer, RouteEngine& engine
 ) -> void {
     while (!this->_commands.empty()) {
         this->_current_command = this->_commands.front();
@@ -17,13 +17,14 @@ auto Invoker::invoke(
             auto msg = std::format("Command {} is null", command->to_string());
             throw FinalError(msg);
         }
-        command->execute(interposer, engine, strategy);
+        command->execute(interposer, engine);
     }
 }
 
 auto Invoker::set_route_commands() -> void {
     this->_commands.emplace_back(this->create_command(CommandType::Sort));
     this->_commands.emplace_back(this->create_command(CommandType::Resources));
+    // this->_commands.emplace_back(this->create_command(CommandType::Allocate));
     this->_commands.emplace_back(this->create_command(CommandType::Route));
     this->_commands.emplace_back(this->create_command(CommandType::Connect));
 }
@@ -59,6 +60,8 @@ auto Invoker::create_command(CommandType type) -> std::Rc<Command>  {
             return std::make_shared<Route>();
         case CommandType::Sort:
             return std::make_shared<Sort>();
+        case CommandType::Allocate:
+            return std::make_shared<Allocate>();
         default:
             throw FinalError("Invalid command type");
     }

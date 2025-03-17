@@ -1,7 +1,6 @@
 #pragma once
 
 #include <global/std/collection.hh>
-#include <algo/router/routestrategy.hh>
 #include <global/std/memory.hh>
 #include "./routeengine.hh"
 
@@ -23,7 +22,7 @@ public:
     virtual ~Command() = default;
 
 public:
-    virtual auto execute(hardware::Interposer*, RouteEngine&, const RouteStrategy&) const -> void = 0;
+    virtual auto execute(hardware::Interposer*, RouteEngine&) const -> void = 0;
     virtual auto to_string() const -> const std::String = 0;
     virtual auto remediation() const -> const std::Vector<std::Rc<Command>>& {
         return this->_remediation;

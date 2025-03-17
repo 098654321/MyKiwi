@@ -9,7 +9,7 @@ Route::Route() {
     this->_remediation.emplace_back(std::make_shared<Clear>());
 }
 
-auto Route::execute(hardware::Interposer* interposer, RouteEngine& engine, const RouteStrategy& strategy) const -> void {
+auto Route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("routing ...");
 
     auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
@@ -22,7 +22,7 @@ auto Route::execute(hardware::Interposer* interposer, RouteEngine& engine, const
         net->search_related_nets(routed_nets);
 
         // route
-        net->route(interposer, strategy);
+        net->route(interposer, engine.routestrategy());
         engine.move_on();
     }
 }
