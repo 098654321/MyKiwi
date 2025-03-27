@@ -238,7 +238,7 @@ namespace kiwi::widget {
                 this->_basedie->clear();
             }
 
-            parse::read_config(configPath, this->_interposer.get(), this->_basedie.get());
+            parse::read_config(configPath, this->_interposer.get(), this->_basedie.get(), 0);
 
             this->_schematicWidget->reload();
             this->_layoutWidget->reload();

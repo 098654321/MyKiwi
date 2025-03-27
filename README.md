@@ -44,6 +44,7 @@ Options：
 - `-h, --help`：打印帮助信息
 - `-V, --version`：打印版本信息
 - `-v, --verbose`: 输出 Debug 信息
+- `-i, --incremental <mode>`: 进入增量布线，需要跟一个正整数
 
 
 

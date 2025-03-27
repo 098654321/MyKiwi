@@ -48,7 +48,7 @@ namespace kiwi::hardware {
     
     private:
         std::usize _mux_size;
-        std::Vector<TOBMuxRegister> _registers;
+        std::Vector<TOBMuxRegister> _registers;     // index = bump_index_in_group
     };
 
 }

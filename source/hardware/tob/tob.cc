@@ -64,7 +64,7 @@ namespace kiwi::hardware {
         for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info))) {
 
             auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());    // within range [0, 127]
-            auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);
+            auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);    // [vert_group, vert_index_in_group]
 
             for (auto& hori_to_vert_cs : this->_hori_to_vert_muxs.at(std::get<0>(hori_to_vert_info))->available_connectors(std::get<1>(hori_to_vert_info))) {
                 
@@ -116,7 +116,7 @@ namespace kiwi::hardware {
         auto bump_mux_input = bump_index % TOB::BUMP_TO_HORI_MUX_SIZE;
         auto bump_mux_output = hori_mux_input;
 
-        debug::debug_fmt("bump->track: {}->{}->{}->{}", bump_index, hori_index, vert_index, track_index);
+        debug::debug_fmt("TOB::connector_chain(): bump->track: {}->{}->{}->{}", bump_index, hori_index, vert_index, track_index);
 
         auto vt_mux_connector = this->_vert_to_track_muxs.at(vert_mux)->connector(vert_mux_input, vert_mux_output);
         auto hv_mux_connector = this->_hori_to_vert_muxs.at(hori_mux)->connector(hori_mux_input, hori_mux_output);

@@ -111,15 +111,18 @@ namespace kiwi::parse {
 
     auto Reader::add_connections_to_basedie() -> void
     try {
-        for (auto& [sync, connections] : this->_config.connections) {
-            for (const auto& connection : connections) {
-                auto input = this->parse_connection_pin(connection.input);
-                auto output = this->parse_connection_pin(connection.output);
-                this->_basedie->add_connection(
-                    sync,
-                    std::move(input),
-                    std::move(output)
-                );
+        for (auto& [mode, inner_connection] : this->_config.connections) {
+            for (auto& [sync, connections]: inner_connection) {
+                for (const auto& connection : connections) {
+                    auto input = this->parse_connection_pin(connection.input);
+                    auto output = this->parse_connection_pin(connection.output);
+                    this->_basedie->add_connection(
+                        mode,
+                        sync,
+                        std::move(input),
+                        std::move(output)
+                    );
+                }
             }
         }
     }

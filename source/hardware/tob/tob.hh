@@ -130,7 +130,7 @@ namespace kiwi::hardware {
         std::HashMap<std::usize, std::Box<Bump>> _bumps {};
         std::Array<std::usize, 16> _cobunit_resources;
 
-        std::Vector<std::Box<TOBMux>> _bump_to_hori_muxs {};
+        std::Vector<std::Box<TOBMux>> _bump_to_hori_muxs {};        // index = bump_group
         std::Vector<std::Box<TOBMux>> _hori_to_vert_muxs {};
         std::Vector<std::Box<TOBMux>> _vert_to_track_muxs {};
 

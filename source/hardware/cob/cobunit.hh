@@ -9,6 +9,15 @@
 
 namespace kiwi::hardware {
 
+    enum class COBSWDirection {
+        RU, 
+        LU, 
+        RD, 
+        LD, 
+        H, 
+        V
+    };
+
     struct COBUnitConnector {
         COBDirection    from_dir;
         std::usize      from_index;

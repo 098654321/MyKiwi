@@ -11,11 +11,13 @@ namespace kiwi::circuit {
         friend BaseDie;
 
     private:
-        Connection(int sync, Pin input, Pin output);
+        Connection(int mode, int sync, Pin input, Pin output);
 
+        void set_mode(int mode) {this->_mode = mode;}
         void set_sync(int sync) { this->_sync = sync; }
 
     public:
+        auto mode() const -> int { return this->_mode;}
         auto sync() const -> int { return this->_sync; }
         auto input_pin() const -> const Pin& { return this->_input; }
         auto output_pin() const -> const Pin& { return this->_output; }
@@ -24,6 +26,7 @@ namespace kiwi::circuit {
         void set_output(Pin output) { this->_input = std::move(output); }
 
     private:
+        int _mode;
         int _sync;
         Pin _input;
         Pin _output;

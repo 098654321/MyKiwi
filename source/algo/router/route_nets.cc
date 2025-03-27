@@ -15,11 +15,12 @@ namespace kiwi::algo {
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
         const RouteStrategy& strateg,
-        const AllocateStrategy& allocator
+        const AllocateStrategy& allocator,
+        int m
     ) -> std::usize {
         debug::info("Route nets");
         auto invoker = Invoker{};
-        auto engine = RouteEngine{basedie->nets(), strateg, allocator};
+        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m};
         invoker.set_route_commands();
         
         // TODO: reroute_command

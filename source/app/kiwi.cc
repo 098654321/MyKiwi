@@ -35,7 +35,7 @@ namespace kiwi {
         console::println_with_color("Options: ", Color::Green);
 
         console::print_with_color("\t-o, --output <OUTPUT_PATH>  ", Color::Cyan);
-        console::println("Indicate output controlbit file path");
+        console::println("Indicate output directory for controlbit file");
 
         console::print_with_color("\t-g, --gui                   ", Color::Cyan);
         console::println("Work in gui");
@@ -48,6 +48,9 @@ namespace kiwi {
 
         console::print_with_color("\t-v, --verbose               ", Color::Cyan);
         console::println("Print lots of verbose information for users.");
+
+        console::print_with_color("\t-i, --incremental           ", Color::Cyan);
+        console::println("Work in incremental routing mode.");
     }
 
     auto print_verion() -> void {
@@ -91,6 +94,7 @@ namespace kiwi {
         }
 
         if (argument_index("-g", "--gui").has_value()) {
+            // gui mode
             if (arguments[0] != "-g" && arguments[0] != "--gui") {
                 debug::warning_fmt("Use gui model but indicate input config '{}', it will be ignored", arguments[0]);
             }
@@ -103,18 +107,33 @@ namespace kiwi {
             print_verion();
         }
         else {
+            // cli mode
             auto output_opt = argument_index("-o", "--output");
             auto output_path = std::Option<std::StringView>{std::nullopt};
             if (output_opt.has_value()) {
                 auto index = *output_opt;
-                if (index >= (arguments.size() - 1)) {
+                if (index >= (arguments.size() - 1) || arguments[index + 1].at(0) == '-') {
                     debug::warning("Use '-o/--output' but not indicate the output path! Use default instead");
                 } else {
                     output_path.emplace(arguments[index + 1]);
                 }
             }
 
-            return cli_main(arguments[0], std::move(output_path));
+            auto incre_opt = argument_index("-i", "--incremental");
+            int incre_mode = 0;
+            if (incre_opt.has_value()) {
+                auto index = incre_opt.value();
+                if (index >= (arguments.size() - 1) || arguments[index + 1].at(0) == '-') {
+                    debug::fatal("Use '-i/--incremental' but not indicate the mode!");
+                } else {
+                    incre_mode = std::stoi(arguments[index + 1]);
+                    if (incre_mode <= 0) {
+                        debug::fatal("incremental mode should be a positive integer");
+                    }
+                }
+            }
+
+            return cli_main(arguments[0], std::move(output_path), incre_mode);
         }
 
         return 0;

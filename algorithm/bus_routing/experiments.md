@@ -22,10 +22,10 @@
   - 匈牙利算法，适合小规模二分图
   - Hopcroft-Karp 算法，适合更大规模的二分图**可用这个**
 
-  
 
 
 2. 还有布线顺序对布线成功率有影响，可以在RetryExpt中加入应对策略 （能不能把这个看作增量布线的一部分）
+  - 如果非同步线布线失败，可以把同步线不动，非同步线拆了，然后挂掉的那个先连。
 
 3. [VPR](https://github.com/verilog-to-routing/vtr-verilog-to-routing)
 

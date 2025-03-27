@@ -14,6 +14,7 @@
 #include <format>
 #include <memory>
 #include <utility>
+#include <cstdlib>
 
 namespace kiwi::circuit {
 
@@ -84,15 +85,18 @@ namespace kiwi::circuit {
         return res.first->second.get();
     }
 
-    auto BaseDie::add_connection(int sync, Pin input, Pin output) -> Connection* {
-        debug::debug_fmt("Add connection from '{}' to '{}'", input, output);
+    auto BaseDie::add_connection(int mode, int sync, Pin input, Pin output) -> Connection* {
+        debug::debug_fmt("Add connection from '{}' to '{}' in mode {}", input, output, mode);
 
-        auto p = new Connection{sync, std::move(input), std::move(output)};
+        auto p = new Connection{mode, sync, std::move(input), std::move(output)};
         auto connection = std::Box<Connection>{p};
         
-        auto res = this->_connections.emplace(sync, std::Vector<std::Box<Connection>>{});
-        assert(res.first->first == sync);
-        auto& iter = res.first->second.emplace_back(std::move(connection));
+        auto res = this->_connections.emplace(mode, std::HashMap<int, std::Vector<std::Box<Connection>>>{});
+        assert(res.first->first == mode);
+        auto res_v = res.first->second.emplace(sync, std::Vector<std::Box<Connection>>{});
+        assert(res_v.first->first == sync);
+        auto& iter = res_v.first->second.emplace_back(std::move(connection));
+
         return iter.get();
     }
 
@@ -104,8 +108,11 @@ namespace kiwi::circuit {
         this->_nege_ports = ports;
     }
 
-    auto BaseDie::add_net(std::Box<Net> net) -> void {
-        this->_nets.emplace_back(std::move(net));
+    auto BaseDie::add_net(const std::Rc<Net>& net, int mode) -> void {
+        if (!this->_nets.contains(mode)) {
+            this->_nets.emplace(mode, std::Vector<std::Rc<Net>>{});
+        }
+        this->_nets.at(mode).emplace_back(net);
     }
 
     auto BaseDie::remove_topdie_inst(TopDieInstance* inst) -> bool {
@@ -128,23 +135,26 @@ namespace kiwi::circuit {
         auto topdie_inst_ptr = topdie_inst.get();
 
         // Remove all nets connection to this topdie instance 
-        for (auto& [sync, connections] : this->_connections) {
-            auto iter = std::remove_if(connections.begin(), connections.end(), [topdie_inst_ptr](std::Box<Connection>& c) -> bool {
-                auto& input_pin = c->input_pin();
-                auto is_input = input_pin.is_bump() && input_pin.to_connect_bump().inst == topdie_inst_ptr;
-
-                auto& output_pin = c->output_pin();
-                auto is_output = output_pin.is_bump() && output_pin.to_connect_bump().inst == topdie_inst_ptr;
-
-                if (is_input || is_output) {
-                    debug::debug_fmt("Remove net '{}'", *c);
-                    return true;
-                }
-                return false;
-            });
-
-            connections.erase(iter, connections.end());
-        } 
+        for (auto& [mode, inner_connection]: this->_connections) {
+            for (auto& [sync, connections] : inner_connection) {
+                auto iter = std::remove_if(connections.begin(), connections.end(), [topdie_inst_ptr](std::Box<Connection>& c) -> bool {
+                    auto& input_pin = c->input_pin();
+                    auto is_input = input_pin.is_bump() && input_pin.to_connect_bump().inst == topdie_inst_ptr;
+    
+                    auto& output_pin = c->output_pin();
+                    auto is_output = output_pin.is_bump() && output_pin.to_connect_bump().inst == topdie_inst_ptr;
+    
+                    if (is_input || is_output) {
+                        debug::debug_fmt("Remove net '{}'", *c);
+                        return true;
+                    }
+                    return false;
+                });
+    
+                connections.erase(iter, connections.end());
+            }
+        }
+        
 
         // free tob 
         if (topdie_inst->tob() != nullptr) {
@@ -174,27 +184,29 @@ namespace kiwi::circuit {
         auto port_ptr = port.get();
         
         // Remove all connection in with this external_port!
-        for (auto& [sync, connections] : this->_connections) {
-            for (auto i = connections.begin(); i != connections.end(); ++i) {
-                debug::debug_fmt("B connection '{}'", *(i->get()));
-            }
-
-            auto iter = std::remove_if(connections.begin(), connections.end(), [port_ptr](const std::Box<Connection>& c) -> bool {
-                auto& input_pin = c->input_pin();
-                auto is_input = input_pin.is_external_port() && input_pin.to_connect_export().port == port_ptr;
-
-                auto& output_pin = c->output_pin();
-                auto is_output = output_pin.is_external_port() && output_pin.to_connect_export().port == port_ptr;
-                
-                if (is_input || is_output) {
-                    debug::debug_fmt("Remove net '{}'", *c);
-                    return true;
+        for (auto& [mode, inner_connection]: this->_connections) {
+            for (auto& [sync, connections] : inner_connection) {
+                for (auto i = connections.begin(); i != connections.end(); ++i) {
+                    debug::debug_fmt("B connection '{}'", *(i->get()));
                 }
-                return false;
-            });
-
-            connections.erase(iter, connections.end());    
-        } 
+    
+                auto iter = std::remove_if(connections.begin(), connections.end(), [port_ptr](const std::Box<Connection>& c) -> bool {
+                    auto& input_pin = c->input_pin();
+                    auto is_input = input_pin.is_external_port() && input_pin.to_connect_export().port == port_ptr;
+    
+                    auto& output_pin = c->output_pin();
+                    auto is_output = output_pin.is_external_port() && output_pin.to_connect_export().port == port_ptr;
+                    
+                    if (is_input || is_output) {
+                        debug::debug_fmt("Remove net '{}'", *c);
+                        return true;
+                    }
+                    return false;
+                });
+    
+                connections.erase(iter, connections.end());    
+            }
+        }
 
         return true;
     }
@@ -206,8 +218,13 @@ namespace kiwi::circuit {
 
         debug::debug_fmt("Remove connection '{}'", *connection);
 
-        auto res = this->_connections.find(connection->sync());
-        if (res == this->_connections.end()) {
+        auto inner_connection = this->_connections.find(connection->mode());
+        if (inner_connection == this->_connections.end()) {
+            return false;
+        }
+
+        auto res = inner_connection->second.find(connection->sync());
+        if (res == inner_connection->second.end()) {
             return false;
         }
 
@@ -334,7 +351,8 @@ namespace kiwi::circuit {
 
         debug::debug_fmt("Set connection '{}' sync form '{}' to '{}'", *connection, connection->sync(), sync);
         
-        auto& old_group = this->_connections.at(connection->sync());
+        auto& inner_connection = this->_connections.at(connection->mode());
+        auto& old_group = inner_connection.at(connection->sync());
         
         auto removed_connection = std::Box<Connection>{nullptr};
         auto iter = std::remove_if(old_group.begin(), old_group.end(), [&removed_connection, connection] (std::Box<Connection>& c) {
@@ -346,7 +364,7 @@ namespace kiwi::circuit {
         });
 
         if (removed_connection.get() != nullptr) {
-            auto& new_group = this->_connections.emplace(sync, std::Vector<std::Box<Connection>>{}).first->second;
+            auto& new_group = inner_connection.emplace(sync, std::Vector<std::Box<Connection>>{}).first->second;
             new_group.emplace_back(std::move(removed_connection));
             connection->set_sync(sync);
             old_group.erase(iter, old_group.end());
@@ -408,4 +426,34 @@ namespace kiwi::circuit {
     }
 
     BaseDie::~BaseDie() noexcept = default;
+
+    bool operator == (const std::Rc<Net>& net1, const std::Rc<Net>& net2) {
+        return *net1 == *net2;
+    }
+
+    auto BaseDie::merge_same_mode_nets() -> void {
+        std::HashSet<std::Rc<Net>> set {};
+        for (auto& [mode, inner]: this->_nets) {
+            for (auto& net: inner) {
+                if (net == nullptr) {
+                    debug::debug("merge_same_mode_nets(): net is nullptr");
+                }
+                
+                std::Rc<Net> flag {nullptr};
+                for (auto& s: set) {
+                    if (*net == *s) {
+                        flag = s;
+                        break;
+                    }
+                }
+                if (flag == nullptr) {
+                    set.insert(net);
+                }
+                else {
+                    flag->add_mode(mode);
+                    net = flag;
+                }
+            }
+        }
+    }
 }

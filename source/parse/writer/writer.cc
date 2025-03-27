@@ -21,8 +21,8 @@ namespace kiwi::parse
     auto Writer::fetch_and_write(const std::FilePath& file) -> void
     {
         build_regs();
-        fetch();            
-        write(file);
+        fetch();                // LSB on the left
+        write(file);            // MSB on the left
     }
 
     auto Writer::build_regs() -> void
@@ -195,7 +195,7 @@ namespace kiwi::parse
         {
             auto& data = splitted_bits[outer_i];
             for (std::size_t i = 0; i < data.size(); ++i) {
-                std::bitset<3> bits{data[i]}; 
+                std::bitset<3> bits{data[i]};   // trans decimal 0-7 to binary 000-111
                 for (std::size_t j = 0; j < 3; ++j) {
                     result[outer_i][8 + i * 3 + (2 - j)] = bits[j]; 
                 }
@@ -226,7 +226,6 @@ namespace kiwi::parse
     {
         try{
             std::String binary {bits.to_string()};
-            std::reverse(binary.begin(), binary.end());
             std::stringstream hexStream;
             for (size_t i = 0; i < binary.size(); i += 4) {
                 std::string byte = binary.substr(i, 4);

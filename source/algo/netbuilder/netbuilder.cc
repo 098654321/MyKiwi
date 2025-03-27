@@ -25,19 +25,20 @@ namespace kiwi::algo {
     auto NetBuilder::build() -> void
     try {
         build_01_ports();
-        for (auto& [sync, connections] : this->_basedie->connections()) {
-            if (sync == -1) {
-                this->build_no_sync_nets(connections);
-            } else {
-                this->build_sync_net(connections);
+        for (auto& [mode, inner_connection]: this->_basedie->connections()) {
+            for (auto& [sync, connections] : inner_connection) {
+                if (sync == -1) {
+                    this->build_no_sync_nets(connections, mode);
+                } else {
+                    this->build_sync_net(connections, mode);
+                }
             }
+            this->build_fixed_nets(mode);
         }
-
-        this->build_fixed_nets();
     }
     THROW_UP_WITH("Build nets")
 
-    auto NetBuilder::build_no_sync_nets(std::Span<const std::Box<circuit::Connection>> connections) -> void {
+    auto NetBuilder::build_no_sync_nets(std::Span<const std::Box<circuit::Connection>> connections, int m) -> void {
         // How to deal one to mul net?
         // Build a map: start to ends
         auto track_to_bumps = std::HashMap<hardware::Track*, std::Vector<hardware::Bump*>>{};
@@ -117,11 +118,11 @@ namespace kiwi::algo {
         for (auto& [begin_track, end_bumps] : track_to_bumps) {
             
             // Create net 
-            auto net = std::Box<circuit::Net>{};
+            auto net = std::Rc<circuit::Net>{};
             if (end_bumps.size() == 1) {
-                net = std::make_unique<circuit::TrackToBumpNet>(begin_track, end_bumps[0]);
+                net = std::make_shared<circuit::TrackToBumpNet>(begin_track, end_bumps[0], std::HashSet<int>{m});
             } else {
-                net = std::make_unique<circuit::TrackToBumpsNet>(begin_track, std::move(end_bumps));
+                net = std::make_shared<circuit::TrackToBumpsNet>(begin_track, std::move(end_bumps), std::HashSet<int>{m});
             }
 
             // Insert to basedie & topdieinsts
@@ -134,17 +135,17 @@ namespace kiwi::algo {
                 inst->add_net(net.get());
             }
 
-            this->_basedie->add_net(std::move(net));
+            this->_basedie->add_net(net, m);
         }
 
         // Bump => Bump
         for (auto& [begin_bump, end_bumps] : bump_to_bumps) {
             // Create net 
-            auto net = std::Box<circuit::Net>{};
+            auto net = std::Rc<circuit::Net>{};
             if (end_bumps.size() == 1) {
-                net = std::make_unique<circuit::BumpToBumpNet>(begin_bump, end_bumps.front());
+                net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bumps.front(), std::HashSet<int>{m});
             } else {
-                net = std::make_unique<circuit::BumpToBumpsNet>(begin_bump, std::move(end_bumps));
+                net = std::make_shared<circuit::BumpToBumpsNet>(begin_bump, std::move(end_bumps), std::HashSet<int>{m});
             }
 
             // Insert to basedie & topdieinsts
@@ -158,29 +159,29 @@ namespace kiwi::algo {
                 inst->add_net(net.get());
             }
 
-            this->_basedie->add_net(std::move(net));
+            this->_basedie->add_net(net, m);
         }
 
         // Bump => Track
         for (auto& [begin_bump, end_tracks] : bump_to_tracks) {
             // Create net 
-            auto net = std::Box<circuit::Net>{};
+            auto net = std::Rc<circuit::Net>{};
             if (end_tracks.size() == 1) {
-                net = std::make_unique<circuit::BumpToTrackNet>(begin_bump, end_tracks.front());
+                net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, end_tracks.front(), std::HashSet<int>{m});
             } else {
-                net = std::make_unique<circuit::BumpToTracksNet>(begin_bump, std::move(end_tracks));
+                net = std::make_shared<circuit::BumpToTracksNet>(begin_bump, std::move(end_tracks), std::HashSet<int>{m});
             }
 
             // Insert to basedie & topdieinsts
             this->_bump_to_topdie_inst.at(begin_bump)->add_net(net.get());
-            this->_basedie->add_net(std::move(net));
+            this->_basedie->add_net(net, m);
         }
     }
 
-    auto NetBuilder::build_sync_net(std::Span<const std::Box<circuit::Connection>> connections) -> void {
-        auto btb_sync_nets = std::Vector<std::Box<circuit::BumpToBumpNet>>{};
-        auto btt_sync_nets = std::Vector<std::Box<circuit::BumpToTrackNet>>{};
-        auto ttb_sync_nets = std::Vector<std::Box<circuit::TrackToBumpNet>>{};
+    auto NetBuilder::build_sync_net(std::Span<const std::Box<circuit::Connection>> connections, int m) -> void {
+        auto btb_sync_nets = std::Vector<std::Rc<circuit::BumpToBumpNet>>{};
+        auto btt_sync_nets = std::Vector<std::Rc<circuit::BumpToTrackNet>>{};
+        auto ttb_sync_nets = std::Vector<std::Rc<circuit::TrackToBumpNet>>{};
 
         for (auto& connection : connections) {
             auto& input = connection->input_pin();
@@ -205,7 +206,7 @@ namespace kiwi::algo {
                         },
                         [&](hardware::Bump* begin_bump) {
                             // 2. Bump => Track
-                            auto net = std::make_unique<circuit::BumpToTrackNet>(begin_bump, end_track);
+                            auto net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, end_track, std::HashSet<int>{m});
                             this->_bump_to_topdie_inst.at(begin_bump)->add_net(net.get());
                             btt_sync_nets.emplace_back(std::move(net));
                         }
@@ -215,13 +216,13 @@ namespace kiwi::algo {
                     std::match(begin_node, 
                         [&](hardware::Track* begin_track) {
                             // 3. Track => Bump
-                            auto net = std::make_unique<circuit::TrackToBumpNet>(begin_track, end_bump);
+                            auto net = std::make_shared<circuit::TrackToBumpNet>(begin_track, end_bump, std::HashSet<int>{m});
                             this->_bump_to_topdie_inst.at(end_bump)->add_net(net.get());
                             ttb_sync_nets.emplace_back(std::move(net)); 
                         },
                         [&](hardware::Bump* begin_bump) {
                             // 4. Bump to Bump
-                            auto net = std::make_unique<circuit::BumpToBumpNet>(begin_bump, end_bump);
+                            auto net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bump, std::HashSet<int>{m});
                             this->_bump_to_topdie_inst.at(begin_bump)->add_net(net.get());
                             this->_bump_to_topdie_inst.at(end_bump)->add_net(net.get());
                             btb_sync_nets.emplace_back(std::move(net)); 
@@ -231,14 +232,15 @@ namespace kiwi::algo {
             );
         }
 
-        this->_basedie->add_net(std::make_unique<circuit::SyncNet>(
-            std::move(btb_sync_nets),
-            std::move(btt_sync_nets),
-            std::move(ttb_sync_nets)
-        ));
+        this->_basedie->add_net(std::make_shared<circuit::SyncNet>(
+            btb_sync_nets,
+            btt_sync_nets,
+            ttb_sync_nets,
+            std::HashSet<int>{m}
+        ), m);
     }
 
-    auto NetBuilder::build_fixed_nets() -> void {
+    auto NetBuilder::build_fixed_nets(int m) -> void {
         // Add nege
         if (!this->_bumps_with_nege.empty()) {
             auto nege_tracks = std::Vector<hardware::Track*>{};
@@ -251,9 +253,9 @@ namespace kiwi::algo {
                 }
             }
 
-            this->_basedie->add_net(std::make_unique<circuit::TracksToBumpsNet>(
-                std::move(nege_tracks), std::move(this->_bumps_with_nege)
-            ));
+            this->_basedie->add_net(std::make_shared<circuit::TracksToBumpsNet>(
+                std::move(nege_tracks), std::move(this->_bumps_with_nege), std::HashSet<int>{m}
+            ), m);
         }
 
         // Add pose
@@ -268,9 +270,9 @@ namespace kiwi::algo {
                 }
             }
 
-            this->_basedie->add_net(std::make_unique<circuit::TracksToBumpsNet>(
-                std::move(pose_tracks), std::move(this->_bumps_with_pose)
-            ));
+            this->_basedie->add_net(std::make_shared<circuit::TracksToBumpsNet>(
+                std::move(pose_tracks), std::move(this->_bumps_with_pose),std::HashSet<int>{m}
+            ), m);
         }
     }
 

@@ -17,7 +17,7 @@ namespace kiwi::circuit {
 
     class TracksToBumpsNet : public Net {
     public:
-        TracksToBumpsNet(std::Vector<hardware::Track*> begin_tracks, std::Vector<hardware::Bump*>  end_bumps);
+        TracksToBumpsNet(std::Vector<hardware::Track*> begin_tracks, std::Vector<hardware::Bump*> end_bumps, const std::HashSet<int>& modes);
 
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void override;
@@ -34,7 +34,12 @@ namespace kiwi::circuit {
         virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> override;
         virtual auto nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> override;
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> override;
+        virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
+    
+    public:
+        virtual auto operator == (const Net& net) const -> bool override;
 
+    public:
         auto begin_tracks() const -> const std::Vector<hardware::Track*>& { return this->_begin_tracks; }
         auto end_bumps() const -> const std::Vector<hardware::Bump*>& { return this->_end_bumps; }
 

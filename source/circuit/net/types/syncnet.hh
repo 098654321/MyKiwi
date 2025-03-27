@@ -36,9 +36,10 @@ namespace kiwi::circuit {
     public:
         // temperarily use shallow copy
         SyncNet(
-            std::Vector<std::Box<BumpToBumpNet>> btbnets,
-            std::Vector<std::Box<BumpToTrackNet>> bttnets,
-            std::Vector<std::Box<TrackToBumpNet>> ttbnets
+            std::Vector<std::Rc<BumpToBumpNet>> btbnets,
+            std::Vector<std::Rc<BumpToTrackNet>> bttnets,
+            std::Vector<std::Rc<TrackToBumpNet>> ttbnets,
+            const std::HashSet<int>& modes
         );
         
     public:
@@ -56,6 +57,9 @@ namespace kiwi::circuit {
         virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> override;
         virtual auto nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> override;
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> override;
+        virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
+
+        // mode for sync net is determined by _mode itself, not the _modes in net-members
         
         auto show_path() const -> void override;
         auto length() const -> std::usize override;
@@ -63,16 +67,19 @@ namespace kiwi::circuit {
 
         // return false if this->_path_package is already filled
         auto collect_package() -> bool;
+
+    public:
+        virtual auto operator == (const Net& net) const -> bool override;
     
     public:
-        auto btbnets() -> std::Vector<std::Box<BumpToBumpNet>>& {return this->_btbnets;}
-        auto bttnets() -> std::Vector<std::Box<BumpToTrackNet>>& {return this->_bttnets;}
-        auto ttbnets() -> std::Vector<std::Box<TrackToBumpNet>>& {return this->_ttbnets;}
+        auto btbnets() -> std::Vector<std::Rc<BumpToBumpNet>>& {return this->_btbnets;}
+        auto bttnets() -> std::Vector<std::Rc<BumpToTrackNet>>& {return this->_bttnets;}
+        auto ttbnets() -> std::Vector<std::Rc<TrackToBumpNet>>& {return this->_ttbnets;}
 
     private:
-        std::Vector<std::Box<BumpToBumpNet>>  _btbnets;
-        std::Vector<std::Box<BumpToTrackNet>> _bttnets;
-        std::Vector<std::Box<TrackToBumpNet>> _ttbnets;
+        std::Vector<std::Rc<BumpToBumpNet>>  _btbnets;
+        std::Vector<std::Rc<BumpToTrackNet>> _bttnets;
+        std::Vector<std::Rc<TrackToBumpNet>> _ttbnets;
     };
 
 }

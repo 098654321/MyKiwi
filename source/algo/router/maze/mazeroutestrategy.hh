@@ -98,7 +98,7 @@ namespace kiwi::algo {
         template <class Net>
         auto sync_preroute(
             hardware::Interposer* interposer,
-            std::Vector<std::Box<Net>>& sync_net,
+            std::Vector<std::Rc<Net>>& sync_net,
             std::HashSet<hardware::Track*>& occupied_tracks_vec
         ) const -> std::usize;
 

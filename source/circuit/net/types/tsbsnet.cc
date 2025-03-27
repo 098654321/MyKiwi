@@ -1,12 +1,13 @@
 #include "./tsbsnet.hh"
 #include <hardware/bump/bump.hh>
+#include <hardware/track/track.hh>
 #include <algorithm>
 
 
 namespace kiwi::circuit {
 
-    TracksToBumpsNet::TracksToBumpsNet(std::Vector<hardware::Track*> begin_tracks, std::Vector<hardware::Bump*>  end_bumps):
-        _begin_tracks{begin_tracks}, _end_bumps{end_bumps}, Net{Priority{5}}
+    TracksToBumpsNet::TracksToBumpsNet(std::Vector<hardware::Track*> begin_tracks, std::Vector<hardware::Bump*> end_bumps, const std::HashSet<int>& modes):
+        _begin_tracks{begin_tracks}, _end_bumps{end_bumps}, Net{Priority{5}, modes}
     {
 
     }
@@ -144,5 +145,64 @@ namespace kiwi::circuit {
             map.emplace(b, hardware::TOBBumpDirection::TOBToBump);
         }
         return map;
+    }
+
+    auto TracksToBumpsNet::operator == (const Net& net) const -> bool {
+    try {
+        auto cast_net = dynamic_cast<const TracksToBumpsNet&>(net);
+        if (this->_begin_tracks.size() == cast_net._begin_tracks.size() && this->_end_bumps.size() == cast_net._end_bumps.size()) {
+            std::HashSet<hardware::TrackCoord> tcoords {};
+            for (auto& track: this->_begin_tracks) {
+                tcoords.emplace(track->coord());
+            }
+            for (auto& track: cast_net._begin_tracks) {
+                if (!tcoords.contains(track->coord())) {
+                    return false;
+                }
+            }
+
+            std::HashSet<hardware::BumpCoord> bcoords {};
+            for (auto& bump: this->_end_bumps) {
+                bcoords.emplace(bump->coord());
+            }
+            for (auto& bump: cast_net._end_bumps) {
+                if (!bcoords.contains(bump->coord())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+    catch (const std::bad_cast& e) {
+        return false;
+    }
+    }
+
+    auto TracksToBumpsNet::track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> {
+        std::HashSet<hardware::Track*> tracks {};
+
+        for (auto& t: this->_begin_tracks) {
+            tracks.emplace(t);
+        }
+
+        auto collect = [&](const auto& package_v) {
+            std::for_each(package_v.begin(), package_v.end(), [&](const auto& package) {
+                const auto& [_1, _2, t] = package;
+                tracks.emplace(t);
+            });
+        };
+        collect(this->_path_package._tob_to_track);     // should be empty
+        collect(this->_path_package._track_to_tob);     
+
+        if (tracks.size() < this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, false};
+        }
+        else if (tracks.size() == this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, true};
+        }
+        else {
+            throw std::logic_error("TracksToBumpsNet::track_ports(): collected tracks.size() > port_number()");
+        }
     }
 }

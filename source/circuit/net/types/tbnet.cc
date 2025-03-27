@@ -1,13 +1,14 @@
 #include "./tbnet.hh"
 #include <hardware/bump/bump.hh>
+#include <hardware/track/track.hh>
 
 
 namespace kiwi::circuit {
 
-    TrackToBumpNet::TrackToBumpNet(hardware::Track* begin_track, hardware::Bump* end_bump) :
+    TrackToBumpNet::TrackToBumpNet(hardware::Track* begin_track, hardware::Bump* end_bump, const std::HashSet<int>& modes) :
         _begin_track{begin_track},
         _end_bump{end_bump},
-        Net{Priority{3}}
+        Net{Priority{3}, modes}
     {
     }
 
@@ -102,5 +103,44 @@ namespace kiwi::circuit {
         return std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
             {this->_end_bump, hardware::TOBBumpDirection::TOBToBump}
         };
+    }
+
+    auto TrackToBumpNet::operator == (const Net& net) const -> bool {
+    try {
+        auto cast_net = dynamic_cast<const TrackToBumpNet&>(net);
+        return this->_end_bump->coord() == cast_net._end_bump->coord()
+            && this->_begin_track->coord() == cast_net._begin_track->coord();
+    }
+    catch (const std::bad_cast& e) {
+        return false;
+    }
+    }
+
+    auto TrackToBumpNet::operator == (const TrackToBumpNet& net) const -> bool {
+        return this->_end_bump->coord() == net._end_bump->coord()
+            && this->_begin_track->coord() == net._begin_track->coord();
+    }
+
+    auto TrackToBumpNet::track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> {
+        std::HashSet<hardware::Track*> tracks {this->_begin_track};
+
+        auto collect = [&](const auto& package_v) {
+            std::for_each(package_v.begin(), package_v.end(), [&](const auto& package) {
+                const auto& [_1, _2, t] = package;
+                tracks.emplace(t);
+            });
+        };
+        collect(this->_path_package._tob_to_track); // should be empty
+        collect(this->_path_package._track_to_tob);
+
+        if (tracks.size() < this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, false};
+        }
+        else if (tracks.size() == this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, true};
+        }
+        else {
+            throw std::logic_error("TrackToBumpNet::track_ports(): collected tracks.size() > port_number()");
+        }
     }
 }

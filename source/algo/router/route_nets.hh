@@ -24,7 +24,8 @@ namespace kiwi::algo {
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
         const RouteStrategy& strategy,
-        const AllocateStrategy& allocator
+        const AllocateStrategy& allocator,
+        int m
     ) -> std::usize;
 
     auto analyze_results(

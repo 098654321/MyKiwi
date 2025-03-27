@@ -10,14 +10,15 @@ namespace kiwi::circuit
 {
 
     SyncNet::SyncNet(
-        std::Vector<std::Box<BumpToBumpNet>> btbnets,
-        std::Vector<std::Box<BumpToTrackNet>> bttnets,
-        std::Vector<std::Box<TrackToBumpNet>> ttbnets
+        std::Vector<std::Rc<BumpToBumpNet>> btbnets,
+        std::Vector<std::Rc<BumpToTrackNet>> bttnets,
+        std::Vector<std::Rc<TrackToBumpNet>> ttbnets,
+        const std::HashSet<int>& modes
     ) : 
-        _btbnets{std::move(btbnets)},
-        _bttnets{std::move(bttnets)},
-        _ttbnets{std::move(ttbnets)},
-        Net{Priority{0}}
+        _btbnets{btbnets},
+        _bttnets{bttnets},
+        _ttbnets{ttbnets},
+        Net{Priority{0}, modes}
     {
     }
 
@@ -327,6 +328,88 @@ namespace kiwi::circuit
         }
 
         return map;
+    }
+
+    auto SyncNet::operator == (const Net& net) const -> bool {
+    try {
+        auto sync_net = dynamic_cast<const SyncNet&>(net);
+        bool flag = true;
+
+        for (auto& m: sync_net.btbnets()) {
+            bool flag_n = false;
+            for (auto& n: this->_btbnets) {
+                if (*n == *m) {
+                    flag_n = true;
+                    break;
+                }
+            }
+
+            if (!flag_n) {
+                flag = false;
+                break;
+            }
+        }
+        for (auto& m: sync_net.bttnets()) {
+            bool flag_n = false;
+            for (auto& n: this->_bttnets) {
+                if (*n == *m) {
+                    flag_n = true;
+                    break;
+                }
+            }
+
+            if (!flag_n) {
+                flag = false;
+                break;
+            }
+        }
+        for (auto& m: sync_net.ttbnets()) {
+            bool flag_n = false;
+            for (auto& n: this->_ttbnets) {
+                if (*n == *m) {
+                    flag_n = true;
+                    break;
+                }
+            }
+
+            if (!flag_n) {
+                flag = false;
+                break;
+            }
+        }
+        
+        return flag;
+    }
+    catch (const std::bad_cast& e) {
+        return false;
+    }
+    }
+
+    auto SyncNet::track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> {
+        std::HashSet<hardware::Track*> tracks {};
+
+        for (auto& net: this->_bttnets) {
+            auto [ports, flag] = net->track_ports();
+            tracks.insert(ports.begin(), ports.end());
+        }
+        for (auto& net: this->_ttbnets) {
+            auto [ports, flag] = net->track_ports();
+            tracks.insert(ports.begin(), ports.end());
+        }
+        for (auto& net: this->_btbnets) {
+            auto [ports, flag] = net->track_ports();
+            tracks.insert(ports.begin(), ports.end());
+        }
+
+        if (tracks.size() < this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, false};
+        }
+        else if (tracks.size() == this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, true};
+        }
+        else {
+            throw std::logic_error("SyncNet::track_ports(): collected tracks.size() > port_number()");
+        }
     }
 
 }

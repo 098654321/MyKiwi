@@ -9,13 +9,21 @@
 
 namespace kiwi::parse {
 
-    auto read_config(const std::FilePath& config_folder) 
+    auto read_config(const std::FilePath& config_folder, int mode) 
         -> std::Tuple<std::Box<hardware::Interposer>, std::Box<circuit::BaseDie>>;
 
     auto read_config(
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,
-        circuit::BaseDie* basedie
+        circuit::BaseDie* basedie,
+        int mode
     ) -> void;
+
+    auto read_controlbits(
+        const std::FilePath& config_folder,
+        hardware::Interposer* interposer,
+        circuit::BaseDie* basedie,
+        int mode
+    ) -> bool;
 
 }

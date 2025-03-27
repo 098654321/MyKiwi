@@ -24,7 +24,7 @@ namespace kiwi::widget {
         void run() override {
             debug::info_fmt("Begin to execute P&R");
             algo::build_nets(this->_basedie, this->_interposer);
-            auto l = algo::route_nets(this->_interposer, this->_basedie, algo::MazeRouteStrategy{}, algo::HK{});
+            auto l = algo::route_nets(this->_interposer, this->_basedie, algo::MazeRouteStrategy{}, algo::HK{}, 0);
             debug::info_fmt("P&R finished with total path length '{}'", l); 
             emit this->prFinished();
         }

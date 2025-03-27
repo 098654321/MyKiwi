@@ -19,20 +19,34 @@
 
 namespace kiwi {
 
-    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path) -> int {
+    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode) -> int {
         debug::initial_log("./debug.log");
-        auto [interposer, basedie] = kiwi::parse::read_config(config_path);
+        std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".") / ("controlbits_" + std::to_string(mode) + ".txt");
+
+        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode); 
 
         algo::build_nets(basedie.get(), interposer.get());
-        algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{});
-
-        // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
-
-        parse::write_control_bits(
-            interposer.get(),
-            output_path.has_value() ? *output_path : "./controlbit.ctb"    
-        );
-
+        
+        if (mode == 0) {
+            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, mode);
+            // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
+            parse::write_control_bits(
+                interposer.get(),
+                output_file
+            );
+        }
+        else {
+            basedie->merge_same_mode_nets();
+            if (!parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode)) {
+                // TODO: 做增量布线
+                // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
+                parse::write_control_bits(
+                    interposer.get(),
+                    output_file
+                );
+            }
+        }
+        
         return 0;
     }
 
