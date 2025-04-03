@@ -44,7 +44,7 @@ Options：
 - `-h, --help`：打印帮助信息
 - `-V, --version`：打印版本信息
 - `-v, --verbose`: 输出 Debug 信息
-- `-i, --incremental <mode>`: 进入增量布线，需要跟一个正整数
+- `-i, --incremental <mode>`: 进入增量布线，需要跟一个正整数 mode
 
 
 
@@ -100,6 +100,7 @@ xmake run module_test [module]
     |case 7-9|一个 cpu-ai-mem 芯粒系统|
     |case 10-12|一个 cpu 芯粒系统|
     |case 13-16|一个 AI core 芯粒系统|
+- case 17 测试增量布线的 controlbits 加载功能
 
 编译：
 

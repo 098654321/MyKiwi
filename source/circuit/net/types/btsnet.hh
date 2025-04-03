@@ -3,7 +3,7 @@
 #include "../net.hh"
 #include <std/collection.hh>
 #include <hardware/cob/cob.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 
 
 namespace kiwi::hardware {

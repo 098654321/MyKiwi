@@ -44,6 +44,7 @@ namespace kiwi::hardware {
         _mux_size{mux_size}
     {
         // avoid initializing _registers in initialization list for some unknown in-memory seizure
+        this->_registers.reserve(mux_size);
         for (std::size_t i = 0; i < mux_size; ++i) {
             this->_registers.emplace_back(TOBMuxRegister());
         }

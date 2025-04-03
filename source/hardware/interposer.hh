@@ -84,7 +84,6 @@ namespace kiwi::hardware {
         { return this->_tobs; }
     
     private:
-        // Maybe, just array...
         std::HashMap<COBCoord, std::Box<COB>> _cobs;
         std::HashMap<TOBCoord, std::Box<TOB>> _tobs;
         std::HashMap<TrackCoord, std::Box<Track>> _tracks;

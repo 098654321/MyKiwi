@@ -1,18 +1,18 @@
 #pragma once
 
-#include <algo/router/command.hh>
+#include <algo/router/command_mode/command.hh>
 
 namespace kiwi::algo {
 
-class Route: public Command {
+class Connect: public Command {
 public:
-    Route();
-    ~Route() = default;
+    Connect() = default;
+    ~Connect() = default;
 
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;
     auto to_string() const -> const std::String override;
-    
+
 };
 
 }

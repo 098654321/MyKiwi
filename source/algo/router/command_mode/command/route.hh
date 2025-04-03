@@ -1,13 +1,13 @@
 #pragma once
 
-#include <algo/router/command.hh>
+#include <algo/router/command_mode/command.hh>
 
 namespace kiwi::algo {
 
-class Reroute: public Command {
+class Route: public Command {
 public:
-    Reroute() = default;
-    ~Reroute() = default;
+    Route();
+    ~Route() = default;
 
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;

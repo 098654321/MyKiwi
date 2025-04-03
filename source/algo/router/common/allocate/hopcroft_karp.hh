@@ -1,6 +1,6 @@
 #pragma once
 
-#include <algo/router/allocatestrategy.hh>
+#include <algo/router/common/allocatestrategy.hh>
 
 
 namespace kiwi::algo {

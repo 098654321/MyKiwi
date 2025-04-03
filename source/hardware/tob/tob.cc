@@ -19,22 +19,27 @@ namespace kiwi::hardware {
         _coord{coord},
         _coord_in_interposer(coord_in_interposer)
     {
+        this->_bump_to_hori_muxs.reserve(TOB::BUMP_TO_HORI_MUX_COUNT);
         for (auto i : std::ranges::views::iota(0, (int)TOB::BUMP_TO_HORI_MUX_COUNT)) {
             this->_bump_to_hori_muxs.emplace_back(std::make_unique<TOBMux>(TOB::BUMP_TO_HORI_MUX_SIZE));
         }
 
+        this->_hori_to_vert_muxs.reserve(TOB::HORI_TO_VERI_MUX_COUNT);
         for (auto i : std::ranges::views::iota(0, (int)TOB::HORI_TO_VERI_MUX_COUNT)) {
             this->_hori_to_vert_muxs.emplace_back(std::make_unique<TOBMux>(TOB::HORI_TO_VERI_MUX_SIZE));
         }
 
+        this->_vert_to_track_muxs.reserve(TOB::VERI_TO_TRACK_MUX_COUNT);
         for (auto i : std::ranges::views::iota(0, (int)TOB::VERI_TO_TRACK_MUX_COUNT)) {
             this->_vert_to_track_muxs.emplace_back(std::make_unique<TOBMux>(TOB::VERI_TO_TRACK_MUX_SIZE));
         }
 
+        this->_bump_dir_registers.reserve(TOB::INDEX_SIZE);
         for (auto i : std::ranges::views::iota(0, (int)TOB::INDEX_SIZE)) {
             this->_bump_dir_registers.emplace_back(std::make_unique<TOBBumpDirRegister>());
         }
 
+        this->_track_dir_registers.reserve(TOB::INDEX_SIZE);
         for (auto i : std::ranges::views::iota(0, (int)TOB::INDEX_SIZE)) {
             this->_track_dir_registers.emplace_back(std::make_unique<TOBTrackDirRegister>());
         }

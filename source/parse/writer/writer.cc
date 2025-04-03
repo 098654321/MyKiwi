@@ -122,15 +122,9 @@ namespace kiwi::parse
             for (std::size_t j = 0; j < N_bits / N_parts; ++j) {
                 result[i][j] = controlbits[i * (N_bits / N_parts) + j];
             }
-
-            std::Bits<N_bits / N_parts> temp {result[i]};
-            for (std::usize k = 0; k < temp.size(); ++k)
-            {
-                result[i][k] = temp[temp.size() - 1 - k];
-            }
         }
 
-        // already been reversed, with MSB on the left and LSB on the right
+        // with LSB on the left and MSB on the right
         return result;
     }
 
@@ -145,11 +139,9 @@ namespace kiwi::parse
             for (std::size_t j = 0; j < N_bits / N_parts; ++j) {
                 result[i][j] = controlbits[i * (N_bits / N_parts) + j];
             }
-
-            std::reverse(result[i].begin(), result[i].end());
         }
 
-        // already been reversed, with MSB on the left and LSB on the right
+        // with LSB on the left and MSB on the right
         return result;
     }
 
@@ -193,20 +185,20 @@ namespace kiwi::parse
         std::Array<std::Bits<32>, 16> result {};
         for (std::usize outer_i = 0; outer_i < 16; ++outer_i)
         {
-            auto& data = splitted_bits[outer_i];
+            auto& data = splitted_bits[outer_i];    
             for (std::size_t i = 0; i < data.size(); ++i) {
-                std::bitset<3> bits{data[i]};   // trans decimal 0-7 to binary 000-111
+                std::bitset<3> bits{data[i]};       // trans decimal 0-7 to binary 000-111(LSB on the left)
                 for (std::size_t j = 0; j < 3; ++j) {
-                    result[outer_i][8 + i * 3 + (2 - j)] = bits[j]; 
+                    result[outer_i][i * 3 + 2 - j] = bits[j]; 
                 }
             }
-        }
+        }                                           // positive sequence
 
         for (std::usize i = 0; i < 16; ++i)
         {
             std::usize bank{i/8}, bank_index{i%8};
             std::String name = std::format("tob_{}_{}_{}_bank{}_{}", row, col, reg_name, bank, bank_index);
-            file << to_hex(result[i]) << " " << name << std::endl;
+            file << to_hex(result[i]) << " " << name << std::endl;  // negative sequence
         }
     }
 
@@ -223,9 +215,9 @@ namespace kiwi::parse
     }
 
     auto Writer::to_hex(const std::Bits<32>& bits) -> std::String
-    {
+    {                                                   // input bits: in the positive sequence
         try{
-            std::String binary {bits.to_string()};
+            std::String binary {bits.to_string()};      // automatically reverse the bits in "to_string()"
             std::stringstream hexStream;
             for (size_t i = 0; i < binary.size(); i += 4) {
                 std::string byte = binary.substr(i, 4);

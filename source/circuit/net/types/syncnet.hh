@@ -5,7 +5,7 @@
 #include "circuit/net/types/bbnet.hh"
 #include "circuit/net/types/btnet.hh"
 #include "circuit/net/types/tbnet.hh"
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <circuit/path/pathpackage.hh>
 
 #include <std/collection.hh>

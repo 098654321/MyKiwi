@@ -124,7 +124,7 @@ namespace kiwi::circuit {
         std::Vector<hardware::TrackCoord> _pose_ports {};
         std::Vector<hardware::TrackCoord> _nege_ports {};
 
-        std::HashMap<int, std::Vector<std::Rc<Net>>> _nets;
+        std::HashMap<int, std::Vector<std::Rc<Net>>> _nets {};
     };
 
 }

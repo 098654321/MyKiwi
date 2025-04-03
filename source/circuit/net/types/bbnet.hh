@@ -5,7 +5,7 @@
 #include <hardware/tob/tob.hh>
 #include <hardware/cob/cob.hh>
 #include <std/integer.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 
 
 namespace kiwi::hardware {

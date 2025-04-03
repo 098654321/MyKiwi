@@ -17,6 +17,7 @@ namespace kiwi::hardware {
         _coord{coord},
         _cobunits{}
     {
+        this->_cobunits.reserve(UNIT_SIZE);
         for (auto i : std::views::iota(0, int(UNIT_SIZE))) {
             this->_cobunits.emplace_back(std::make_unique<COBUnit>());
         }

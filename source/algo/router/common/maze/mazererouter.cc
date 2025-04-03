@@ -1,5 +1,5 @@
 #include "./mazererouter.hh"
-#include "../routeerror.hh"
+#include "../../routeerror.hh"
 #include "./path_length.hh"
 
 #include <algorithm>

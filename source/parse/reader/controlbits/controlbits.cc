@@ -3,6 +3,7 @@
 #include <debug/debug.hh>
 #include <algorithm>
 #include <circuit/net/nets.hh>
+#include <ranges>
 
 
 namespace kiwi::parse {
@@ -174,7 +175,7 @@ namespace kiwi::parse {
         } else if (tokens[3] == "hctrl" || tokens[3] == "vctrl") {
             int index = std::stoi(tokens[4].substr(4)) * 64 + std::stoi(tokens[5]) * 8;
             auto &map = (tokens[3] == "hctrl") ? controlbits.bumptohctrl : controlbits.hctrltovctrl;
-
+            
             auto iter = map.emplace(coord, std::Array<int, 128>{});
             for (int i = 0; i < 24; i += 3) {
                 int value = std::stoi(reversed_bits.substr(i, 3), nullptr, 2);
@@ -328,16 +329,16 @@ namespace kiwi::parse {
                         };
                         if (adj_coord.row > coord.row) {
                             return adj_coord.col < coord.col ? std::Tuple<hardware::COBSWDirection, hardware::COBCoord, std::usize> {
-                                hardware::COBSWDirection::RU, cob_right_coord, coord.index
+                                hardware::COBSWDirection::RU, cob_left_coord, coord.index
                             } : std::Tuple<hardware::COBSWDirection, hardware::COBCoord, std::usize> {
-                                hardware::COBSWDirection::LU, cob_left_coord, coord.index
+                                hardware::COBSWDirection::LU, cob_right_coord, coord.index
                             };
                         }
                         else if (adj_coord.row == coord.row) {
                             return adj_coord.col < coord.col ? std::Tuple<hardware::COBSWDirection, hardware::COBCoord, std::usize> {
-                                hardware::COBSWDirection::RD, cob_right_coord, coord.index
+                                hardware::COBSWDirection::RD, cob_left_coord, coord.index
                             } : std::Tuple<hardware::COBSWDirection, hardware::COBCoord, std::usize> {
-                                hardware::COBSWDirection::LD, cob_left_coord, coord.index
+                                hardware::COBSWDirection::LD, cob_right_coord, coord.index
                             };
                         }
                         else {
@@ -357,7 +358,7 @@ namespace kiwi::parse {
                             );
                         }
                         auto cob_coord = hardware::COBCoord{
-                            (adj_coord.row > coord.row ? coord.col : adj_coord.col), coord.col
+                            (adj_coord.row > coord.row ? coord.row : adj_coord.row), coord.col
                         };
                         return std::Tuple<hardware::COBSWDirection, hardware::COBCoord, std::usize>{
                             hardware::COBSWDirection::V, cob_coord, coord.index

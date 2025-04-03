@@ -2,7 +2,7 @@
 
 #include "../net.hh"
 #include <std/collection.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <hardware/cob/cob.hh>
 
 

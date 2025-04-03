@@ -1,8 +1,8 @@
 #pragma once
 
 #include <circuit/net/nets.hh>
-#include "./routestrategy.hh"
-#include "./allocatestrategy.hh"
+#include "./common/routestrategy.hh"
+#include "./common/allocatestrategy.hh"
 #include <std/collection.hh>
 #include <std/memory.hh>
 #include <hardware/bump/bump.hh>

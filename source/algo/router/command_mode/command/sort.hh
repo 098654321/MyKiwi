@@ -1,18 +1,19 @@
 #pragma once
 
-#include <algo/router/command.hh>
+#include <algo/router/command_mode/command.hh>
 
 
 namespace kiwi::algo {
 
-class Allocate: public Command {
+class Sort: public Command {
 public:
-    Allocate() = default;
-    ~Allocate() = default;
+    Sort() = default;
+    ~Sort() = default;
 
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;
     auto to_string() const -> const std::String override;
+    
 };
 
 }
