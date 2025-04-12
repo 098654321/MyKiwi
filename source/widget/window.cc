@@ -6,7 +6,7 @@
 #include "./layout/layoutwidget.h"
 
 #include "algo/netbuilder/netbuilder.hh"
-#include "algo/router/maze/mazererouter.hh"
+#include "algo/router/common/maze/mazererouter.hh"
 #include "parse/writer/module.hh"
 #include "qaction.h"
 #include "qdir.h"

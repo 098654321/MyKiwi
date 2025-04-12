@@ -19,23 +19,68 @@
 
 - 输出部分：
 
-    - 输出 controlbits_\<mode\>.txt 文件
+  - 输出 controlbits_\<mode\>.txt 文件
 
 - 布线过程
 
-  - 不存在已有路径的时候，把所有的 net 都加载进来，然后一起布线（考虑复用和后续的布通率）。同时考虑 net 的共用频率，频率高的可以先连
+  - 不存在已有路径的时候
 
-  - 复用的线和不复用的线使用的 cob 资源对应的配置位尽量不要位于同一个寄存器：
+    - 针对 controlbits 绑定的情况，优先将【复用的线】和【不复用的线】分配不同的绑定组
 
-    - 一个寄存器 32 位 = 4 个 cobunit ，每个 cobunit 8 位
+        - 给每一个硬件单元设置两个属性，一个记录当前占用的线网类型，一个记录布线历史上分别被两种类型的线网使用了多少次
 
-    - 0-3 号 cobunit 一组，4-7 号一组，8-11 号一组，12-15 号一组。每组共用一个寄存器
+        - 设置启发式的 cost 函数
 
-    - 尽量让 net1 和 net3 走不同的组：
+        - 用比值的形式计算 cost （待调整）
 
-        - 一条路径的起始、终点 track 位于哪个 cobunit ，决定了整条路径都位于这个 cobunit 上
+    - 针对布线资源冲突导致布线失败的情况
 
-    -> 不同组 net 布线的时候，将起点、终点分配到不同组 cobunit ，可以实现路径的分组
+        - 当前的失败主要存在于 tob 上，给 bump 分配一些 tobmux 使其连到某条 track 的过程
+
+        - 极端情况下，允许共享
+
+        - 给每个 tobmux 定义计数器，记录被共享的次数，并将共享次数转化为 cost 
+
+    - 终止条件的判断
+
+        - 给定 while 的最大迭代次数
+
+        - 如果到达最大迭代次数，还存在共享，就增加迭代
+    
+    ```c++
+    while:
+        load nets
+        sort nets by reuse frequency
+
+        for nets:
+            path = route net with maze(using the new cost function)
+            if fail:
+                path = allow sharing, reroute net with maze(using the new cost function)
+            endif
+            update attributes of hardware resources in path
+        endfor
+
+        update global recorder, including shared times of each tobmux
+
+        if (MAX_CYCLE_NUMBER is reached) and (no tobmux is shared):
+            return success
+        else if (MAX_CYCLE_NUMBER+additional_cycle_number is reached)
+            return success if no tobmux is shared else failure
+        endif
+    endwhile
+    ```
+
+    ```c++
+    connect_bump_to_track() {
+      先获取 bump 可以得到的所有 track ，和之前一样
+      然后根据索引，获取从 bump -> track 上的总 cost
+      根据总 cost 对这些 track 升序排列
+      按照排列的顺序开始 maze ，位于前面的会先搜索，先找到结果
+    }
+
+    ```
+
+    - 如果最终布线失败，就逐个去除不包含在本 mode 内的 net ，再重新布线
 
 
 ### 硬件要求
@@ -57,7 +102,7 @@
 - 可以只修改某一个寄存器的值
 
 
-### 一些已有的共奏
+### 一些已有的工具
 
 1. [参考资源：VPR工具](https://www.eecg.utoronto.ca/~vaughn/vpr/vpr.html)
 
@@ -98,7 +143,7 @@
 
     - 使用机器学习算法，在第一次布线的时候就输入所有存在的 net ，找到一种最能照顾到之后模式切换的布线结果
 
-    - 通过输入 interposer 的结构，当前模式的 net 和未来模式的 net ，得到当前的布线结果，并对轨道的复用需求进行二分类预测
+    - 通过输入 interposer 的结构，当前模式的 net 和未来模式的 net (即需要提前知道模式切换的顺序)，得到当前的布线结果，并对轨道的复用需求进行二分类预测
 
     - 联合考虑当前布线长度最小以及重配置比特位的代价最小
 

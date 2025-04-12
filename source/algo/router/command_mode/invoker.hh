@@ -33,7 +33,7 @@ enum class CommandType {
     Allocate,
     Route,
     Sort,
-    CheckResult
+    Incre_route
 };
 
 class Invoker {
@@ -43,7 +43,7 @@ public:
 
 public:
     auto invoke(hardware::Interposer*, RouteEngine&) -> void;
-    auto set_route_commands() -> void;
+    auto set_route_commands(bool incremental, bool path_exists) -> void;
     auto call_remediation(Command*) -> bool;
     auto check_command() -> bool;
 

@@ -4,8 +4,8 @@
 #include <debug/debug.hh>
 #include <algo/router/route_nets.hh>
 #include <algo/netbuilder/netbuilder.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
-#include <algo/router/allocate/hopcroft_karp.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
+#include <algo/router/common/allocate/hopcroft_karp.hh>
 
 namespace kiwi::widget {
 

@@ -22,7 +22,7 @@ struct AllocateStrategy{
     given that there is unique solution of the combination of tob-mux when bump & track index is determined.
     */ 
 
-    virtual auto allocate(hardware::Interposer* interposer, std::Vector<circuit::Net*>& nets) const -> void = 0;
+    virtual auto allocate(hardware::Interposer* interposer, std::Vector<circuit::Net*> nets) const -> void = 0;
     
 };
 

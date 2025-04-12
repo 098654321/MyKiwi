@@ -3,6 +3,7 @@
 #include <hardware/coord.hh>
 #include <assert.h>
 #include <algorithm>
+#include <algo/router/incremental/maze/routing.hh>
 
 
 
@@ -14,7 +15,7 @@ namespace kiwi::circuit
         std::Vector<std::Rc<BumpToTrackNet>> bttnets,
         std::Vector<std::Rc<TrackToBumpNet>> ttbnets,
         const std::HashSet<int>& modes
-    ) : 
+    ) :
         _btbnets{btbnets},
         _bttnets{bttnets},
         _ttbnets{ttbnets},
@@ -26,7 +27,7 @@ namespace kiwi::circuit
         for (auto& net : this->_btbnets) {
             net->update_tob_postion(prev_tob, next_tob);
         }
-        
+
         for (auto& net : this->_bttnets) {
             net->update_tob_postion(prev_tob, next_tob);
         }
@@ -38,6 +39,12 @@ namespace kiwi::circuit
 
     auto SyncNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_sync_net(interposer, this);
+    }
+
+    auto SyncNet::incremental_route(
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine
+    ) -> void {
+        strategy.route_sync_net(interposer, this, engine);
     }
 
     auto SyncNet::update_priority(float bias) -> void {
@@ -109,7 +116,7 @@ namespace kiwi::circuit
         return map;
     }
 
-    
+
     auto SyncNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
         ss << "Syncnet net:\n";
@@ -271,19 +278,19 @@ namespace kiwi::circuit
         ) {
             auto collect = [&](circuit::Net* net) {
                 auto& package = net->pathpackage();
-    
+
                 auto& path = this->_path_package._regular_path;
                 path.insert(path.end(), package._regular_path.begin(), package._regular_path.end());
-    
+
                 auto& tob_to_track = this->_path_package._tob_to_track;
                 tob_to_track.insert(tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
-    
+
                 auto& track_to_tob = this->_path_package._track_to_tob;
                 track_to_tob.insert(track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
-    
+
                 this->_path_package._length += package._length;
             };
-    
+
             for (auto& net: this->_btbnets) {
                 collect(net.get());
             }
@@ -377,7 +384,7 @@ namespace kiwi::circuit
                 break;
             }
         }
-        
+
         return flag;
     }
     catch (const std::bad_cast& e) {

@@ -6,12 +6,10 @@ namespace kiwi::algo {
 
 auto Clear::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("Clearing existing paths ...");
-    auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
+    auto nets = engine.nets();
     for (auto& net : nets) {
         auto path_package = net->pathpackage();
-        path_package._regular_path.clear();
-        path_package._tob_to_track.clear();
-        path_package._track_to_tob.clear();
+        path_package.clear_all();
     }
 }
 

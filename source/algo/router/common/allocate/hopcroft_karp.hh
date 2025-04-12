@@ -33,7 +33,7 @@ private:
 struct HK : public AllocateStrategy {
 
     // Implement the Hopcroft–Karp algorithm
-    auto allocate(hardware::Interposer* interposer, std::Vector<circuit::Net*>& nets) const -> void override;
+    auto allocate(hardware::Interposer* interposer, std::Vector<circuit::Net*> nets) const -> void override;
 
 private:
     auto resources_map(

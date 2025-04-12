@@ -81,19 +81,8 @@ namespace kiwi::algo {
             hardware::TOBConnector>& map
         ) const -> std::HashSet<hardware::Track*>;
 
-        auto check_found(
-            const std::HashSet<hardware::Track*>& end_tracks, 
-            hardware::Track* track
-        ) const -> bool;
-
     // synchrnized rouitng functions
     private:
-        template <class Node>
-        auto existing_path_vec(Node*, circuit::Net*) const -> std::Vector<hardware::Track*>;
-
-        template <class Node>
-        auto existing_path_set(Node*, circuit::Net*) const -> std::HashSet<hardware::Track*>;
-
         // first round of routing & collecting paths 
         template <class Net>
         auto sync_preroute(
@@ -112,6 +101,12 @@ namespace kiwi::algo {
     private:
         std::Box<MazeRerouter> _rerouter;
     };
+
+    template <class Node>
+    auto existing_path_vec(Node*, circuit::Net*) -> std::Vector<hardware::Track*>;
+
+    template <class Node>
+    auto existing_path_set(Node*, circuit::Net*) -> std::HashSet<hardware::Track*>;
 
 
 }

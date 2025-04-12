@@ -402,7 +402,7 @@ namespace kiwi::algo {
         
         auto& begin_tracks = net->begin_tracks();
         auto& end_bumps = net->end_bumps();
-
+        
         auto begin_tracks_vec = std::Vector<hardware::Track*>{};
         for (auto t : begin_tracks) {
             begin_tracks_vec.emplace_back(t);
@@ -562,20 +562,6 @@ namespace kiwi::algo {
     }
     catch (const std::exception& e){
         throw std::runtime_error(std::format("MazeRouteStrategy::route_sync_net: {}", std::String(e.what())));
-    }
-
-    auto MazeRouteStrategy::check_found(
-        const std::HashSet<hardware::Track*>& end_tracks,
-        hardware::Track* track
-    ) const -> bool{
-        bool found = false;
-        for (auto& t: end_tracks){
-            if (t->coord() == track->coord()){
-                found = true;
-                break;
-            }
-        }
-        return found;
     }
 
     // Return : Vector<(Track*, COBConnector)>
@@ -856,7 +842,7 @@ namespace kiwi::algo {
     }
 
     template <class Node>
-    auto MazeRouteStrategy::existing_path_vec(Node* node, circuit::Net* net) const -> std::Vector<hardware::Track*> {
+    auto existing_path_vec(Node* node, circuit::Net* net) -> std::Vector<hardware::Track*> {
         static_assert(
             std::is_same<Node, hardware::Bump>::value || std::is_same<Node, hardware::Track>::value,
             "MazeRouteStrategy::existing_path() >> Invalid Node type"
@@ -874,7 +860,7 @@ namespace kiwi::algo {
     }
 
     template <class Node>
-    auto MazeRouteStrategy::existing_path_set(Node* node, circuit::Net* net) const -> std::HashSet<hardware::Track*> {
+    auto existing_path_set(Node* node, circuit::Net* net) -> std::HashSet<hardware::Track*> {
         auto vec = existing_path_vec<Node>(node, net);
         auto set = std::HashSet<hardware::Track*>{};
         for (auto t : vec) {

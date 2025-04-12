@@ -5,8 +5,8 @@
 #include <circuit/basedie.hh>
 
 #include <algo/router/route_nets.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
-#include <algo/router/allocate/hopcroft_karp.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
+#include <algo/router/common/allocate/hopcroft_karp.hh>
 
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>
@@ -28,7 +28,7 @@ namespace kiwi {
         algo::build_nets(basedie.get(), interposer.get());
         
         if (mode == 0) {
-            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, mode);
+            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, mode, false);
             // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
             parse::write_control_bits(
                 interposer.get(),
@@ -37,13 +37,17 @@ namespace kiwi {
         }
         else {
             basedie->merge_same_mode_nets();
-            if (!parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode)) {
-                // TODO: 做增量布线
+            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode);
+            if (!has_bits) {
+                algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, mode, true, has_other_bits);
                 // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
                 parse::write_control_bits(
                     interposer.get(),
                     output_file
                 );
+            }
+            else {
+                debug::info("Already has control bits, skip the routing process");
             }
         }
         

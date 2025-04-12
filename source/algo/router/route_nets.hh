@@ -25,7 +25,9 @@ namespace kiwi::algo {
         circuit::BaseDie* basedie,
         const RouteStrategy& strategy,
         const AllocateStrategy& allocator,
-        int m
+        int m,
+        bool incremental,
+        bool path_exists = false
     ) -> std::usize;
 
     auto analyze_results(

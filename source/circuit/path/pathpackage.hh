@@ -73,7 +73,52 @@ struct PathPackage {
         return std::nullopt;
     }
 
-    // track & the COBConnector before track
+    auto clear_all() {
+        for (auto& [t, cob_connector]: this->_regular_path) {
+            if (cob_connector.has_value()) {
+                (*cob_connector).disconnect();
+            }
+        }
+        for (auto& [b, tob_connector, t]: this->_tob_to_track) {
+            tob_connector.disconnect();
+        }
+        for (auto& [b, tob_connector, t]: this->_track_to_tob) {
+            tob_connector.disconnect();
+        }
+
+        this->_regular_path.clear();
+        this->_tob_to_track.clear();
+        this->_track_to_tob.clear();
+    }
+
+    auto connect_all() -> void {
+        // connect the path
+        hardware::Track* prev_track = nullptr;
+        for (auto iter = this->_regular_path.begin(); iter != this->_regular_path.end(); ++iter) {
+            auto& [track, connector] = *iter;
+            if (connector.has_value()) {
+                connector->connect();
+            }
+            if (prev_track != nullptr) {
+                track->set_connected_track(prev_track);
+            }
+            prev_track = track;
+        }
+        
+        // connect the head bump
+        for (auto& [bump, tob_connector, h_track] : this->_tob_to_track) {
+            bump->set_connected_track(h_track, hardware::TOBSignalDirection::BumpToTrack);
+            tob_connector.connect();
+        }
+
+        // connect the tail bump
+        for (auto& [bump, tob_connector, t_track] : this->_track_to_tob) {
+            bump->set_connected_track(t_track, hardware::TOBSignalDirection::TrackToBump);
+            tob_connector.connect();
+        }
+    }
+
+    // track & the COBConnector before track 
     std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>> _regular_path;
     std::Vector<std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>>_tob_to_track;
     std::Vector<std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>> _track_to_tob;

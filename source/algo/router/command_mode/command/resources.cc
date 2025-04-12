@@ -4,7 +4,7 @@
 namespace kiwi::algo {
 
 auto Resources::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
+    auto nets = engine.nets();
     for (auto& net: nets){
         net->check_accessable_cobunit();
     }

@@ -7,3 +7,4 @@
 #include "./route.hh"
 #include "./sort.hh"
 #include "./allocate.hh"
+#include "./incremental_route.hh"

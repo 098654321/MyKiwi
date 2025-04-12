@@ -12,7 +12,7 @@ Route::Route() {
 auto Route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("routing ...");
 
-    auto& nets = const_cast<std::Vector<circuit::Net*>&>(engine.nets());
+    auto nets = engine.nets();
     auto posi = engine.position();
     for (std::usize i = posi; i < nets.size(); ++i) {
         auto net = nets[i];

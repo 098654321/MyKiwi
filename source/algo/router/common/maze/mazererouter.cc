@@ -332,9 +332,12 @@ debug::debug("Rerouting...");
         return {false, max_length};
     }
 
-    auto MazeRerouter::check_found(const std::HashSet<hardware::Track*>& end_tracks, hardware::Track* track) const -> bool {
-        for (auto& end_track: end_tracks){
-            if (track->coord() == end_track->coord()){
+    auto check_found(
+        const std::HashSet<hardware::Track*>& end_tracks,
+        hardware::Track* track
+    ) -> bool{
+        for (auto& t: end_tracks){
+            if (t->coord() == track->coord()){
                 return true;
             }
         }

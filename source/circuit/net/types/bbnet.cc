@@ -4,6 +4,7 @@
 #include <hardware/bump/bump.hh>
 #include <algorithm>
 #include <stdexcept>
+#include <algo/router/incremental/maze/routing.hh>
 
 
 namespace kiwi::circuit {
@@ -25,6 +26,12 @@ namespace kiwi::circuit {
 
     auto BumpToBumpNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_bump_to_bump_net(interposer, this);
+    }
+
+    auto BumpToBumpNet::incremental_route(
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine
+    ) -> void {
+        strategy.route_bump_to_bump_net(interposer, this, engine);
     }
 
     auto BumpToBumpNet::update_priority(float bias) -> void {

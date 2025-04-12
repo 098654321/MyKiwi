@@ -42,13 +42,13 @@ namespace kiwi::parse {
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
         int mode
-    ) -> bool {
+    ) -> std::Pair<bool, bool> {
         debug::debug("Load controlbits ...");
 
         auto controlbits = load_controlbits(config_folder, mode);
         if (controlbits.has_value()) {
             bits_to_paths(interposer, basedie, controlbits.value(), mode);
-            return true;
+            return std::Pair<bool, bool>{true, true};
         }
         else {
             std::Vector<std::pair<int, std::usize>> mode_size {};
@@ -66,14 +66,16 @@ namespace kiwi::parse {
                 return a.second > b.second;
             });
             
+            bool has_controlbits = false;
             for (auto& [m, _]: mode_size) {
                 auto controlbits = load_controlbits(config_folder, m);
                 if (controlbits.has_value()) {
                     bits_to_paths(interposer, basedie, controlbits.value(), m);
+                    has_controlbits = true;
                     break;
                 }
             }
-            return false;
+            return {false, has_controlbits};
         }        
     }
 

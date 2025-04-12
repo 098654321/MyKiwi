@@ -21,12 +21,20 @@ auto Invoker::invoke(
     }
 }
 
-auto Invoker::set_route_commands() -> void {
-    this->_commands.emplace_back(this->create_command(CommandType::Sort));
-    this->_commands.emplace_back(this->create_command(CommandType::Resources));
-    // this->_commands.emplace_back(this->create_command(CommandType::Allocate));
-    this->_commands.emplace_back(this->create_command(CommandType::Route));
-    this->_commands.emplace_back(this->create_command(CommandType::Connect));
+auto Invoker::set_route_commands(bool incremental, bool path_exists) -> void {
+    if (incremental) {
+        this->_commands.emplace_back(this->create_command(CommandType::Sort));
+        this->_commands.emplace_back(this->create_command(CommandType::Resources));
+        //TODO: route
+        this->_commands.emplace_back(this->create_command(CommandType::Connect));
+    }
+    else {
+        this->_commands.emplace_back(this->create_command(CommandType::Sort));
+        this->_commands.emplace_back(this->create_command(CommandType::Resources));
+        // this->_commands.emplace_back(this->create_command(CommandType::Allocate));
+        this->_commands.emplace_back(this->create_command(CommandType::Route));
+        this->_commands.emplace_back(this->create_command(CommandType::Connect));
+    }
 }
 
 auto Invoker::call_remediation(Command* c) -> bool {
@@ -58,6 +66,8 @@ auto Invoker::create_command(CommandType type) -> std::Rc<Command>  {
             return std::make_shared<Resources>();
         case CommandType::Route:
             return std::make_shared<Route>();
+        case CommandType::Incre_route:
+            return std::make_shared<Incre_route>();
         case CommandType::Sort:
             return std::make_shared<Sort>();
         case CommandType::Allocate:

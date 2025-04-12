@@ -20,6 +20,8 @@ namespace kiwi::hardware {
 
 namespace kiwi::algo {
     class RouteStrategy;
+    class RouteEngine;
+    class IncreRouting;
 }
 
 namespace kiwi::circuit {
@@ -42,6 +44,7 @@ namespace kiwi::circuit {
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void = 0;
         virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void = 0;
+        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&) -> void = 0;
         virtual auto update_priority(float bias) -> void = 0;
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;
 
@@ -75,6 +78,8 @@ namespace kiwi::circuit {
         virtual auto priority() const -> const Priority& {return this->_priority;}
         virtual auto modes() const -> const std::HashSet<int>& {return this->_modes;}
         virtual auto add_mode(int m) -> void {this->_modes.insert(m);}
+        virtual auto set_reuse_type(bool type) -> void {this->_reuse_type.emplace(type);}
+        virtual auto reuse_type() const -> std::Option<bool> {return this->_reuse_type;}
 
         // check if node is the same with nodes belongs to this 
         virtual auto check_relativity(const hardware::Bump* node) const -> const Net* {return nullptr;}
@@ -115,13 +120,14 @@ namespace kiwi::circuit {
     
     public:
         Net(Priority priority, const std::HashSet<int>& modes):
-            _priority{priority}, _path_package{}, _related_nets_track{}, _related_nets_bump{}, _modes{modes} {}
+            _priority{priority}, _path_package{}, _reuse_type{std::nullopt}, _related_nets_track{}, _related_nets_bump{}, _modes{modes} {}
         virtual ~Net() noexcept {}
     
     protected:
         Priority _priority;
         PathPackage _path_package;
         std::HashSet<int> _modes;
+        std::Option<bool> _reuse_type;
 
         std::HashMap<hardware::Track*, std::Vector<Net*>> _related_nets_track;
         std::HashMap<hardware::Bump*, std::Vector<Net*>> _related_nets_bump;

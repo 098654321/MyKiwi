@@ -16,12 +16,14 @@ namespace kiwi::algo {
         circuit::BaseDie* basedie,
         const RouteStrategy& strateg,
         const AllocateStrategy& allocator,
-        int m
+        int m,
+        bool incremental,
+        bool path_exists
     ) -> std::usize {
         debug::info("Route nets");
         auto invoker = Invoker{};
-        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m};
-        invoker.set_route_commands();
+        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, path_exists, interposer};
+        invoker.set_route_commands(incremental, path_exists);
         
         // TODO: reroute_command
         while (!invoker.check_command())

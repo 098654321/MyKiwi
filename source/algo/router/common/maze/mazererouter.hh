@@ -100,7 +100,6 @@ namespace kiwi::algo{
             std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
         ) const -> std::tuple<bool, std::usize>;
         auto Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize;\
-        auto check_found(const std::HashSet<hardware::Track*>& end_tracks, hardware::Track* track) const -> bool;
     
     private:    // for debug
         auto print_end_tracks(const std::HashSet<hardware::Track*>& end_tracks) const -> void{
@@ -120,6 +119,11 @@ namespace kiwi::algo{
     private:
         const NodeTrackInterface _node_track_interface {};
     };
+
+    auto check_found(
+        const std::HashSet<hardware::Track*>& end_tracks, 
+        hardware::Track* track
+    ) -> bool;
 
     
 }

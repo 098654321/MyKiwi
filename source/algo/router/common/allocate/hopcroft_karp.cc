@@ -10,7 +10,7 @@
 
 namespace kiwi::algo {
 
-auto HK::allocate(hardware::Interposer* interposer, std::Vector<circuit::Net*>& nets) const -> void {
+auto HK::allocate(hardware::Interposer* interposer, std::Vector<circuit::Net*> nets) const -> void {
     // collect and divide map<bumps, available_tracks> to tobs
     auto resources = resources_map(nets);
     // collect related bumps
