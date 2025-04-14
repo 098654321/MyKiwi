@@ -21,6 +21,9 @@ public:
     auto group_info() const -> std::Pair<std::usize, std::usize>;
     
     auto mux_cost(std::usize index, std::usize reuse_num, std::usize nonre_num) const -> float;
+    auto update(std::usize index, bool reuse_type) -> void;
+
+    auto check_shared() const -> bool;
 
 private:
     std::usize _size;
@@ -41,6 +44,16 @@ public:
 
     auto mux_chain_index(std::usize bump_index, std::usize track_index) const -> std::Tuple<std::usize, std::usize, std::usize, std::usize, std::usize, std::usize>;
     auto tob_cost(std::usize bump_index, std::usize track_index, bool reuse_type) const -> float;
+
+    auto update(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
+    auto clear_mux_shared(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void;
+
+    auto check_shared() const -> bool;
+
+private:
+    auto bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize>;
+    auto hori_group_info(std::usize hori_index) const -> std::Tuple<std::usize, std::usize>;
+    auto vert_group_info(std::usize vert_index) const -> std::Tuple<std::usize, std::usize>;
 
 private:
     std::Vector<TOBMuxRecorder> _bump_to_hori_recorder;

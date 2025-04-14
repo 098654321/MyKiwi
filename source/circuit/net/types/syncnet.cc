@@ -276,30 +276,27 @@ namespace kiwi::circuit
             && this->_path_package._tob_to_track.empty()\
             && this->_path_package._track_to_tob.empty()
         ) {
-            auto collect = [&](circuit::Net* net) {
+            auto collect = [&](circuit::Net* net, PathPackage& new_package) {
                 auto& package = net->pathpackage();
 
-                auto& path = this->_path_package._regular_path;
-                path.insert(path.end(), package._regular_path.begin(), package._regular_path.end());
-
-                auto& tob_to_track = this->_path_package._tob_to_track;
-                tob_to_track.insert(tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
-
-                auto& track_to_tob = this->_path_package._track_to_tob;
-                track_to_tob.insert(track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
-
-                this->_path_package._length += package._length;
+                new_package._regular_path.insert(new_package._regular_path.end(), package._regular_path.begin(), package._regular_path.end());
+                new_package._tob_to_track.insert(new_package._tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
+                new_package._track_to_tob.insert(new_package._track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
+                new_package._length += package._length;
             };
 
+            PathPackage total_package{};
             for (auto& net: this->_btbnets) {
-                collect(net.get());
+                collect(net.get(), total_package);
             }
             for (auto& net: this->_bttnets) {
-                collect(net.get());
+                collect(net.get(), total_package);
             }
             for (auto& net: this->_ttbnets) {
-                collect(net.get());
+                collect(net.get(), total_package);
             }
+            this->_history_path_package = this->_path_package;
+            this->_path_package = total_package;
 
             return true;
         }

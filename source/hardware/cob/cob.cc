@@ -28,7 +28,7 @@ namespace kiwi::hardware {
     {
     }
 
-    auto COB::adjacent_connectors(COBDirection from_dir, std::usize from_track_index) -> std::Vector<COBConnector> {
+    auto COB::adjacent_connectors(COBDirection from_dir, std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
         COB::assert_index(from_track_index);
         
         auto from_cob_index = COB::track_index_to_cob_index(from_track_index);
@@ -52,27 +52,28 @@ namespace kiwi::hardware {
                 to_track_index,
                 unit_ctr.sw_reg,
                 unit_ctr.t_to_c_sel_reg,
-                unit_ctr.c_to_t_sel_reg
+                unit_ctr.c_to_t_sel_reg,
+                coord
             );
         }
 
         return connectors;
     }
 
-    auto COB::adjacent_connectors_from_left(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Left, from_track_index);
+    auto COB::adjacent_connectors_from_left(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Left, from_track_index, coord);
     }
 
-    auto COB::adjacent_connectors_from_right(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Right, from_track_index);
+    auto COB::adjacent_connectors_from_right(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Right, from_track_index, coord);
     }
 
-    auto COB::adjacent_connectors_from_up(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Up, from_track_index);
+    auto COB::adjacent_connectors_from_up(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Up, from_track_index, coord);
     }
 
-    auto COB::adjacent_connectors_from_down(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Down, from_track_index);
+    auto COB::adjacent_connectors_from_down(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Down, from_track_index, coord);
     }
 
     auto COB::to_dir_track_coord(COBDirection dir, std::usize index) -> TrackCoord {

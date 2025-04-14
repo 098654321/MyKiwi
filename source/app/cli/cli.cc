@@ -28,7 +28,7 @@ namespace kiwi {
         algo::build_nets(basedie.get(), interposer.get());
         
         if (mode == 0) {
-            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, mode, false);
+            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{false}, algo::HK{}, mode, false);
             // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
             parse::write_control_bits(
                 interposer.get(),
@@ -39,7 +39,7 @@ namespace kiwi {
             basedie->merge_same_mode_nets();
             auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode);
             if (!has_bits) {
-                algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, mode, true, has_other_bits);
+                algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
                 // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
                 parse::write_control_bits(
                     interposer.get(),

@@ -1,6 +1,8 @@
 #include "./mazererouter.hh"
 #include "../../routeerror.hh"
 #include "./path_length.hh"
+#include <algo/router/incremental/recorders/hardware_recorder.hh>
+#include <circuit/net/nets.hh>
 
 #include <algorithm>
 #include <format>
@@ -29,7 +31,7 @@ namespace kiwi::algo{
         }
     }
 
-    Tree::Tree(const std::Rc<Node> root) : _root(root){
+    Tree::Tree(const std::Rc<Node> root, std::Option<bool> reuse_type) : _root(root), _reuse_type{reuse_type}{
         if (root->parent() != std::nullopt || root->cost() != 0 || root->post_nodes().size() != 0){
             auto parent_coord {root->parent().value()->track()->coord()};
             kiwi::debug::fatal_fmt("Tree_constructor: root node must have null parent, empty children and a 0 cost, \
@@ -69,12 +71,17 @@ namespace kiwi::algo{
     }
 
     auto MazeRerouter::bus_reroute(
-            hardware::Interposer* interposer, std::Vector<circuit::PathPackage*>& path_ptrs,
+            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs,
             std::usize max_length
         ) const -> std::tuple<bool, std::usize>{
 
-        for (std::usize i = 0; i < path_ptrs.size(); ++i){
-            auto path_ptr {path_ptrs.at(i)};
+        for (std::usize i = 0; i < net_ptrs.size(); ++i){
+            auto net = net_ptrs[i];
+            auto reuse_type = net->reuse_type();
+            if (!reuse_type.has_value()) {
+                throw std::logic_error("net reuse type should not be nullopt when routing");
+            }
+            auto path_ptr = &net->pathpackage();
             hardware::Bump* end_bump {nullptr};
             std::usize bump_length = 0; // end bump
 
@@ -106,7 +113,7 @@ namespace kiwi::algo{
             }
 
             // construct a path-tree for reroute
-            auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value()))};
+            auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value(), reuse_type.value()), reuse_type.value())};
             auto [success, ml] = refind_path(interposer, tree, path_ptr, max_length, end_tracks_set, bump_length);
             max_length = ml;
 
@@ -170,6 +177,22 @@ namespace kiwi::algo{
         }
         path_ptr->_regular_path.resize(remain_length);
         path_ptr->_length -= cut_length;
+    }
+
+    auto MazeRerouter::cost_function(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize{
+        if (this->_incremental) {
+            auto type = node->reuse_type();
+            if (!type.has_value()) {
+                throw std::runtime_error("cost_function: reuse_type is not set for node");
+            }
+            if (recorder == nullptr) {
+                throw std::runtime_error("cost_function: recorder is not set");
+            }
+            recorder->track_cost(node->track().get(), type.value());
+        }
+        else {
+            return 1 + Manhattan_distance(node, end_tracks);
+        }
     }
 
     auto MazeRerouter::Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize{
@@ -317,9 +340,9 @@ debug::debug("Rerouting...");
 
             // expand
             for (auto& [next_track, connector] : interposer->adjacent_idle_tracks(track)) {
-                auto new_cost {node_sptr->cost() + 1 + Manhattan_distance(node_sptr, end_tracks)};
+                auto new_cost {node_sptr->cost() + this->cost_function(node_sptr, end_tracks, this->_recorder)};
                 auto next_track_sptr {std::make_shared<hardware::Track>(*next_track)};
-                auto next_node {std::make_shared<Node>(next_track_sptr, connector, node_sptr, new_cost)};
+                auto next_node {std::make_shared<Node>(next_track_sptr, connector, node_sptr, new_cost, tree.reuse_type())};
                 if (!tree.is_a_predecessor(node_sptr, next_node)){
                     node_sptr->add_child(next_node);
                     queue.push_back(next_node);

@@ -35,12 +35,12 @@ namespace kiwi::hardware {
         COB(std::i64 row, std::i64 col);
 
     public:
-        auto adjacent_connectors(COBDirection from_dir, std::usize from_track_index) -> std::Vector<COBConnector>;
+        auto adjacent_connectors(COBDirection from_dir, std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector>;
         
-        auto adjacent_connectors_from_left(std::usize from_track_index) -> std::Vector<COBConnector>;
-        auto adjacent_connectors_from_right(std::usize from_track_index) -> std::Vector<COBConnector>;
-        auto adjacent_connectors_from_up(std::usize from_track_index) -> std::Vector<COBConnector>;
-        auto adjacent_connectors_from_down(std::usize from_track_index) -> std::Vector<COBConnector>;
+        auto adjacent_connectors_from_left(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector>;
+        auto adjacent_connectors_from_right(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector>;
+        auto adjacent_connectors_from_up(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector>;
+        auto adjacent_connectors_from_down(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector>;
 
     public:
         auto sw_register(COBDirection from_dir, std::usize from_cob_index, COBDirection to_dir) -> COBSwRegister*;

@@ -134,7 +134,7 @@ namespace kiwi::hardware {
             auto cob = *option_cob;
             
             // For each connector in cob's adjacent_connectors_from_right
-            for (auto& connector : cob->adjacent_connectors(from_dir, track_coord.index)) {
+            for (auto& connector : cob->adjacent_connectors(from_dir, track_coord.index, cob_coord)) {
                 assert(connector.from_dir() == from_dir);
 
                 auto new_track_coord = cob->to_dir_track_coord(connector.to_dir(), connector.to_track_index());

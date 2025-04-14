@@ -32,7 +32,7 @@ namespace kiwi::algo {
 
     class MazeRouteStrategy : public RouteStrategy {
     public:
-        MazeRouteStrategy(): _rerouter(std::make_unique<MazeRerouter>(MazeRerouter{})) {}
+        MazeRouteStrategy(bool incremental = false): _rerouter(std::make_unique<MazeRerouter>(MazeRerouter{incremental})) {}
 
     public:
         virtual auto route_bump_to_bump_net(hardware::Interposer*, circuit::BumpToBumpNet*)  const -> void override;
@@ -94,7 +94,7 @@ namespace kiwi::algo {
         // the path is already stored in ascending order with vector index when return 
         auto sync_reroute(
             hardware::Interposer* interposer,
-            std::Vector<circuit::PathPackage*>& packages,
+            std::Vector<circuit::Net*>& nets,
             std::usize max_length
         ) const -> std::tuple<bool, std::usize>;
     

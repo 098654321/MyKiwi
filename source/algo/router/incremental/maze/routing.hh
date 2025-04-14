@@ -1,7 +1,7 @@
 #pragma once
 
 #include <hardware/interposer.hh>
-
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <std/collection.hh>
 #include <std/utility.hh>
 #include <std/integer.hh>
@@ -37,6 +37,8 @@ struct CompareTrack {
 };
 
 struct IncreRouting {
+    IncreRouting(): _rerouter{std::make_unique<MazeRerouter>(true)} {}
+
     auto route_bump_to_bump_net(hardware::Interposer*, circuit::BumpToBumpNet*, RouteEngine&) const -> void;
     auto route_track_to_bump_net(hardware::Interposer*, circuit::TrackToBumpNet*, RouteEngine&) const -> void;
     auto route_bump_to_track_net(hardware::Interposer*, circuit::BumpToTrackNet*, RouteEngine&) const -> void;
@@ -68,6 +70,34 @@ public:
         bool reuse_type
     ) const -> algo::routed_path;
 
+    auto sync_preroute_bump_to_bump(
+        hardware::Interposer* interposer,
+        std::Vector<std::Rc<circuit::BumpToBumpNet>>& sync_net,
+        std::HashSet<hardware::Track*>& occupied_tracks_vec,
+        RouteEngine& engine
+    ) const -> std::usize;
+
+    auto sync_preroute_bump_to_track(
+        hardware::Interposer* interposer,
+        std::Vector<std::Rc<circuit::BumpToTrackNet>>& sync_net,
+        std::HashSet<hardware::Track*>& occupied_tracks_vec,
+        RouteEngine& engine
+    ) const -> std::usize;
+
+    auto sync_preroute_track_to_bump(
+        hardware::Interposer* interposer,
+        std::Vector<std::Rc<circuit::TrackToBumpNet>>& sync_net,
+        std::HashSet<hardware::Track*>& occupied_tracks_vec,
+        RouteEngine& engine
+    ) const -> std::usize;
+
+    auto sync_incremental_reroute(
+        hardware::Interposer* interposer,
+        std::Vector<circuit::Net*>& nets,
+        std::usize max_length,
+        RouteEngine& engine
+    ) const -> std::tuple<bool, std::usize>;
+
     template<class Node>
     // search current & existing resources
     auto searching_points( 
@@ -84,7 +114,17 @@ public:
         Node* node, const std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>>& map, HardwareRecorder& recorder, bool reuse_type
     ) const -> std::Vector<hardware::Track*>;
 
+    template <class Node>
+    auto map_to_vec(
+        Node* node, const std::HashMap<hardware::Track*, hardware::TOBConnector>& map, HardwareRecorder& recorder, bool reuse_type
+    ) const -> std::Vector<hardware::Track*>;
+
     auto map_to_set(const std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>>& map) const -> std::HashSet<hardware::Track*>;
+
+    auto map_to_set(const std::HashMap<hardware::Track*, hardware::TOBConnector>& map) const -> std::HashSet<hardware::Track*>;
+
+private:
+    std::Box<MazeRerouter> _rerouter;
 };
 
 }

@@ -39,10 +39,13 @@ public:
         this->_history.second = times;
     }
 
-    auto record_reuse_info(bool type, std::usize re_times, std::usize non_re_times) -> void {
-        this->set_type(type);
-        this->set_re_history(re_times);
-        this->set_non_re_history(non_re_times);
+    auto update_history(bool reuse_type) -> void {
+        reuse_type ? this->_history.first++ : this->_history.second++;
+    }
+
+    auto update(bool reuse_type) -> void {
+        this->set_type(reuse_type);
+        this->update_history(reuse_type);
     }
 
     auto cost(std::usize reuse_num, std::usize nonre_num) const -> float {
@@ -72,6 +75,17 @@ public:
 
     auto cost() const -> float {
         return (BASICCOST + this->_shared) * this->_history_shared;
+    }
+
+    auto update() -> void {
+        this->_shared++;
+        this->_history_shared++;
+    }
+    
+    auto remove_shared() -> void {
+        if (this->_shared > 0){
+            this->_shared--;
+        }
     }
 
 private:

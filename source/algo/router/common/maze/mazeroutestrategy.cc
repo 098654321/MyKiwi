@@ -493,32 +493,32 @@ namespace kiwi::algo {
         }
 
         // reroute for adjusting length
-        auto btb_packages = std::Vector<circuit::PathPackage*> {};
-        auto ttb_packages = std::Vector<circuit::PathPackage*> {};
-        auto btt_packages = std::Vector<circuit::PathPackage*> {};
+        auto btb_nets = std::Vector<circuit::Net*> {};
+        auto ttb_nets = std::Vector<circuit::Net*> {};
+        auto btt_nets = std::Vector<circuit::Net*> {};
         for (auto& net: ptr_sync_net->btbnets()) {
-            btb_packages.emplace_back(&net->pathpackage());
+            btb_nets.emplace_back(net.get());
         }
         for (auto& net: ptr_sync_net->ttbnets()) {
-            ttb_packages.emplace_back(&net->pathpackage());
+            ttb_nets.emplace_back(net.get());
         }
         for (auto& net: ptr_sync_net->bttnets()) {
-            btt_packages.emplace_back(&net->pathpackage());
+            btt_nets.emplace_back(net.get());
         }
         while (true){
             debug::debug("Route BumpToBump Synchronized Net");
             auto [success, ml] = sync_reroute(
-                ptr_interposer, btb_packages, max_length
+                ptr_interposer, btb_nets, max_length
             );
             if (success){
                 debug::debug("Route TrackToBump Synchronized Net");
                 auto [success, ml] = sync_reroute(
-                    ptr_interposer, ttb_packages, max_length
+                    ptr_interposer, ttb_nets, max_length
                 );
                 if (success){
                     debug::debug("Route BumpToTrack Synchronized Net");
                     auto [success, ml] = sync_reroute(
-                        ptr_interposer, btt_packages, max_length
+                        ptr_interposer, btt_nets, max_length
                     );
                     max_length = ml;
                     if (success){
@@ -811,14 +811,14 @@ namespace kiwi::algo {
 
     // reroute for btb/btt/ttb net
     auto MazeRouteStrategy::sync_reroute(
-        hardware::Interposer* interposer, std::Vector<circuit::PathPackage*>& packages, std::usize max_length
+        hardware::Interposer* interposer, std::Vector<circuit::Net*>& nets, std::usize max_length
     ) const -> std::tuple<bool, std::usize>{
-        std::Vector<circuit::PathPackage*> nets_to_be_rerouted {};
+        std::Vector<circuit::Net*> nets_to_be_rerouted {};
 
         // collect nets to be rerouted, along with their end bumps and track to tob maps
-        for (auto& package: packages) {
-            if (package->_length < max_length) {
-                nets_to_be_rerouted.push_back(package);
+        for (auto& net: nets) {
+            if (net->pathpackage()._length < max_length) {
+                nets_to_be_rerouted.push_back(net);
             }
         }
 

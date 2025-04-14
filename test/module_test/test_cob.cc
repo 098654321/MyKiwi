@@ -63,10 +63,10 @@ static auto test_cob_index_map() -> void {
 static auto test_adjacent_connectors() -> void {
     auto cob = COB{0, 0};
 
-    auto cs = cob.adjacent_connectors(COBDirection::Left, 0);
+    auto cs = cob.adjacent_connectors(COBDirection::Left, 0, cob.coord());
     ASSERT_EQ(cs.size(), 3);
 
-    cs = cob.adjacent_connectors(COBDirection::Left, 0);
+    cs = cob.adjacent_connectors(COBDirection::Left, 0, cob.coord());
     ASSERT_EQ(cs.size(), 3);
 }
 
