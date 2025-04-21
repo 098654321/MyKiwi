@@ -32,24 +32,27 @@ class HardwareRecorder;
 
 struct CompareTrack {
     bool operator()(std::Pair<hardware::Track*, float> e1, std::Pair<hardware::Track*, float> e2) const {
-        return e1.second < e2.second;
+        return e1.second > e2.second;
     }
 };
 
 struct IncreRouting {
     IncreRouting(): _rerouter{std::make_unique<MazeRerouter>(true)} {}
 
-    auto route_bump_to_bump_net(hardware::Interposer*, circuit::BumpToBumpNet*, RouteEngine&) const -> void;
-    auto route_track_to_bump_net(hardware::Interposer*, circuit::TrackToBumpNet*, RouteEngine&) const -> void;
-    auto route_bump_to_track_net(hardware::Interposer*, circuit::BumpToTrackNet*, RouteEngine&) const -> void;
+    auto route_bump_to_bump_net(hardware::Interposer*, circuit::BumpToBumpNet*, RouteEngine&, bool) const -> bool;
+    auto route_track_to_bump_net(hardware::Interposer*, circuit::TrackToBumpNet*, RouteEngine&, bool) const -> bool;
+    auto route_bump_to_track_net(hardware::Interposer*, circuit::BumpToTrackNet*, RouteEngine&, bool) const -> bool;
 
-    auto route_bump_to_bumps_net(hardware::Interposer*, circuit::BumpToBumpsNet*, RouteEngine&)  const -> void;
-    auto route_track_to_bumps_net(hardware::Interposer*, circuit::TrackToBumpsNet*, RouteEngine&) const -> void;
-    auto route_bump_to_tracks_net(hardware::Interposer*, circuit::BumpToTracksNet*, RouteEngine&) const -> void;
+    auto route_bump_to_bumps_net(hardware::Interposer*, circuit::BumpToBumpsNet*, RouteEngine&, bool)  const -> bool;
+    auto route_track_to_bumps_net(hardware::Interposer*, circuit::TrackToBumpsNet*, RouteEngine&, bool) const -> bool;
+    auto route_bump_to_tracks_net(hardware::Interposer*, circuit::BumpToTracksNet*, RouteEngine&, bool) const -> bool;
 
-    auto route_tracks_to_bumps_net(hardware::Interposer*, circuit::TracksToBumpsNet*, RouteEngine&) const -> void;
+    auto route_tracks_to_bumps_net(hardware::Interposer*, circuit::TracksToBumpsNet*, RouteEngine&, bool) const -> bool;
 
-    auto route_sync_net(hardware::Interposer*, circuit::SyncNet*, RouteEngine&) const -> void;
+    auto route_sync_net(hardware::Interposer*, circuit::SyncNet*, RouteEngine&, bool) const -> bool;
+
+public:
+    auto set_recorder(HardwareRecorder* recorder) -> void {this->_rerouter->set_recorder(recorder);}
 
 public:
     auto maze_search(
@@ -74,34 +77,35 @@ public:
         hardware::Interposer* interposer,
         std::Vector<std::Rc<circuit::BumpToBumpNet>>& sync_net,
         std::HashSet<hardware::Track*>& occupied_tracks_vec,
-        RouteEngine& engine
+        RouteEngine& engine, bool shared
     ) const -> std::usize;
 
     auto sync_preroute_bump_to_track(
         hardware::Interposer* interposer,
         std::Vector<std::Rc<circuit::BumpToTrackNet>>& sync_net,
         std::HashSet<hardware::Track*>& occupied_tracks_vec,
-        RouteEngine& engine
+        RouteEngine& engine, bool shared
     ) const -> std::usize;
 
     auto sync_preroute_track_to_bump(
         hardware::Interposer* interposer,
         std::Vector<std::Rc<circuit::TrackToBumpNet>>& sync_net,
         std::HashSet<hardware::Track*>& occupied_tracks_vec,
-        RouteEngine& engine
+        RouteEngine& engine, bool shared
     ) const -> std::usize;
 
     auto sync_incremental_reroute(
         hardware::Interposer* interposer,
         std::Vector<circuit::Net*>& nets,
         std::usize max_length,
-        RouteEngine& engine
+        RouteEngine& engine,
+        bool shared
     ) const -> std::tuple<bool, std::usize>;
 
     template<class Node>
     // search current & existing resources
     auto searching_points( 
-        Node*, circuit::Net*, hardware::Interposer*
+        Node*, circuit::Net*, hardware::Interposer*, bool
     ) const -> std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>>;
 
     auto set_tobconnector(

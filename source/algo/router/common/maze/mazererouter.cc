@@ -31,7 +31,9 @@ namespace kiwi::algo{
         }
     }
 
-    Tree::Tree(const std::Rc<Node> root, std::Option<bool> reuse_type) : _root(root), _reuse_type{reuse_type}{
+    Tree::Tree(const std::Rc<Node> root, std::Option<bool> reuse_type)
+         : _root(root), _reuse_type{reuse_type}, _max_level{0}
+    {
         if (root->parent() != std::nullopt || root->cost() != 0 || root->post_nodes().size() != 0){
             auto parent_coord {root->parent().value()->track()->coord()};
             kiwi::debug::fatal_fmt("Tree_constructor: root node must have null parent, empty children and a 0 cost, \
@@ -70,16 +72,19 @@ namespace kiwi::algo{
         return path;
     }
 
-    auto MazeRerouter::bus_reroute(
-            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs,
-            std::usize max_length
-        ) const -> std::tuple<bool, std::usize>{
+    auto Tree::check_max_level(std::usize level) -> void {
+        this->_max_level = std::max(this->_max_level, level);
+    }
 
+    auto MazeRerouter::bus_reroute(
+        hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs,
+        std::usize max_length, bool shared
+    ) const -> std::tuple<bool, std::usize>{
         for (std::usize i = 0; i < net_ptrs.size(); ++i){
             auto net = net_ptrs[i];
             auto reuse_type = net->reuse_type();
             if (!reuse_type.has_value()) {
-                throw std::logic_error("net reuse type should not be nullopt when routing");
+                throw std::logic_error("bus_reroute: net reuse type should not be nullopt when routing");
             }
             auto path_ptr = &net->pathpackage();
             hardware::Bump* end_bump {nullptr};
@@ -91,11 +96,11 @@ namespace kiwi::algo{
             // if there is an end bump, then the tob state will be updated after removing end track
             // --> possible end tracks will be changed
             if (!path_ptr->_track_to_tob.empty()){
+                end_bump = std::get<0>(path_ptr->_track_to_tob.at(0));
                 remove_tracks(path_ptr);
 
-                end_bump = std::get<0>(path_ptr->_track_to_tob[0]);
                 bump_length = 1;
-                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump);
+                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump, shared);
                 for (auto& [track, _]: possible_end_tracks_map){
                     if (track && !end_tracks_set.contains(track)){
                         end_tracks_set.emplace(track);
@@ -109,7 +114,7 @@ namespace kiwi::algo{
 
             // if failed, then routing failed  
             if (end_tracks_set.size() <= 0){
-                throw FinalError("MazeRerouter::reroute: end_tracks_set is empty");
+                throw FinalError("bus_reroute: end_tracks_set is empty");
             }
 
             // construct a path-tree for reroute
@@ -121,7 +126,7 @@ namespace kiwi::algo{
             if (end_bump != nullptr){
                 auto end_track {std::get<0>(path_ptr->_regular_path.back())};
                 if (!check_found(end_tracks_set, end_track)){
-                    throw FinalError("MazeRerouter::reroute: end track not found");
+                    throw FinalError("bus_reroute: end track not found");
                 }
                 
                 // notice: the following "for" loop cannot be replaced by "possible_end_tracks_map.find(end_track)->second.connect();"
@@ -153,7 +158,6 @@ namespace kiwi::algo{
         // check if the net is a btb/btt/ttb net, and only has two port
         auto port_num = path_ptr->_tob_to_track.size() + path_ptr->_track_to_tob.size();
         assert(port_num <= 2 && port_num >= 1);
-        assert(path_ptr->_regular_path.size() == path_ptr->_length - port_num);
 
         //remove end TOBConnector
         if (!path_ptr->_track_to_tob.empty()){
@@ -176,10 +180,10 @@ namespace kiwi::algo{
             }
         }
         path_ptr->_regular_path.resize(remain_length);
-        path_ptr->_length -= cut_length;
+        path_ptr->_length = path_length(path_ptr->_regular_path) + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
     }
 
-    auto MazeRerouter::cost_function(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize{
+    auto MazeRerouter::cost_function(const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize{
         if (this->_incremental) {
             auto type = node->reuse_type();
             if (!type.has_value()) {
@@ -188,7 +192,7 @@ namespace kiwi::algo{
             if (recorder == nullptr) {
                 throw std::runtime_error("cost_function: recorder is not set");
             }
-            recorder->track_cost(node->track().get(), type.value());
+            recorder->expand_cost(node->track().get(), connector, type.value());
         }
         else {
             return 1 + Manhattan_distance(node, end_tracks);
@@ -286,16 +290,13 @@ namespace kiwi::algo{
     }
 
     auto MazeRerouter::refind_path(
-            hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
-            std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
-        ) const -> std::tuple<bool, std::usize>{
+        hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
+        std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
+    ) const -> std::tuple<bool, std::usize>{
+        debug::debug("Refinding path ...");
         std::Vector<std::Rc<Node>> queue {tree._root};
         std::make_heap(queue.begin(), queue.end(), Node::CompareNodes);
 
-//!
-debug::debug("Rerouting...");
-// print_end_tracks(end_tracks);
-//!
         // mazing with A* 
         while (!queue.empty()) {
             // get current node
@@ -317,16 +318,13 @@ debug::debug("Rerouting...");
                         cobconnector.value().suspend();
                     }
                 }
-                path_ptr->_length += temp_path_length + bump_length;
-//!
-// print_path(path_ptr);
-//!
+                path_ptr->_length = path_length(path_ptr->_regular_path) + bump_length + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
                 // find a longer path
-                if (path_ptr->_length + temp_path_length + bump_length > max_length){
+                if (path_ptr->_length > max_length){
                     return {false, path_ptr->_length};
                 }
                 // find a equal path
-                else if(path_ptr->_length + temp_path_length + bump_length == max_length){
+                else if(path_ptr->_length == max_length){
                     return {true, max_length};
                 }
                 // find a shorter path
@@ -340,14 +338,21 @@ debug::debug("Rerouting...");
 
             // expand
             for (auto& [next_track, connector] : interposer->adjacent_idle_tracks(track)) {
-                auto new_cost {node_sptr->cost() + this->cost_function(node_sptr, end_tracks, this->_recorder)};
+                auto new_cost {node_sptr->cost() + this->cost_function(node_sptr, connector, end_tracks, this->_recorder)};
                 auto next_track_sptr {std::make_shared<hardware::Track>(*next_track)};
-                auto next_node {std::make_shared<Node>(next_track_sptr, connector, node_sptr, new_cost, tree.reuse_type())};
+                auto new_level = node_sptr->level() + 1;
+                auto next_node {std::make_shared<Node>(next_track_sptr, connector, node_sptr, new_cost, tree.reuse_type(), new_level)};
                 if (!tree.is_a_predecessor(node_sptr, next_node)){
+                    tree.check_max_level(new_level);
                     node_sptr->add_child(next_node);
                     queue.push_back(next_node);
                     std::push_heap(queue.begin(), queue.end(), Node::CompareNodes);
                 }
+            }
+
+            // check
+            if (tree._max_level + path_ptr->_length > 2*max_length) {
+                throw RetryExpt("MazeRerouter::refind_path: tree._max_level > 2*max_length");
             }
         }
 

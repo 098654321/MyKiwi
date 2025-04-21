@@ -113,6 +113,7 @@ namespace kiwi::parse {
     try {
         for (auto& [mode, inner_connection] : this->_config.connections) {
             for (auto& [sync, connections]: inner_connection) {
+                this->_basedie->reserve_connections(mode, sync, connections.size());
                 for (const auto& connection : connections) {
                     auto input = this->parse_connection_pin(connection.input);
                     auto output = this->parse_connection_pin(connection.output);

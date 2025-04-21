@@ -58,7 +58,7 @@ namespace kiwi::hardware {
         return this->available_connectors(bump_index, TOBSignalDirection::TrackToBump);
     }
 
-    auto TOB::available_connectors(std::usize bump_index, TOBSignalDirection signal_dir) -> std::Vector<TOBConnector> {
+    auto TOB::available_connectors(std::usize bump_index, TOBSignalDirection signal_dir, bool shared) -> std::Vector<TOBConnector> {
         assert(bump_index < TOB::INDEX_SIZE);
         assert(signal_dir != TOBSignalDirection::DisConnected);
 
@@ -66,17 +66,17 @@ namespace kiwi::hardware {
 
         auto bump_to_hori_info = TOB::bump_to_hori_mux_info(bump_index);    // [mux, index_in_mux]
         
-        for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info))) {
+        for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info), shared)) {
 
             auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());    // within range [0, 127]
             auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);    // [vert_group, vert_index_in_group]
 
-            for (auto& hori_to_vert_cs : this->_hori_to_vert_muxs.at(std::get<0>(hori_to_vert_info))->available_connectors(std::get<1>(hori_to_vert_info))) {
+            for (auto& hori_to_vert_cs : this->_hori_to_vert_muxs.at(std::get<0>(hori_to_vert_info))->available_connectors(std::get<1>(hori_to_vert_info), shared)) {
                 
                 auto vert_index = TOB::hori_to_vert_mux_info_and_output_to_index(hori_to_vert_info, hori_to_vert_cs.output_index());
                 auto vert_to_track_info = TOB::vert_to_track_mux_info(vert_index);
 
-                for (auto& vert_to_track_cs : this->_vert_to_track_muxs.at(std::get<0>(vert_to_track_info))->available_connectors(std::get<1>(vert_to_track_info))) {
+                for (auto& vert_to_track_cs : this->_vert_to_track_muxs.at(std::get<0>(vert_to_track_info))->available_connectors(std::get<1>(vert_to_track_info), shared)) {
                         
                     auto track_index = TOB::vert_to_track_mux_info_and_output_to_index(vert_to_track_info, vert_to_track_cs.output_index());
                     assert(track_index < TOB::INDEX_SIZE);

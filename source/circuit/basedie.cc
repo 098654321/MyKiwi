@@ -115,6 +115,14 @@ namespace kiwi::circuit {
         this->_nets.at(mode).emplace_back(net);
     }
 
+    auto BaseDie::reserve_connections(int mode, int sync, int size) -> void {
+        auto res = this->_connections.emplace(mode, std::HashMap<int, std::Vector<std::Box<Connection>>>{});
+        assert(res.first->first == mode);
+        auto res_v = res.first->second.emplace(sync, std::Vector<std::Box<Connection>>{});
+        assert(res_v.first->first == sync);
+        res_v.first->second.reserve(size);
+    }
+
     auto BaseDie::remove_topdie_inst(TopDieInstance* inst) -> bool {
         if (inst == nullptr) {
             return false;

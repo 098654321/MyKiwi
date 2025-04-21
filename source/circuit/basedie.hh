@@ -34,6 +34,8 @@ namespace kiwi::circuit {
 
         auto add_net(const std::Rc<Net>&, int) -> void;
 
+        auto reserve_connections(int mode, int sync, int size) -> void;
+
     public:
         auto remove_topdie_inst(std::StringView name) -> bool;
         auto remove_topdie_inst(TopDieInstance* inst) -> bool;

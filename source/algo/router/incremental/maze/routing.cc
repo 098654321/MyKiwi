@@ -11,8 +11,9 @@
 namespace kiwi::algo {
 
 auto IncreRouting::route_bump_to_bump_net(
-    hardware::Interposer* interposer, circuit::BumpToBumpNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::BumpToBumpNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for bump to bump net");
 
     // ports
@@ -21,8 +22,8 @@ auto IncreRouting::route_bump_to_bump_net(
     debug::check(begin_bump->tob() != end_bump->tob(), "Route bump in the same tob");
 
     // begin/end nodes
-    auto begins_map = searching_points<hardware::Bump>(begin_bump, net, interposer);
-    auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer);
+    auto begins_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
+    auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
 
     // route
     circuit::PathPackage path_package {};
@@ -43,18 +44,25 @@ auto IncreRouting::route_bump_to_bump_net(
     set_tobconnector(ends_map, tail, end_bump, path_package);
     path_package._length += path_length(path_package._regular_path);
     net->set_pathpackage(path_package);
+
+    return true;
+}
+catch (RetryExpt& err){
+    return false;
+}
 }
 
 auto IncreRouting::route_track_to_bump_net(
-    hardware::Interposer* interposer, circuit::TrackToBumpNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::TrackToBumpNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for track to bump net");
 
     auto begin_track = net->begin_track();
     auto end_bump = net->end_bump();
 
-    auto begins_map = searching_points<hardware::Track>(begin_track, net, interposer);
-    auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer);
+    auto begins_map = searching_points<hardware::Track>(begin_track, net, interposer, shared);
+    auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
 
     circuit::PathPackage path_package {};
     auto reuse_type = net->reuse_type();
@@ -71,18 +79,25 @@ auto IncreRouting::route_track_to_bump_net(
     set_tobconnector(ends_map, tail, end_bump, path_package);
     path_package._length += path_length(path_package._regular_path);
     net->set_pathpackage(path_package);
+
+    return true;
+}
+catch(RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::route_bump_to_track_net(
-    hardware::Interposer* interposer, circuit::BumpToTrackNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::BumpToTrackNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for bump to track net");
 
     auto begin_bump = net->begin_bump();
     auto end_track = net->end_track();
 
-    auto begins_map = searching_points<hardware::Bump>(begin_bump, net, interposer);
-    auto ends_map = searching_points<hardware::Track>(end_track, net, interposer);
+    auto begins_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
+    auto ends_map = searching_points<hardware::Track>(end_track, net, interposer, shared);
 
     circuit::PathPackage path_package {};
     auto reuse_type = net->reuse_type();
@@ -99,11 +114,18 @@ auto IncreRouting::route_bump_to_track_net(
     set_tobconnector(begins_map, head, begin_bump, path_package);
     path_package._length += path_length(path_package._regular_path);
     net->set_pathpackage(path_package);
+
+    return true;
+}
+catch (RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::route_bump_to_bumps_net(
-    hardware::Interposer* interposer, circuit::BumpToBumpsNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::BumpToBumpsNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for bump to bumps net");
 
     auto begin_bump = net->begin_bump();
@@ -112,13 +134,13 @@ auto IncreRouting::route_bump_to_bumps_net(
     circuit::PathPackage path_package {};
     algo::routed_path total_regular_path {};
     for (auto end_bump: end_bumps) {
-        auto current_begin_map = searching_points<hardware::Bump>(begin_bump, net, interposer);
+        auto current_begin_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
         for (auto& [track, connector]: total_regular_path) {
             current_begin_map.emplace(track, std::nullopt);
         }
         auto current_begin_tracks = map_to_vec<hardware::Bump>(begin_bump, current_begin_map, engine.recorder(), net->reuse_type().value());
 
-        auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer);
+        auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
         auto current_end_tracks = map_to_set(ends_map);
 
         auto regular_path = this->route_path(
@@ -136,11 +158,18 @@ auto IncreRouting::route_bump_to_bumps_net(
     path_package._regular_path = total_regular_path;
     path_package._length += 1;
     net->set_pathpackage(path_package);
+
+    return true;
+}
+catch (RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::route_track_to_bumps_net(
-    hardware::Interposer* interposer, circuit::TrackToBumpsNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::TrackToBumpsNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for track to bumps net");
 
     auto begin_track = net->begin_track();
@@ -149,13 +178,13 @@ auto IncreRouting::route_track_to_bumps_net(
     circuit::PathPackage path_package {};
     algo::routed_path total_regular_path {};
     for (auto& end_bump: end_bumps) {
-        auto current_begin_map = searching_points<hardware::Track>(begin_track, net, interposer);
+        auto current_begin_map = searching_points<hardware::Track>(begin_track, net, interposer, shared);
         for (auto& [track, connector]: total_regular_path) {
             current_begin_map.emplace(track, std::nullopt);
         }
         auto current_begin_tracks = map_to_vec<hardware::Track>(begin_track, current_begin_map, engine.recorder(), net->reuse_type().value());
 
-        auto end_map = searching_points<hardware::Bump>(end_bump, net, interposer);
+        auto end_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
         auto current_end_tracks = map_to_set(end_map);
 
         auto regular_path = this->route_path(
@@ -171,11 +200,18 @@ auto IncreRouting::route_track_to_bumps_net(
     path_package._regular_path = total_regular_path;
     path_package._length += 1;
     net->set_pathpackage(path_package);
+
+    return true;
+}
+catch (RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::route_bump_to_tracks_net(
-    hardware::Interposer* interposer, circuit::BumpToTracksNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::BumpToTracksNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for bump to tracks net");
 
     auto begin_bump = net->begin_bump();
@@ -184,13 +220,13 @@ auto IncreRouting::route_bump_to_tracks_net(
     circuit::PathPackage path_package {};
     routed_path total_regular_path {};
     for (auto& end_track: end_tracks) {
-        auto current_begin_map = searching_points<hardware::Bump>(begin_bump, net, interposer);
+        auto current_begin_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
         for (auto& [track, connector]: total_regular_path) {
             current_begin_map.emplace(track, std::nullopt);
         }
         auto current_begin_tracks = map_to_vec<hardware::Bump>(begin_bump, current_begin_map, engine.recorder(), net->reuse_type().value());
 
-        auto end_map = searching_points<hardware::Track>(end_track, net, interposer);
+        auto end_map = searching_points<hardware::Track>(end_track, net, interposer, shared);
         auto current_end_tracks = map_to_set(end_map);
 
         auto regular_path = this->route_path(
@@ -207,11 +243,18 @@ auto IncreRouting::route_bump_to_tracks_net(
     path_package._regular_path = total_regular_path;
     path_package._length += 1;
     net->set_pathpackage(path_package);
+    
+    return true;
+}
+catch (RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::route_tracks_to_bumps_net(
-    hardware::Interposer* interposer, circuit::TracksToBumpsNet* net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::TracksToBumpsNet* net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for tracks to bumps net");
 
     auto begin_tracks = net->begin_tracks();
@@ -223,7 +266,7 @@ auto IncreRouting::route_tracks_to_bumps_net(
         std::sort(begin_tracks.begin(), begin_tracks.end(), [&](auto& t1, auto& t2){
             return engine.recorder().track_cost(t1, net->reuse_type().value()) < engine.recorder().track_cost(t2, net->reuse_type().value());
         });
-        auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer);
+        auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
 
         auto regular_path = this->route_path(
             interposer, begin_tracks, map_to_set(ends_map), std::HashSet<hardware::Track*>{},
@@ -241,11 +284,18 @@ auto IncreRouting::route_tracks_to_bumps_net(
     }
     path_package._regular_path = total_regular_path;
     net->set_pathpackage(path_package);
+
+    return true;
+}
+catch (RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::route_sync_net(
-    hardware::Interposer* interposer, circuit::SyncNet* sync_net, RouteEngine& engine
-) const -> void {
+    hardware::Interposer* interposer, circuit::SyncNet* sync_net, RouteEngine& engine, bool shared
+) const -> bool {
+try {
     debug::debug("Incremental routing for sync net");
 
     std::HashSet<hardware::Track*> occupied_tracks_vec {}; 
@@ -259,19 +309,19 @@ auto IncreRouting::route_sync_net(
 
     if (sync_net->btbnets().size() > 0){
         auto current_len = sync_preroute_bump_to_bump(
-            interposer, sync_net->btbnets(), occupied_tracks_vec, engine
+            interposer, sync_net->btbnets(), occupied_tracks_vec, engine, shared
         );
         max_length = current_len > max_length ? current_len : max_length;
     }
     if (sync_net->ttbnets().size() > 0){
         auto current_len = sync_preroute_track_to_bump(
-            interposer, sync_net->ttbnets(), occupied_tracks_vec, engine
+            interposer, sync_net->ttbnets(), occupied_tracks_vec, engine, shared
         );
         max_length = current_len > max_length ? current_len : max_length;
     }
     if (sync_net->bttnets().size() > 0){
         auto current_len = sync_preroute_bump_to_track(
-            interposer, sync_net->bttnets(), occupied_tracks_vec, engine
+            interposer, sync_net->bttnets(), occupied_tracks_vec, engine, shared
         );
         max_length = current_len > max_length ? current_len : max_length;
     }
@@ -292,17 +342,17 @@ auto IncreRouting::route_sync_net(
     while (true){
         debug::debug("Route BumpToBump Synchronized Net");
         auto [success, ml] = sync_incremental_reroute(
-            interposer, btb_nets, max_length, engine
+            interposer, btb_nets, max_length, engine, shared
         );
         if (success){
             debug::debug("Route TrackToBump Synchronized Net");
             auto [success, ml] = sync_incremental_reroute(
-                interposer, ttb_nets, max_length, engine
+                interposer, ttb_nets, max_length, engine, shared
             );
             if (success){
                 debug::debug("Route BumpToTrack Synchronized Net");
                 auto [success, ml] = sync_incremental_reroute(
-                    interposer, btt_nets, max_length, engine
+                    interposer, btt_nets, max_length, engine, shared
                 );
                 max_length = ml;
                 if (success){
@@ -339,13 +389,19 @@ auto IncreRouting::route_sync_net(
     assert(sum == total_length);
 
     sync_net->collect_package();
+
+    return true;
+}
+catch (RetryExpt& err) {
+    return false;
+}
 }
 
 auto IncreRouting::sync_preroute_bump_to_bump(
     hardware::Interposer* interposer,
     std::Vector<std::Rc<circuit::BumpToBumpNet>>& sync_net,
     std::HashSet<hardware::Track*>& occupied_tracks_vec,
-    RouteEngine& engine
+    RouteEngine& engine, bool shared
 ) const -> std::usize {
     if (sync_net.size() <= 0){
         throw FinalError("IncreRouting::sync_preroute_bump_to_bump(): empty sync_net");
@@ -356,9 +412,9 @@ auto IncreRouting::sync_preroute_bump_to_bump(
         auto end_bump  =net->end_bump();
         debug::check(begin_bump->tob() != end_bump->tob(), "IncreRouting::preroute(): Route bump in the same tob");
 
-        auto begin_map = interposer->available_tracks_bump_to_track(begin_bump);
+        auto begin_map = interposer->available_tracks_bump_to_track(begin_bump, shared);
         auto begin_track_vec = map_to_vec(begin_bump, begin_map, engine.recorder(), net->reuse_type().value());
-        auto end_map = interposer->available_tracks_track_to_bump(end_bump);
+        auto end_map = interposer->available_tracks_track_to_bump(end_bump, shared);
         auto end_track_set = map_to_set(end_map);
 
         circuit::PathPackage path_package{};
@@ -402,7 +458,7 @@ auto IncreRouting::sync_preroute_bump_to_track(
     hardware::Interposer* interposer,
     std::Vector<std::Rc<circuit::BumpToTrackNet>>& sync_net,
     std::HashSet<hardware::Track*>& occupied_tracks_vec,
-    RouteEngine& engine
+    RouteEngine& engine, bool shared
 ) const -> std::usize {
     if (sync_net.size() <= 0){
         throw FinalError("IncreRouting::sync_preroute_bump_to_track(): empty sync_net");
@@ -412,7 +468,7 @@ auto IncreRouting::sync_preroute_bump_to_track(
         auto begin_bump = net->begin_bump();
         auto end_track = net->end_track();
 
-        auto begin_map = interposer->available_tracks_bump_to_track(begin_bump);
+        auto begin_map = interposer->available_tracks_bump_to_track(begin_bump, shared);
         auto begin_track_vec = map_to_vec(begin_bump, begin_map, engine.recorder(), net->reuse_type().value());
         auto end_set = std::HashSet<hardware::Track*>{end_track};
 
@@ -451,7 +507,7 @@ auto IncreRouting::sync_preroute_track_to_bump(
     hardware::Interposer* interposer,
     std::Vector<std::Rc<circuit::TrackToBumpNet>>& sync_net,
     std::HashSet<hardware::Track*>& occupied_tracks_vec,
-    RouteEngine& engine
+    RouteEngine& engine, bool shared
 ) const -> std::usize {
     if (sync_net.size() <= 0){
         throw FinalError("IncreRouting::sync_preroute_track_to_bump(): empty sync_net");
@@ -462,11 +518,11 @@ auto IncreRouting::sync_preroute_track_to_bump(
         auto end_bump = net->end_bump();
 
         auto begin_track_vec = std::Vector<hardware::Track*>{begin_track};
-        auto end_map = interposer->available_tracks_track_to_bump(end_bump);
+        auto end_map = interposer->available_tracks_track_to_bump(end_bump, shared);
         auto end_set = map_to_set(end_map);
 
         std::erase_if(occupied_tracks_vec, [&](const auto& track) {
-            return track->coord() == end_track->coord();
+            return track->coord() == begin_track->coord();
         });
 
         circuit::PathPackage path_package{};
@@ -499,7 +555,8 @@ auto IncreRouting::sync_incremental_reroute(
     hardware::Interposer* interposer,
     std::Vector<circuit::Net*>& nets,
     std::usize max_length,
-    RouteEngine& engine
+    RouteEngine& engine,
+    bool shared
 ) const -> std::tuple<bool, std::usize> {
     std::Vector<circuit::Net*> nets_to_be_rerouted {};
     for (auto& net: nets) {
@@ -509,7 +566,7 @@ auto IncreRouting::sync_incremental_reroute(
     }
 
     if (nets_to_be_rerouted.size() > 0) {
-        auto [success, ml] = _rerouter->bus_reroute(interposer, nets_to_be_rerouted, max_length);
+        auto [success, ml] = _rerouter->bus_reroute(interposer, nets_to_be_rerouted, max_length, shared);
         
         if (success){   // routing done with ml == max_length
             if (max_length != ml){
@@ -600,7 +657,7 @@ auto IncreRouting::maze_search(
                 continue;
             }
 
-            queue.push(std::Pair<hardware::Track*, float>(next_track, recorder.track_cost(next_track, reuse_type)));             
+            queue.push(std::Pair<hardware::Track*, float>(next_track, current_cost + recorder.expand_cost(track, connector, reuse_type)));             
             prev_track_infos.insert({
                 next_track, 
                 std::Tuple<Track*, COBConnector>{track, connector}
@@ -614,7 +671,7 @@ auto IncreRouting::maze_search(
 
 template <class Node>
 auto IncreRouting::searching_points(
-    Node* node, circuit::Net* net, hardware::Interposer* interposer
+    Node* node, circuit::Net* net, hardware::Interposer* interposer, bool shared
 ) const -> std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>> {
     static_assert(
         std::is_same<Node, hardware::Bump>::value || std::is_same<Node, hardware::Track>::value,\
@@ -623,7 +680,7 @@ auto IncreRouting::searching_points(
 
     auto map = std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>>{};
     if constexpr(std::is_same<Node, hardware::Bump>::value) {
-        auto track_and_connector = interposer->available_tracks_bump_to_track(node);
+        auto track_and_connector = interposer->available_tracks_bump_to_track(node, shared);
         for (auto& [t, tobconnector]: track_and_connector) {
             map.emplace(t, tobconnector);
         }
@@ -674,9 +731,9 @@ auto IncreRouting::map_to_vec(
     }
     std::sort(vec.begin(), vec.end(), [&](hardware::Track* track1, hardware::Track* track2) {
         if constexpr(std::is_same<Node, hardware::Bump>::value) {
-            return recorder.bump_to_track_cost(bump->coord(), bump->index(), track1, reuse_type) < recorder.bump_to_track_cost(bump->coord(), bump->index(), track2, reuse_type);
+            return recorder.bump_to_track_cost(node->coord(), node->index(), track1, reuse_type) < recorder.bump_to_track_cost(node->coord(), node->index(), track2, reuse_type);
         }
-        else constexpr(std::is_same<Node, hardware::Track>::value) {
+        else {
             return recorder.track_cost(track1, reuse_type) < recorder.track_cost(track2, reuse_type);
         }
     });
@@ -706,9 +763,9 @@ auto IncreRouting::map_to_vec(
     }
     std::sort(vec.begin(), vec.end(), [&](hardware::Track* track1, hardware::Track* track2) {
         if constexpr(std::is_same<Node, hardware::Bump>::value) {
-            return recorder.bump_to_track_cost(bump->coord(), bump->index(), track1, reuse_type) < recorder.bump_to_track_cost(bump->coord(), bump->index(), track2, reuse_type);
+            return recorder.bump_to_track_cost(node->coord(), node->index(), track1, reuse_type) < recorder.bump_to_track_cost(node->coord(), node->index(), track2, reuse_type);
         }
-        else constexpr(std::is_same<Node, hardware::Track>::value) {
+        else {
             return recorder.track_cost(track1, reuse_type) < recorder.track_cost(track2, reuse_type);
         }
     });

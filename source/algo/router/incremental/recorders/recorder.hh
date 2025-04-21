@@ -52,7 +52,7 @@ public:
         if (!this->_reuse_type.has_value()) {
             return BASICCOST;
         }
-        auto group_ratio = this->_reuse_type ? (float)(reuse_num-nonre_num)/(float)(reuse_num + EPSILON) : (float)(nonre_num-reuse_num)/(float)(nonre_num + EPSILON);
+        auto group_ratio = (this->_reuse_type ? (float)(reuse_num-nonre_num) : (float)(nonre_num-reuse_num))/(float)(nonre_num + reuse_num + EPSILON);
         auto history_ratio = (this->_reuse_type ? (float)(reuse_num-nonre_num) : (float)(nonre_num-reuse_num)) / (nonre_num+reuse_num+EPSILON);
         return BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
     }

@@ -25,7 +25,7 @@ auto Invoker::set_route_commands(bool incremental, bool path_exists) -> void {
     if (incremental) {
         this->_commands.emplace_back(this->create_command(CommandType::Sort));
         this->_commands.emplace_back(this->create_command(CommandType::Resources));
-        //TODO: route
+        this->_commands.emplace_back(this->create_command(CommandType::Incre_route));
         this->_commands.emplace_back(this->create_command(CommandType::Connect));
     }
     else {

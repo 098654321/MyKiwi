@@ -45,7 +45,7 @@ namespace kiwi::circuit {
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void override;
         virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void override;
-        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&) -> void override;
+        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&, bool shared) -> bool override;
         virtual auto update_priority(float bias) -> void override;
         virtual auto coords() const -> std::Vector<hardware::Coord> override;
         virtual auto check_accessable_cobunit() -> void override;
@@ -59,6 +59,7 @@ namespace kiwi::circuit {
         virtual auto nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> override;
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> override;
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
+        virtual auto set_reuse_type(bool reuse_type) -> void override;
 
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         

@@ -13,8 +13,19 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
     std::usize min_cycle = 10;
     std::usize max_cycle = 20;
 
+    auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
+        return n1->modes().size() > n2->modes().size();
+    };
+    std::sort(nets.begin(), nets.end(), compare);
+
     std::usize cycle = 0;
     while(cycle < min_cycle || recorder.check_shared()) {
+        for (std::usize i = posi; i < nets.size(); ++i) {
+            auto net = nets[i];
+            net->pathpackage().reset_all();
+        }
+        engine.reset_position();
+
         for (std::usize i = posi; i < nets.size(); ++i) {
             auto net = nets[i];
             net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
@@ -22,11 +33,17 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
             // check existing path
             auto routed_nets = engine.routed_nets();
             net->search_related_nets(routed_nets);
-    
+
             // route
-            // TODO：所有的 begin_tracks 一起开始搜索和一个一个搜索有什么区别
-            net->incremental_route(interposer, engine.incre_route_strategy(), engine);
-            // TODO: 如果布线失败，设置允许共享，然后重新布线。 mux 的硬件状态需要增加一个 Shared
+            // TODO：所有的 begin_tracks 一起开始搜索和一个一个搜索有什么区别。以及末端如果用 end_track_set 存储那么也没有考虑到 mux 的 cost
+            auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);
+            if (!res) {
+                net->pathpackage().reset_all();
+                res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, true);
+                if (!res) {
+                    throw std::logic_error("incremental routing failed when allow sharing");
+                }
+            }
             engine.move_on();
 
             recorder.clear_shared(net->history_pathpackage());

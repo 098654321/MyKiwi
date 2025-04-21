@@ -30,6 +30,8 @@ public:
 public:
     auto unit_recorder(std::usize index) -> COBUnitRecorder&;
     auto cob_cost(std::usize index, bool reuse_type) const -> float;
+    auto parse_index(std::usize index) const -> std::Tuple<std::usize, std::usize>;
+    auto update(std::usize index, bool reuse_type) -> void;
 
 private:
     std::Vector<COBUnitRecorder> _cob_recorder;

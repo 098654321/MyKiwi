@@ -59,6 +59,36 @@ auto COBRecorder::cob_cost(std::usize index, bool reuse_type) const -> float {
     return this->_cob_recorder.at(index/hardware::COB::UNIT_SIZE).cobunit_cost(index%hardware::COBUnit::WILTON_SIZE, reuse_num, nonre_num);
 }
 
+// return [cobunit, index_in_unit]
+auto COBRecorder::parse_index(std::usize index) const -> std::Tuple<std::usize, std::usize> {
+    if (index >= hardware::TOB::INDEX_SIZE) {
+        throw std::out_of_range("COBRecorder::unit_recorder(): index out of range");
+    }
+
+    if (index < hardware::TOB::INDEX_SIZE/2) {
+        return std::Tuple<std::usize, std::usize> {
+            index % hardware::COBUnit::WILTON_SIZE,
+            index / hardware::COBUnit::WILTON_SIZE,
+        };
+    }
+    else {
+        index = index - hardware::TOB::INDEX_SIZE/2;
+        return std::Tuple<std::usize, std::usize> {
+            index % hardware::COBUnit::WILTON_SIZE + hardware::COB::UNIT_SIZE/2,
+            index / hardware::COBUnit::WILTON_SIZE,
+        };
+    }
+}
+
+auto COBRecorder::update(std::usize index, bool reuse_type) -> void {
+    if (index >= hardware::TOB::INDEX_SIZE) {
+        throw std::out_of_range("COBRecorder::unit_recorder(): index out of range");
+    }
+
+    auto [unit, index_in_unit] = this->parse_index(index);
+    this->_cob_recorder.at(unit).recorder(index_in_unit).update(reuse_type);
+}
+
 }
 
 

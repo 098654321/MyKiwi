@@ -17,6 +17,7 @@ namespace kiwi::hardware {
 
 namespace kiwi::circuit {
     struct PathPackage;
+    class Net;
 }
 
 
@@ -28,8 +29,8 @@ namespace kiwi::algo{
     class Node{
         // A track with additional attributes
     public:
-        Node(const std::Rc<hardware::Track> track, const hardware::COBConnector& connector, const std::Rc<Node> prev_node, std::usize cost, std::Option<bool> reuse_type)
-        : _track{track}, _connector{connector}, _prev_node{prev_node}, _cost{cost}, _post_nodes{}, _reuse_type{reuse_type}
+        Node(const std::Rc<hardware::Track> track, const hardware::COBConnector& connector, const std::Rc<Node> prev_node, std::usize cost, std::Option<bool> reuse_type, std::usize level)
+        : _track{track}, _connector{connector}, _prev_node{prev_node}, _cost{cost}, _post_nodes{}, _reuse_type{reuse_type}, _level{level}
         {}
     
     public:
@@ -48,6 +49,7 @@ namespace kiwi::algo{
         inline auto cost() -> std::usize {return this->_cost;}
         inline auto connector() -> std::Option<hardware::COBConnector>& {return this->_connector;}
         inline auto reuse_type() -> std::Option<bool> {return this->_reuse_type;}
+        inline auto level() -> std::usize {return this->_level;}
 
     private:
         std::Rc<hardware::Track> _track;
@@ -56,6 +58,7 @@ namespace kiwi::algo{
         std::Vector<std::Rc<Node>> _post_nodes; 
         std::usize _cost;
         std::Option<bool> _reuse_type;
+        std::usize _level;
     };
 
     struct Tree{
@@ -65,15 +68,17 @@ namespace kiwi::algo{
         auto is_a_predecessor(const std::Rc<Node> current_node, const std::Rc<Node> to_be_checked) -> bool;
         auto backtrace(const std::Rc<Node> node) -> std::Vector<std::Rc<Node>>;
         auto reuse_type() const -> std::Option<bool> {return this->_reuse_type;}
+        auto check_max_level(std::usize level) -> void;
     
         std::Rc<Node> _root;    
         std::Option<bool> _reuse_type;
+        std::usize _max_level;
     };
 
     struct NodeTrackInterface{
         auto track_rootify(hardware::Track* track, hardware::COBConnector& connector, std::Option<bool> reuse_type) const -> std::Rc<Node>{
             auto track_sptr {std::make_shared<hardware::Track>(*track)};
-            return std::make_shared<Node>(track_sptr, connector, nullptr, 0, reuse_type);
+            return std::make_shared<Node>(track_sptr, connector, nullptr, 0, reuse_type, 0);
         }
 
         auto nodes_trackify(std::Vector<std::Rc<Node>>& nodes) const -> routed_path{
@@ -89,13 +94,13 @@ namespace kiwi::algo{
 
     class MazeRerouter{
 
-    static constexpr int CUT_RATE = 0.3;
+    static constexpr int CUT_RATE = 0.2;
     
     public:
         MazeRerouter(bool incremental = false): _incremental{incremental}, _recorder{nullptr} {}
 
         auto bus_reroute(       // reroute through pointer path_ptrs
-            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs, std::usize max_length
+            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs, std::usize max_length, bool shared = false
         ) const -> std::tuple<bool, std::usize>;
         auto set_recorder(HardwareRecorder* recorder) -> void {this->_recorder = recorder;}
     
@@ -107,7 +112,7 @@ namespace kiwi::algo{
             hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
             std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
         ) const -> std::tuple<bool, std::usize>;
-        auto cost_function(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize;
+        auto cost_function(const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize;
         auto Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize;
     
     private:    // for debug

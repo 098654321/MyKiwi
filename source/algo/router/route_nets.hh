@@ -32,10 +32,11 @@ namespace kiwi::algo {
 
     auto analyze_results(
         hardware::Interposer* interposer,
-        RouteEngine& engine
+        RouteEngine& engine,
+        bool incremental
     ) -> std::usize;
 
-
+    auto show_bits(const std::Vector<circuit::Net*>& net) -> void;
 
 
     // debug

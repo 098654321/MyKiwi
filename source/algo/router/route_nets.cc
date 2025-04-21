@@ -1,6 +1,7 @@
 #include "./route_nets.hh"
 #include "./command_mode/invoker.hh"
 #include "./routeengine.hh"
+#include "./incremental/bound_bits/global_bits.hh"
 #include <algo/router/routeerror.hh>
 #include "debug/debug.hh"
 #include <circuit/basedie.hh>
@@ -25,7 +26,6 @@ namespace kiwi::algo {
         auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, path_exists, interposer};
         invoker.set_route_commands(incremental, path_exists);
         
-        // TODO: reroute_command
         while (!invoker.check_command())
         try {
             invoker.invoke(interposer, engine);
@@ -48,14 +48,15 @@ namespace kiwi::algo {
             throw std::runtime_error("route_nets() >> " + std::String(err.what()));
         }
 
-        auto total_length = analyze_results(interposer, engine);
+        auto total_length = analyze_results(interposer, engine, incremental);
         return total_length;
     }
 
     // return total length of all nets
     auto analyze_results(
         hardware::Interposer* interposer,
-        RouteEngine& engine
+        RouteEngine& engine,
+        bool incremental
     ) -> std::usize {
         std::usize total_length {0};
         const auto& nets = engine.nets();
@@ -64,9 +65,34 @@ namespace kiwi::algo {
             net->show_path();
             total_length += net->length();
         }
-
         debug::info_fmt("Total length of all nets: {}", total_length);
+
+        if (incremental) {
+            show_bits(engine.all_nets());
+        }
+
         return total_length;
+    }
+
+    auto show_bits(const std::Vector<circuit::Net*>& nets) -> void {
+        GlobalBoundBits bits {};
+        for (const auto& net: nets) {
+            auto type = net->reuse_type();
+            if (!type.has_value()) {
+                throw std::logic_error("show_bits(): net reuse type should not be nullopt when routing");
+            }
+
+            for (auto& [track, cob_connector]: net->pathpackage()._regular_path) {
+                bits.record_track(track->coord(), *type);
+                if (cob_connector.has_value()) {
+                    bits.record_cob(*cob_connector, *type);
+                }
+            }
+            for (auto& [bump, connector, track]: net->pathpackage()._tob_to_track) {
+                bits.record_tob(bump->tob()->coord(), connector, *type);
+            }
+        }
+        bits.show();
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {

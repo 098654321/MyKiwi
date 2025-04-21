@@ -16,6 +16,7 @@ auto Route::execute(hardware::Interposer* interposer, RouteEngine& engine) const
     auto posi = engine.position();
     for (std::usize i = posi; i < nets.size(); ++i) {
         auto net = nets[i];
+        net->set_reuse_type(false);
 
         // check existing path
         auto routed_nets = engine.routed_nets();

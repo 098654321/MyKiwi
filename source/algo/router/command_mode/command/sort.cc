@@ -6,14 +6,10 @@
 namespace kiwi::algo {
 
 auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    auto nets = engine.nets();
+    auto nets = engine.nets();  //TODO：这里没有引用，没排上序
 
     if (engine.incremental()) {
         debug::debug("Sort by reuse frequency");
-        auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
-            return n1->modes().size() > n2->modes().size();
-        };
-        std::sort(nets.begin(), nets.end(), compare);
     }
     else {
         debug::debug("Sort by priority");
@@ -28,6 +24,7 @@ auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const 
             return n1->priority() > n2->priority();
         };
         std::sort(nets.begin(), nets.end(), compare);
+        engine.update_net_seq(nets);
     }
     
 }

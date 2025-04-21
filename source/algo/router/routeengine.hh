@@ -34,6 +34,8 @@ public:
 
     auto routed_nets() const -> std::Vector<circuit::Net*>;
     auto move_on() -> void { this->_posi += 1; }
+    auto reset_position() -> void { this->_posi = 0; }
+    auto update_net_seq(std::Vector<circuit::Net*>& nets) -> void;
 
 public:
     auto nets() const -> std::Vector<circuit::Net*>;
@@ -56,7 +58,7 @@ private:
 
     const RouteStrategy& _routestrategy;
     const AllocateStrategy& _allocator;
-    const IncreRouting _incre_strategy;
+    IncreRouting _incre_strategy;
     HardwareRecorder _recorder;
     bool _incremental;
     bool _path_exists;

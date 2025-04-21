@@ -73,7 +73,7 @@ struct PathPackage {
         return std::nullopt;
     }
 
-    auto clear_all() {
+    auto reset_all() -> void {
         for (auto& [t, cob_connector]: this->_regular_path) {
             if (cob_connector.has_value()) {
                 (*cob_connector).disconnect();
@@ -85,6 +85,10 @@ struct PathPackage {
         for (auto& [b, tob_connector, t]: this->_track_to_tob) {
             tob_connector.disconnect();
         }
+    }
+
+    auto clear_all() -> void {
+        this->reset_all();
 
         this->_regular_path.clear();
         this->_tob_to_track.clear();

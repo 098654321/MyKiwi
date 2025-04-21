@@ -42,9 +42,9 @@ namespace kiwi::circuit
     }
 
     auto SyncNet::incremental_route(
-        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine
-    ) -> void {
-        strategy.route_sync_net(interposer, this, engine);
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine, bool shared
+    ) -> bool {
+        return strategy.route_sync_net(interposer, this, engine, shared);
     }
 
     auto SyncNet::update_priority(float bias) -> void {
@@ -416,6 +416,18 @@ namespace kiwi::circuit
         }
     }
 
+    auto SyncNet::set_reuse_type(bool reuse_type) -> void {
+        this->_reuse_type.emplace(reuse_type);
+        for (auto& net: this->_btbnets) {
+            net->set_reuse_type(reuse_type);
+        }
+        for (auto& net: this->_bttnets) {
+            net->set_reuse_type(reuse_type);
+        }
+        for (auto& net: this->_ttbnets) {
+            net->set_reuse_type(reuse_type);
+        }
+    }
 }
 
 

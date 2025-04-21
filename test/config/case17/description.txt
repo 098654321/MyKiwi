@@ -1,1 +1,1 @@
-modified case1 to test incremental readin mode & routing & output
+modified case1 to test incremental readin mode

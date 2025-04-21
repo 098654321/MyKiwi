@@ -2,6 +2,7 @@
 #include <cassert>
 #include <type_traits>
 #include <ranges>
+#include <algorithm>
 
 
 namespace kiwi::algo {
@@ -19,6 +20,7 @@ RouteEngine::RouteEngine(
             res.first->second.emplace_back(net.get());
         }
     }
+    this->_incre_strategy.set_recorder(&this->_recorder);
 }
 
 auto RouteEngine::routed_nets() const -> std::Vector<circuit::Net*> {
@@ -27,26 +29,37 @@ auto RouteEngine::routed_nets() const -> std::Vector<circuit::Net*> {
     return std::Vector<circuit::Net*>(this->_nets.at(this->_mode).begin(), this->_nets.at(this->_mode).begin() + this->_posi);
 }
 
+auto RouteEngine::update_net_seq(std::Vector<circuit::Net*>& nets) -> void {
+    this->_nets.at(this->_mode) = nets;
+}
+
 auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
     if (this->_incremental) {
-        auto all_nets = std::Set<circuit::Net*> {};
+        auto all_nets = std::Vector<circuit::Net*> {};
+        auto s = std::Set<circuit::Net*> {};
         for (auto& [m, net_v]: this->_nets) {
-            all_nets.insert(net_v.begin(), net_v.end());
+            s.insert(net_v.begin(), net_v.end());
+        }
+        for (auto& [m, net_v]: this->_nets) {
+            for (auto& net: net_v) {
+                if (s.contains(net)) {
+                    all_nets.emplace_back(net);
+                    s.erase(net);
+                }
+            }
         }
 
         if (!this->_path_exists) {
             // no existing path, return all nets
-            return std::Vector<circuit::Net*>(all_nets.begin(), all_nets.end());
+            return all_nets;
         }
         else {
             // return nets without existing path
-            auto res = std::Vector<circuit::Net*>{};
-            for (auto& net: all_nets) {
-                if (net->pathpackage()._regular_path.size() == 0) {
-                    res.emplace_back(net);
-                }
-            }
-            return res;
+            auto iter = std::remove_if(all_nets.begin(), all_nets.end(), [](auto& net) {
+                return net->pathpackage()._regular_path.size() != 0;
+            });
+            all_nets.erase(iter, all_nets.end());
+            return all_nets;
         }
     }
     else {
