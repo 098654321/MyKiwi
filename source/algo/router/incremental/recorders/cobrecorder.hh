@@ -14,8 +14,8 @@ public:
 
 public:
     auto recorder(std::usize index) -> TypeRecorder&;
-    auto cobunit_cost(std::usize index, std::usize reuse_num, std::usize nonre_num) const -> float;
-    auto unit_info() const -> std::Pair<std::usize, std::usize>;
+    auto cobunit_cost(std::usize index, float reuse_num, float nonre_num) const -> float;
+    auto unit_info() const -> std::Pair<float, float>;
 
 private:
     std::usize _size;

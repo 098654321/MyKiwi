@@ -38,10 +38,12 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
             // TODO：所有的 begin_tracks 一起开始搜索和一个一个搜索有什么区别。以及末端如果用 end_track_set 存储那么也没有考虑到 mux 的 cost
             auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);
             if (!res) {
+                // allow sharing for tob mux
+                //TODO: 但是还有 cob 没有允许共享
                 net->pathpackage().reset_all();
                 res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, true);
                 if (!res) {
-                    throw std::logic_error("incremental routing failed when allow sharing");
+                    throw std::logic_error("incremental routing failed when allowing shared");
                 }
             }
             engine.move_on();

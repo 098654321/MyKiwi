@@ -18,9 +18,9 @@ public:
     auto shared_recorder(std::usize index) -> SharedRecorder&;
 
     // return <reuse_num, nonre_num>
-    auto group_info() const -> std::Pair<std::usize, std::usize>;
+    auto group_info() const -> std::Pair<float, float>;
     
-    auto mux_cost(std::usize index, std::usize reuse_num, std::usize nonre_num) const -> float;
+    auto mux_cost(std::usize index, float reuse_num, float nonre_num) const -> float;
     auto update(std::usize index, bool reuse_type) -> void;
 
     auto check_shared() const -> bool;

@@ -286,7 +286,6 @@ namespace kiwi::algo{
                 }
             }
         }
-
     }
 
     auto MazeRerouter::refind_path(
@@ -309,29 +308,35 @@ namespace kiwi::algo{
             if (check_found(end_tracks, track)){                
                 auto temp_node_list {tree.backtrace(node_sptr)};
                 auto temp_path {_node_track_interface.nodes_trackify(temp_node_list)};
-                auto temp_path_length {path_length(temp_path)};
                 // add to path, and set cobconnector to "suspend" state
-                for (auto& tp: temp_path){
-                    path_ptr->_regular_path.emplace_back(tp);
-                    auto& [_, cobconnector] = tp;
-                    if(cobconnector.has_value()) {
-                        cobconnector.value().suspend();
-                    }
+                auto current_path = path_ptr->_regular_path;
+                for (auto& tp: temp_path) {
+                    current_path.emplace_back(tp);
                 }
-                path_ptr->_length = path_length(path_ptr->_regular_path) + bump_length + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
-                // find a longer path
-                if (path_ptr->_length > max_length){
-                    return {false, path_ptr->_length};
-                }
-                // find a equal path
-                else if(path_ptr->_length == max_length){
-                    return {true, max_length};
-                }
+                auto current_length = path_length(current_path) + bump_length + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
                 // find a shorter path
-                else{
+                if (current_length < max_length) {
                     auto parent {node_sptr->parent()};
                     if(parent.has_value()){
                         parent.value()->remove_child(node_sptr);
+                    }
+                }
+                else {
+                    for (auto& tp: temp_path){
+                        path_ptr->_regular_path.emplace_back(tp);
+                        auto& [_, cobconnector] = tp;
+                        if(cobconnector.has_value()) {
+                            cobconnector.value().suspend();
+                        }
+                    }
+                    path_ptr->_length = current_length;
+                    // find a longer path
+                    if (path_ptr->_length > max_length){
+                        return {false, path_ptr->_length};
+                    }
+                    // find a equal_length path
+                    else {
+                        return {true, max_length};
                     }
                 }
             }

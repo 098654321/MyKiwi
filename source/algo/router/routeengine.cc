@@ -24,9 +24,23 @@ RouteEngine::RouteEngine(
 }
 
 auto RouteEngine::routed_nets() const -> std::Vector<circuit::Net*> {
-    assert(this->_posi < this->_nets.at(this->_mode).size());
+    assert(this->_posi < this->all_nets().size());
 
-    return std::Vector<circuit::Net*>(this->_nets.at(this->_mode).begin(), this->_nets.at(this->_mode).begin() + this->_posi);
+    std::Vector<circuit::Net*> res {};
+    std::usize index = 0;
+    for (auto& [mode, nets]: this->_nets) {
+        if (index >= this->_posi) {
+            break;
+        }
+        for (auto& net: nets) {
+            if (index >= this->_posi) {
+                break;
+            }
+            res.emplace_back(net);
+            index += 1;
+        }
+    }
+    return res;
 }
 
 auto RouteEngine::update_net_seq(std::Vector<circuit::Net*>& nets) -> void {

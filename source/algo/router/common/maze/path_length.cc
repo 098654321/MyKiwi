@@ -1,5 +1,6 @@
 #include "./path_length.hh"
 #include "../../routeerror.hh"
+#include <format>
 
 
 namespace kiwi::algo {
@@ -39,7 +40,13 @@ namespace kiwi::algo {
                             break;
                         }
                         else {
-                            throw FinalError("error when calculating path length: tail == head but share no cobs");
+                            std::String message = std::format(
+                                "the path is discontinuous from index = {} to index = {}. {}",
+                                head,
+                                tail,
+                                path_to_string(path)
+                            );
+                            throw FinalError(message);
                         }
                     }
                     else{
@@ -96,7 +103,13 @@ namespace kiwi::algo {
                             break;
                         }
                         else {
-                            throw FinalError("error when calculating path length: tail == head but share no cobs");
+                            std::String message = std::format(
+                                "the path is discontinuous from index = {} to index = {}. {}",
+                                head,
+                                tail,
+                                path_to_string(path)
+                            );
+                            throw FinalError(message);
                         }
                     }
                     else{
@@ -116,6 +129,22 @@ namespace kiwi::algo {
 
             return path_length;
         }
+    }
+
+    auto path_to_string(const std::Vector<hardware::Track*>& path) -> std::String{
+        std::String path_str {"Path:\n"};
+        for (auto& t: path){
+            path_str += std::format("{}\n", t->coord());
+        }
+        return path_str;
+    }
+
+    auto path_to_string(const routed_path& path) -> std::String {
+        std::String path_str {"Path:\n"};
+        for (auto& [t, _]: path){
+            path_str += std::format("{}\n", t->coord());
+        }
+        return path_str;
     }
 
     // return all cobs connected with track

@@ -1,6 +1,7 @@
 #include "./hardware_recorder.hh"
 #include <debug/debug.hh>
 #include <ranges>
+#include <algo/router/routeerror.hh>
 
 
 namespace kiwi::algo{
@@ -37,36 +38,58 @@ auto HardwareRecorder::bump_to_track_cost(hardware::TOBCoord coord, std::usize b
 }
 
 auto HardwareRecorder::cob_cost(hardware::COBCoord coord, std::usize index, bool reuse_type) -> float {
+try {
     return this->get_cob_recorder(coord).cob_cost(index, reuse_type);
+}
+catch(std::exception& e) {
+    throw FinalError(std::format("cob_cost(): {}", e.what()));
+}
 }
 
 auto HardwareRecorder::track_cost(hardware::Track* track, bool reuse_type) -> float {
+try {
     auto& type_recorder = this->get_track_recorder(track, reuse_type);
 
     auto track_coord = track->coord();
-    auto group_index = track_coord.index / TRACKGROUPSIZE;
+    int group_index = track_coord.index / TRACKGROUPSIZE;
 
     auto reuse_num = 0, nonre_num = 0;
     for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
-        auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
-        auto t = this->_interposer->get_track(coord);
-        if (t.has_value() && this->_track_recorders.contains(t.value())) {
-            auto track_recorder = this->_track_recorders.at(t.value());
-            if (track_recorder.current_type().has_value()) {
-                auto track_type = *track_recorder.current_type();
-                track_type ? reuse_num++ : nonre_num++;
+        if (i != track_coord.index) {
+            auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
+            auto t = this->_interposer->get_track(coord);
+
+            if (t.has_value() && this->_track_recorders.contains(t.value())) {
+                auto track_recorder = this->_track_recorders.at(t.value());
+                
+                if (track_recorder.current_type().has_value()) {
+                    auto track_type = *track_recorder.current_type();
+                    track_type ? reuse_num++ : nonre_num++;
+                }
             }
         }
     }
 
     return type_recorder.cost(reuse_num, nonre_num);
 }
+catch (std::exception& e) {
+    throw FinalError(std::format("track_cost(): {} with track {}", e.what(), track->coord()));
+}
+}
 
 auto HardwareRecorder::expand_cost(hardware::Track* track, hardware::COBConnector& connector, bool reuse_type) -> float {
-    return this->cob_cost(connector.coord(), connector.from_track_index(), reuse_type) + this->track_cost(track, reuse_type);
+try {
+    auto cob_cost = this->cob_cost(connector.coord(), connector.from_track_index(), reuse_type);
+    auto track_cost = this->track_cost(track, reuse_type);
+    return cob_cost + track_cost;
+}
+catch (std::exception& e) {
+    throw FinalError(std::format("HardwareRecorder::expand_cost(): {}", e.what()));
+}
 }
 
 auto HardwareRecorder::clear_shared(const circuit::PathPackage& package) -> void {
+    debug::debug("clear_shared");
     for (auto& [bump, connector, track]: package._tob_to_track) {
         this->_tob_recorders.at(bump->tob()->coord()).clear_mux_shared(connector.bump_index(), connector.hori_index(), connector.vert_index());
     }
@@ -76,6 +99,7 @@ auto HardwareRecorder::clear_shared(const circuit::PathPackage& package) -> void
 }
 
 auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, bool reuse_type) -> void  {
+    debug::debug("Update recorders");
     std::Vector<hardware::Track*> tracks {};
     std::Vector<hardware::COBConnector> cobconnectors {};
     for (auto& [track, connector]: package._regular_path) {
@@ -112,7 +136,8 @@ auto HardwareRecorder::update_track_recorders(const std::Vector<hardware::Track*
 }   
 
 auto HardwareRecorder::update_tob_recorders(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
-    for (auto& [coord, connector]: connectors) {
+    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
+        auto& [coord, connector] = *iter;
         auto& recorder = this->get_tob_recorder(coord);
         recorder.update(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
     }

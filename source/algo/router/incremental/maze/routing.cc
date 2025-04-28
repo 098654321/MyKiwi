@@ -83,6 +83,7 @@ try {
     return true;
 }
 catch(RetryExpt& err) {
+    debug::debug_fmt("IncreRouting::route_track_to_bump_net: {}", err.what());
     return false;
 }
 }
@@ -118,6 +119,7 @@ try {
     return true;
 }
 catch (RetryExpt& err) {
+    debug::debug_fmt("IncreRouting::route_bump_to_track_net: {}", err.what());
     return false;
 }
 }
@@ -162,6 +164,7 @@ try {
     return true;
 }
 catch (RetryExpt& err) {
+    debug::debug_fmt("IncreRouting::route_bump_to_bumps_net: {}", err.what());
     return false;
 }
 }
@@ -393,6 +396,7 @@ try {
     return true;
 }
 catch (RetryExpt& err) {
+    debug::debug_fmt("IncreRouting::route_sync_net: {}", err.what());
     return false;
 }
 }
@@ -729,6 +733,7 @@ auto IncreRouting::map_to_vec(
     for (auto& [t, tobconnector]: map) {
         vec.emplace_back(t);
     }
+
     std::sort(vec.begin(), vec.end(), [&](hardware::Track* track1, hardware::Track* track2) {
         if constexpr(std::is_same<Node, hardware::Bump>::value) {
             return recorder.bump_to_track_cost(node->coord(), node->index(), track1, reuse_type) < recorder.bump_to_track_cost(node->coord(), node->index(), track2, reuse_type);
