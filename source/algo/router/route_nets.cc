@@ -66,7 +66,7 @@ namespace kiwi::algo {
             total_length += net->length();
         }
         debug::info_fmt("Total length of all nets: {}", total_length);
-
+        
         if (incremental) {
             show_bits(engine.all_nets());
         }
@@ -92,11 +92,11 @@ namespace kiwi::algo {
                 bits.record_tob(bump->tob()->coord(), connector, *type);
             }
         }
-        bits.show();
+        bits.show();    // TODO: 返回被一种线网占用、两种线网占用、没有被使用的绑定组数量
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {
-        //! 会出现路径重复的问题
+        //TODO: 会出现路径重复的问题
         debug::debug("\n");
         debug::debug("Show details of retry exception");
         debug::debug(net->to_string());

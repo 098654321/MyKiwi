@@ -5,8 +5,9 @@
 #include <debug/debug.hh>
 #include <parse/reader/module.hh>
 #include <algo/router/route_nets.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <algo/netbuilder/netbuilder.hh>
+#include <algo/router/common/allocate/hopcroft_karp.hh>
 #include <hardware/interposer.hh>
 #include <circuit/basedie.hh>
 
@@ -14,9 +15,9 @@
 #define PLEASE_DO_NOT_FAIL(id, info) \
     WHEN("Case " #id ": " info) {\
         std::FilePath config_path{"../test/config/case" #id};\
-        auto [interposer, basedie] = kiwi::parse::read_config(config_path);\
+        auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0);\
         algo::build_nets(basedie.get(), interposer.get());\
-        auto total_length = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{});\
+        auto total_length = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, 0, false);\
         THEN("The total length should be within a limit"){\
             std::ifstream golden_file(config_path / "golden.txt");\
             if (!golden_file.is_open()){\

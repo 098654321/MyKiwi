@@ -49,7 +49,7 @@ auto TOBGroup::record_tobmux(const hardware::TOBConnector& connector, bool reuse
     reuse_type ? hmux.add_reuse_number() : hmux.add_nonreuse_number();
 
     auto [vert_mux, vert_mux_input] = this->vert_to_track_info(connector.vert_index());
-    auto& vmux = this->_vert_groups.at(vert_mux);
+    auto& vmux = this->_vert_groups.at(vert_mux/VertMuxSize);
     reuse_type ? vmux.add_reuse_number() : vmux.add_nonreuse_number();
 }
 

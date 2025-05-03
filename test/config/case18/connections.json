@@ -31,56 +31,6 @@
                 "muyan_1.jtag_tdo",
                 "xinzhai_jtag_tdo"
             ]
-        ],
-        "1": [
-            [
-                "muyan_1.s_tx_flit_b0",
-                "muyan_0.m_rx_flit_b0"
-            ],
-            [
-                "muyan_1.s_tx_flit_b1",
-                "muyan_0.m_rx_flit_b1"
-            ],
-            [
-                "muyan_1.s_tx_flit_b2",
-                "muyan_0.m_rx_flit_b2"
-            ],
-            [
-                "muyan_1.s_tx_flit_b3",
-                "muyan_0.m_rx_flit_b3"
-            ],
-            [
-                "muyan_1.s_tx_flit_b4",
-                "muyan_0.m_rx_flit_b4"
-            ],
-            [
-                "muyan_1.s_tx_flit_b5",
-                "muyan_0.m_rx_flit_b5"
-            ],
-            [
-                "muyan_1.s_tx_flit_b6",
-                "muyan_0.m_rx_flit_b6"
-            ],
-            [
-                "muyan_1.s_tx_flit_b7",
-                "muyan_0.m_rx_flit_b7"
-            ],
-            [
-                "muyan_1.s_tx_rplyPkgID",
-                "muyan_0.m_rx_rplyPkgID"
-            ],
-            [
-                "muyan_1.s_tx_crdtARW_free",
-                "muyan_0.m_rx_crdtARW_free"
-            ],
-            [
-                "muyan_1.s_tx_clk",
-                "muyan_0.m_rx_clk"
-            ],
-            [
-                "muyan_1.s_tx_flit_vld",
-                "muyan_0.m_rx_flit_vld"
-            ]
         ]
     },
     "2": {

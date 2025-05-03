@@ -11,8 +11,8 @@ namespace kiwi::algo {
 
 const float BASICCOST = 5;
 const float EPSILON = 1;
-const float GROUPCOEF = 0.9;
-const float HISTORYCOEF = 0.1;
+const float GROUPCOEF = 0.5;
+const float HISTORYCOEF = 0.5;
 const float TOBMUXGROUPSIZE = 8;
 const float TRACKGROUPSIZE = 32;
 
@@ -83,13 +83,13 @@ public:
     }
 
     auto update() -> void {
-        this->_shared++;
-        this->_history_shared++;
+        this->_shared += 1;
+        this->_history_shared += 1;
     }
     
     auto remove_shared() -> void {
         if (this->_shared > 0){
-            this->_shared--;
+            this->_shared -= 1;
         }
     }
 

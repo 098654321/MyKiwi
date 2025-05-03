@@ -7,7 +7,7 @@ namespace kiwi::algo {
 
 auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("routing in incremental mode ...");
-    auto nets = engine.nets();              //TODO: 现在做的是所有 net 
+    auto nets = engine.nets();              //* 现在做的是所有 net 
     auto posi = engine.position();
     auto& recorder = engine.recorder();
     std::usize min_cycle = 10;
@@ -20,6 +20,8 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     std::usize cycle = 0;
     while(cycle < min_cycle || recorder.check_shared()) {
+        debug::debug_fmt("cycle {}", cycle);
+
         for (std::usize i = posi; i < nets.size(); ++i) {
             auto net = nets[i];
             net->pathpackage().reset_all();
@@ -39,7 +41,7 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
             auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);
             if (!res) {
                 // allow sharing for tob mux
-                //TODO: 但是还有 cob 没有允许共享
+                //* cob 没有允许共享
                 net->pathpackage().reset_all();
                 res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, true);
                 if (!res) {
@@ -47,7 +49,7 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
                 }
             }
             engine.move_on();
-
+            
             recorder.clear_shared(net->history_pathpackage());
             recorder.update_recorders(net->pathpackage(), net->reuse_type().value());
         }

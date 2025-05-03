@@ -271,38 +271,39 @@ namespace kiwi::circuit
     }
 
     auto SyncNet::collect_package() -> bool {
+        bool flag = true;
         if (
             this->_path_package._regular_path.empty()\
-            && this->_path_package._tob_to_track.empty()\
-            && this->_path_package._track_to_tob.empty()
+            || this->_path_package._tob_to_track.empty()\
+            || this->_path_package._track_to_tob.empty()
         ) {
-            auto collect = [&](circuit::Net* net, PathPackage& new_package) {
-                auto& package = net->pathpackage();
-
-                new_package._regular_path.insert(new_package._regular_path.end(), package._regular_path.begin(), package._regular_path.end());
-                new_package._tob_to_track.insert(new_package._tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
-                new_package._track_to_tob.insert(new_package._track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
-                new_package._length += package._length;
-            };
-
-            PathPackage total_package{};
-            for (auto& net: this->_btbnets) {
-                collect(net.get(), total_package);
-            }
-            for (auto& net: this->_bttnets) {
-                collect(net.get(), total_package);
-            }
-            for (auto& net: this->_ttbnets) {
-                collect(net.get(), total_package);
-            }
-            this->_history_path_package = this->_path_package;
-            this->_path_package = total_package;
-
-            return true;
+            flag = false;
         }
-        else {
-            return false;
+
+        this->_history_path_package = this->_path_package;
+        this->_path_package.clear_all();
+        auto collect = [&](circuit::Net* net, PathPackage& new_package) {
+            auto& package = net->pathpackage();
+
+            new_package._regular_path.insert(new_package._regular_path.end(), package._regular_path.begin(), package._regular_path.end());
+            new_package._tob_to_track.insert(new_package._tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
+            new_package._track_to_tob.insert(new_package._track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
+            new_package._length += package._length;
+        };
+
+        PathPackage total_package{};
+        for (auto& net: this->_btbnets) {
+            collect(net.get(), total_package);
         }
+        for (auto& net: this->_bttnets) {
+            collect(net.get(), total_package);
+        }
+        for (auto& net: this->_ttbnets) {
+            collect(net.get(), total_package);
+        }
+        this->_path_package = total_package;
+
+        return flag;
     }
 
     auto SyncNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {

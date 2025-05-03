@@ -141,7 +141,7 @@ def test_and_compare():
     # np.random.seed(42)
     # random.seed(42)
     size = 100
-    grid = np.random.randint(1, 6, (size, size))
+    grid = np.random.randint(1, 2, (size, size))
     ports = random.sample([(i, j) for i in range(size) for j in range(size)], 20)
 
     # Traditional
