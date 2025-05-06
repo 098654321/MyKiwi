@@ -16,6 +16,7 @@ public:
     auto recorder(std::usize index) -> TypeRecorder&;
     auto cobunit_cost(std::usize index, float reuse_num, float nonre_num) const -> float;
     auto unit_info() const -> std::Pair<float, float>;
+    auto re_initialize() -> void;
 
 private:
     std::usize _size;
@@ -32,6 +33,7 @@ public:
     auto cob_cost(std::usize index, bool reuse_type) const -> float;
     auto parse_index(std::usize index) const -> std::Tuple<std::usize, std::usize>;
     auto update(std::usize index, bool reuse_type) -> void;
+    auto re_initialize() -> void;
 
 private:
     std::Vector<COBUnitRecorder> _cob_recorder;

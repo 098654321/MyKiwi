@@ -95,6 +95,20 @@ struct PathPackage {
         this->_track_to_tob.clear();
     }
 
+    auto occupy_all() -> void {
+        for (auto& [t, cob_connector]: this->_regular_path) {
+            if (cob_connector.has_value()) {
+                (*cob_connector).suspend();
+            }
+        }
+        for (auto& [b, tob_connector, t]: this->_tob_to_track) {
+            tob_connector.give_out();
+        }
+        for (auto& [b, tob_connector, t]: this->_track_to_tob) {
+            tob_connector.give_out();
+        }
+    }
+
     auto connect_all() -> void {
         // connect the path
         hardware::Track* prev_track = nullptr;

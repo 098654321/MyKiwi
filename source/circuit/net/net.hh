@@ -70,6 +70,7 @@ namespace kiwi::circuit {
         
     public:
         virtual auto clear_related_nets() -> void;
+        virtual auto clear_path() -> void;
         virtual auto show_path() const -> void;
         virtual auto length() const -> std::usize;
         virtual auto set_pathpackage(const PathPackage& path_package) -> void;

@@ -24,5 +24,12 @@ namespace kiwi::circuit {
         this->_related_nets_track.clear();
     }
 
+    auto Net::clear_path() -> void {
+        this->_path_package.clear_all();
+        this->_history_path_package.clear_all();
+        this->_related_nets_bump.clear();
+        this->_related_nets_track.clear();
+    }
+
 }
 

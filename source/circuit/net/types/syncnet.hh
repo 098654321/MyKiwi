@@ -60,6 +60,7 @@ namespace kiwi::circuit {
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> override;
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
         virtual auto set_reuse_type(bool reuse_type) -> void override;
+        virtual auto clear_path() -> void override;
 
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         

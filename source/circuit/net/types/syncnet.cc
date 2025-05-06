@@ -429,6 +429,23 @@ namespace kiwi::circuit
             net->set_reuse_type(reuse_type);
         }
     }
+
+    auto SyncNet::clear_path() -> void {
+        this->_path_package.clear_all();
+        this->_history_path_package.clear_all();
+        this->_related_nets_bump.clear();
+        this->_related_nets_track.clear();
+
+        for (auto& net: this->_btbnets) {
+            net->clear_path();
+        }
+        for (auto& net: this->_bttnets) {
+            net->clear_path();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->clear_path();
+        }
+    }
 }
 
 

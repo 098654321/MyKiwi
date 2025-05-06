@@ -10,7 +10,7 @@
 namespace kiwi::algo {
 
 const float BASICCOST = 5;
-const float EPSILON = 1;
+const float EPSILON = 10;
 const float GROUPCOEF = 0.5;
 const float HISTORYCOEF = 0.5;
 const float TOBMUXGROUPSIZE = 8;
@@ -60,6 +60,11 @@ public:
         auto group_ratio = (this->_reuse_type ? (reuse_num-nonre_num) : (nonre_num-reuse_num))/(nonre_num + reuse_num + EPSILON);
         auto final_cost = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
         return final_cost;
+    }
+
+    auto re_initialize() -> void {
+        this->_reuse_type = std::nullopt;
+        this->_history = {0, 0};
     }
 
 private:

@@ -11,11 +11,6 @@ TOBMuxRecorder::TOBMuxRecorder(std::usize size) : _size(size) {
     for (auto i: std::views::iota(0, (int)size)) {
         this->_mux_type_recorder.emplace_back(TypeRecorder{});
     }
-
-    this->_mux_shared_recorder.reserve(size);
-    for (auto i: std::views::iota(0, (int)size)) {
-        this->_mux_shared_recorder.emplace_back(SharedRecorder{});
-    }
 }
 
 auto TOBMuxRecorder::type_recorder(std::usize index) -> TypeRecorder& {
@@ -25,18 +20,11 @@ auto TOBMuxRecorder::type_recorder(std::usize index) -> TypeRecorder& {
     return this->_mux_type_recorder.at(index);
 }
 
-auto TOBMuxRecorder::shared_recorder(std::usize index) -> SharedRecorder& {
-    if (index >= this->_size) {
-        throw std::out_of_range("TOBMuxRecorder::shared_recorder(): index out of range");
-    }
-    return this->_mux_shared_recorder.at(index);
-}
-
 auto TOBMuxRecorder::mux_cost(std::usize index, float reuse_num, float nonre_num) const -> float {
     if (index >= this->_size) {
         throw std::out_of_range(std::format("index {} is out of range [0, {})", index, this->_size));
     }
-    return this->_mux_shared_recorder.at(index).cost() + this->_mux_type_recorder.at(index).cost(reuse_num, nonre_num);
+    return this->_mux_type_recorder.at(index).cost(reuse_num, nonre_num);
 }
 
 auto TOBMuxRecorder::group_info() const -> std::Pair<float, float> {
@@ -54,17 +42,13 @@ auto TOBMuxRecorder::update(std::usize index, bool reuse_type) -> void {
         throw std::out_of_range(std::format("index {} is out of range [0, {})", index, this->_size));
     }
 
-    this->_mux_shared_recorder.at(index).update();
     this->_mux_type_recorder.at(index).update(reuse_type);
 }
 
-auto TOBMuxRecorder::check_shared() const -> bool {
-    for (auto& shared: this->_mux_shared_recorder) {
-        if (shared.shared_times() > 1) {
-            return true;
-        }
+auto TOBMuxRecorder::re_initialize() -> void {
+    for (auto& recorder: this->_mux_type_recorder) {
+        recorder.re_initialize();
     }
-    return false;
 }
 
 TOBRecorder::TOBRecorder() {
@@ -154,17 +138,6 @@ auto TOBRecorder::update(std::usize bump_index, std::usize hori_index, std::usiz
     this->_vert_to_track_recorder.at(vert_group).update(vert_group_index, reuse_type);
 }
 
-auto TOBRecorder::clear_mux_shared(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void {
-    auto [bump_group, bump_group_index] = this->bump_group_info(bump_index);
-    this->_bump_to_hori_recorder.at(bump_group).shared_recorder(bump_group_index).remove_shared();
-
-    auto [hori_group, hori_group_index] = this->hori_group_info(hori_index);
-    this->_hori_to_vert_recorder.at(hori_group).shared_recorder(hori_group_index).remove_shared();
-
-    auto [vert_group, vert_group_index] = this->vert_group_info(vert_index);
-    this->_vert_to_track_recorder.at(vert_group).shared_recorder(vert_group_index).remove_shared();
-}
-
 auto TOBRecorder::bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize> {
     return {
         bump_index / hardware::TOB::BUMP_TO_HORI_MUX_SIZE,
@@ -200,23 +173,16 @@ auto TOBRecorder::vert_group_info(std::usize vert_index) const -> std::Tuple<std
     }
 }
 
-auto TOBRecorder::check_shared() const -> bool {
-    for (auto& mux_recorder: this->_bump_to_hori_recorder) {
-        if (mux_recorder.check_shared()) {
-            return true;
-        }
+auto TOBRecorder::re_initialize() -> void {
+    for (auto &recorder: this->_bump_to_hori_recorder) {
+        recorder.re_initialize();
     }
-    for (auto& mux_recorder: this->_hori_to_vert_recorder) {
-        if (mux_recorder.check_shared()) {
-            return true;
-        }
+    for (auto &recorder: this->_hori_to_vert_recorder) {
+        recorder.re_initialize();
     }
-    for (auto& mux_recorder: this->_vert_to_track_recorder) {
-        if (mux_recorder.check_shared()) {
-            return true;
-        }
+    for (auto &recorder: this->_vert_to_track_recorder) {
+        recorder.re_initialize();
     }
-    return false;     
 }
 
 }

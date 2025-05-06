@@ -88,16 +88,6 @@ catch (std::exception& e) {
 }
 }
 
-auto HardwareRecorder::clear_shared(const circuit::PathPackage& package) -> void {
-    debug::debug("clear_shared");
-    for (auto& [bump, connector, track]: package._tob_to_track) {
-        this->_tob_recorders.at(bump->tob()->coord()).clear_mux_shared(connector.bump_index(), connector.hori_index(), connector.vert_index());
-    }
-    for (auto& [bump, connector, track]: package._track_to_tob) {
-        this->_tob_recorders.at(bump->tob()->coord()).clear_mux_shared(connector.bump_index(), connector.hori_index(), connector.vert_index());
-    }
-}
-
 auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, bool reuse_type) -> void  {
     debug::debug("Update recorders");
     std::Vector<hardware::Track*> tracks {};
@@ -143,13 +133,16 @@ auto HardwareRecorder::update_tob_recorders(const std::HashMap<hardware::TOBCoor
     }
 }
 
-auto HardwareRecorder::check_shared() const -> bool {
-    for (auto& [coord, tobrecorder]: this->_tob_recorders) {
-        if (tobrecorder.check_shared()) {
-            return true;
-        }
+auto HardwareRecorder::re_initialize() -> void {
+    for (auto& [track, recorder]: this->_track_recorders) {
+        recorder.re_initialize();
     }
-    return false;
+    for (auto& [coord, recorder]: this->_tob_recorders) {
+        recorder.re_initialize();
+    }
+    for (auto& [coord, recorder]: this->_cob_recorders) {
+        recorder.re_initialize();
+    }
 }
 
 }

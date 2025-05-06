@@ -37,6 +37,12 @@ auto COBUnitRecorder::unit_info() const -> std::Pair<float, float> {
     return std::Pair<std::usize, std::usize>{reuse_num, nonre_num};
 }
 
+auto COBUnitRecorder::re_initialize() -> void {
+    for (auto& recorder: this->_cobunit_recorder) {
+        recorder.re_initialize();
+    }
+}
+
 COBRecorder::COBRecorder() {
     this->_cob_recorder.reserve(hardware::COB::UNIT_SIZE);
     for (auto i: std::views::iota(0, (int)hardware::COB::UNIT_SIZE)) {
@@ -97,6 +103,12 @@ auto COBRecorder::update(std::usize index, bool reuse_type) -> void {
 
     auto [unit, index_in_unit] = this->parse_index(index);
     this->_cob_recorder.at(unit).recorder(index_in_unit).update(reuse_type);
+}
+
+auto COBRecorder::re_initialize() -> void {
+    for (auto& recorder: this->_cob_recorder) {
+        recorder.re_initialize();
+    }
 }
 
 }

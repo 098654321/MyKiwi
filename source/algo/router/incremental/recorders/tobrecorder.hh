@@ -15,20 +15,19 @@ public:
 public:
     auto size() const -> std::usize {return this->_size;}
     auto type_recorder(std::usize index) -> TypeRecorder&;
-    auto shared_recorder(std::usize index) -> SharedRecorder&;
 
     // return <reuse_num, nonre_num>
     auto group_info() const -> std::Pair<float, float>;
     
     auto mux_cost(std::usize index, float reuse_num, float nonre_num) const -> float;
     auto update(std::usize index, bool reuse_type) -> void;
+    auto re_initialize() -> void;
 
     auto check_shared() const -> bool;
 
 private:
     std::usize _size;
     std::Vector<TypeRecorder> _mux_type_recorder;
-    std::Vector<SharedRecorder> _mux_shared_recorder;
 };
 
 
@@ -46,9 +45,7 @@ public:
     auto tob_cost(std::usize bump_index, std::usize track_index, bool reuse_type) const -> float;
 
     auto update(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
-    auto clear_mux_shared(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void;
-
-    auto check_shared() const -> bool;
+    auto re_initialize() -> void;
 
 private:
     auto bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize>;

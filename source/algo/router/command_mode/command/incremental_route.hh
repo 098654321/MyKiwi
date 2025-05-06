@@ -13,6 +13,11 @@ public:
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;
     auto to_string() const -> const std::String override;
+
+private:
+    auto iterate_routing(hardware::Interposer*, RouteEngine&, std::Vector<circuit::Net*>&, HardwareRecorder&) const -> bool;
+    auto reset(RouteEngine&, std::Vector<circuit::Net*>&) const -> void;
+    auto set_history_as_current(std::Vector<circuit::Net*>&) const -> void;
 };
 
 }

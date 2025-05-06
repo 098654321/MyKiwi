@@ -1,6 +1,7 @@
 #include "./incremental_route.hh"
 #include <global/debug/debug.hh>
 #include <algo/router/routeerror.hh>
+#include <algorithm>
 
 
 namespace kiwi::algo {
@@ -8,28 +9,39 @@ namespace kiwi::algo {
 auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::debug("routing in incremental mode ...");
     auto nets = engine.nets();              //* 现在做的是所有 net 
-    auto posi = engine.position();
     auto& recorder = engine.recorder();
-    std::usize min_cycle = 10;
-    std::usize max_cycle = 20;
 
     auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
         return n1->modes().size() > n2->modes().size();
     };
     std::sort(nets.begin(), nets.end(), compare);
 
-    std::usize cycle = 0;
-    while(cycle < min_cycle || recorder.check_shared()) {
+    auto res = iterate_routing(interposer, engine, nets, recorder);
+    if (!res) {
+        reset(engine, nets);
+        res = iterate_routing(interposer, engine, nets, recorder);
+        if (!res) {
+            throw FinalError("Incremental Routing failed");
+        }
+    }
+
+    // succeed
+    if (engine.position() < nets.size() - 1) {
+        set_history_as_current(nets);    
+    }
+}
+
+auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
+    std::usize cycle{0}, min_cycle{10};
+    while(cycle < min_cycle) {
         debug::debug_fmt("cycle {}", cycle);
 
-        for (std::usize i = posi; i < nets.size(); ++i) {
-            auto net = nets[i];
+        for (auto net: nets) {
             net->pathpackage().reset_all();
         }
         engine.reset_position();
 
-        for (std::usize i = posi; i < nets.size(); ++i) {
-            auto net = nets[i];
+        for (auto net: nets) {
             net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
     
             // check existing path
@@ -37,28 +49,40 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
             net->search_related_nets(routed_nets);
 
             // route
-            // TODO：所有的 begin_tracks 一起开始搜索和一个一个搜索有什么区别。以及末端如果用 end_track_set 存储那么也没有考虑到 mux 的 cost
             auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);
             if (!res) {
-                // allow sharing for tob mux
-                //* cob 没有允许共享
-                net->pathpackage().reset_all();
-                res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, true);
-                if (!res) {
-                    throw std::logic_error("incremental routing failed when allowing shared");
-                }
+                return cycle == 0 ? false : true;
             }
             engine.move_on();
             
-            recorder.clear_shared(net->history_pathpackage());
             recorder.update_recorders(net->pathpackage(), net->reuse_type().value());
         }
 
         cycle++;
-        if (cycle >= max_cycle) {
-            throw FinalError("incremental routing failed");
-            break;
+    }
+    return true;
+}
+
+auto Incre_route::reset(RouteEngine& engine, std::Vector<circuit::Net*>& nets) const -> void {
+    auto iter = std::remove_if(nets.begin(), nets.end(), [&](auto& net) {
+        auto modes = net->modes();
+        if (!modes.contains(engine.mode())) {
+            return true;
         }
+        return false;
+    });
+    nets.erase(iter, nets.end());
+    for (auto n: nets) {
+        n->clear_path();
+    }
+    engine.reset_position();
+    engine.recorder().re_initialize();
+}
+
+auto Incre_route::set_history_as_current(std::Vector<circuit::Net*>& nets) const -> void {
+    for (auto n: nets) {
+        n->set_pathpackage(n->history_pathpackage());
+        n->pathpackage().occupy_all();
     }
 }
 

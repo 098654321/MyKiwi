@@ -47,11 +47,11 @@
 
         - 如果到达最大迭代次数，还存在共享，就增加迭代
     
+    第一个版本：考虑共享
     ```c++
+    load nets
+    sort nets by reuse frequency
     while:
-        load nets
-        sort nets by reuse frequency
-
         for nets:
             path = route net with maze(using the new cost function)
             if fail:
@@ -70,17 +70,32 @@
     endwhile
     ```
 
+    第二个版本：不考虑共享
     ```c++
-    connect_bump_to_track() {
-      先获取 bump 可以得到的所有 track ，和之前一样
-      然后根据索引，获取从 bump -> track 上的总 cost
-      根据总 cost 对这些 track 升序排列
-      按照排列的顺序开始 maze ，位于前面的会先搜索，先找到结果
+    cycle = 0
+    load nets, sort nets by reuse frequency
+    while {
+        for net in nets {
+            path = route net with maze(using the new cost function)
+
+            if fail {
+              if (cycle == 0) {
+                  remove nets not belongs to this mode
+                  reroute
+              }
+              else {
+                  return success with path from last cycle
+              }
+          }
+              
+          update recorder 
+        }
+        
+        cycle++
+        if (cycle >= MIN_CYCLE_NUMBER)
+            return success with path
     }
-
     ```
-
-    - 如果最终布线失败，就逐个去除不包含在本 mode 内的 net ，再重新布线
 
 
 ### 硬件要求
