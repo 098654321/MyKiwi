@@ -11,10 +11,15 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
     auto nets = engine.nets();              //* 现在做的是所有 net 
     auto& recorder = engine.recorder();
 
+    recorder.set_use_cost(true);
+
     auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
         return n1->modes().size() > n2->modes().size();
     };
     std::sort(nets.begin(), nets.end(), compare);
+    for (auto& net: nets) {
+        net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
+    }
 
     auto res = iterate_routing(interposer, engine, nets, recorder);
     if (!res) {
@@ -32,22 +37,19 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{10};
+    std::usize cycle{0}, min_cycle{3};
     while(cycle < min_cycle) {
-        debug::debug_fmt("cycle {}", cycle);
-
         for (auto net: nets) {
-            net->pathpackage().reset_all();
+            net->pathpackage().reset_all(); //! tobconnector 里面是指针，history和当前一样。只有完整运行一轮的情况才能得到正确的结果，运行到一半由于history是假的
+            recorder.clear_history_records(net->history_pathpackage(), net->reuse_type().value());
         }
         engine.reset_position();
 
         for (auto net: nets) {
-            net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
-    
             // check existing path
             auto routed_nets = engine.routed_nets();
             net->search_related_nets(routed_nets);
-
+            
             // route
             auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);
             if (!res) {
@@ -55,8 +57,9 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
             }
             engine.move_on();
             
-            recorder.update_recorders(net->pathpackage(), net->reuse_type().value());
+            recorder.update_recorders(net->pathpackage(), net->reuse_type().value());   // update numbers & cost
         }
+        debug::debug_fmt("cycle {} done", cycle);
 
         cycle++;
     }

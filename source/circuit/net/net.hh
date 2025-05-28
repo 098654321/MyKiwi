@@ -74,6 +74,7 @@ namespace kiwi::circuit {
         virtual auto show_path() const -> void;
         virtual auto length() const -> std::usize;
         virtual auto set_pathpackage(const PathPackage& path_package) -> void;
+        virtual auto sync_length() const -> std::Tuple<std::usize, std::usize> {return std::Tuple<std::usize, std::usize>{0, 0};}
         virtual auto pathpackage() -> PathPackage& {return this->_path_package;}
         virtual auto pathpackage() const -> const PathPackage& {return this->_path_package;}
         virtual auto priority() const -> const Priority& {return this->_priority;}

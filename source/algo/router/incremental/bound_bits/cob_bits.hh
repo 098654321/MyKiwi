@@ -31,6 +31,7 @@ public:
 
     auto to_string() const -> std::String;
     auto cobdirection_to_string(hardware::COBDirection direction) const -> std::string;
+    auto info() -> std::Tuple<std::usize, std::usize, std::usize>;
 
 private:
     std::HashMap<hardware::COBDirection, std::Array<BitsGroup<COBGroupSize>, COBGroupNum>> _groups;
@@ -46,6 +47,7 @@ public:
     auto record_cob(const hardware::COBConnector& connector, bool reuse_type) -> void;
 
     auto show() const -> void;
+    auto info() -> std::Tuple<std::usize, std::usize, std::usize>;
 
 private:
     std::HashMap<hardware::COBCoord, COBGroup> _cob_groups;

@@ -25,7 +25,7 @@ public:
         this->_tob_groups.record_tob(coord, connector, reuse_type);
     }
 
-    auto show() -> void {
+    auto show_bits() -> void {
         debug::debug("Show bound bits:\n");
 
         this->_track_groups.show();
@@ -36,6 +36,25 @@ public:
 
         this->_tob_groups.show();
         debug::debug("\n");
+    }
+
+    auto show_rate() -> void {
+        auto not_used{0.0}, monopolized{0.0}, mixed{0.0};
+        auto collect = [&](auto& groups) {
+            auto [group_not_used, group_monopolized, group_mixed] = groups.info();
+            not_used += group_not_used;
+            monopolized += group_monopolized;
+            mixed += group_mixed;
+        };
+
+        collect(this->_track_groups);
+        collect(this->_cob_groups);
+        collect(this->_tob_groups);
+
+        auto sum = monopolized + mixed;
+        debug::info_fmt(
+            "Global registers: monopolized {}%, mixed {}%", 100*monopolized/sum, 100*mixed/sum
+        );
     }
 
 private:

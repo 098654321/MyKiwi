@@ -6,10 +6,10 @@
 
 namespace kiwi::algo {
 
-TOBMuxRecorder::TOBMuxRecorder(std::usize size) : _size(size) {
+TOBMuxRecorder::TOBMuxRecorder(std::usize size, bool use_cost) : _size(size) {
     this->_mux_type_recorder.reserve(size);
     for (auto i: std::views::iota(0, (int)size)) {
-        this->_mux_type_recorder.emplace_back(TypeRecorder{});
+        this->_mux_type_recorder.emplace_back(TypeRecorder{use_cost});
     }
 }
 
@@ -20,11 +20,11 @@ auto TOBMuxRecorder::type_recorder(std::usize index) -> TypeRecorder& {
     return this->_mux_type_recorder.at(index);
 }
 
-auto TOBMuxRecorder::mux_cost(std::usize index, float reuse_num, float nonre_num) const -> float {
+auto TOBMuxRecorder::mux_cost(std::usize index) const -> float {
     if (index >= this->_size) {
         throw std::out_of_range(std::format("index {} is out of range [0, {})", index, this->_size));
     }
-    return this->_mux_type_recorder.at(index).cost(reuse_num, nonre_num);
+    return this->_mux_type_recorder.at(index).cost();
 }
 
 auto TOBMuxRecorder::group_info() const -> std::Pair<float, float> {
@@ -37,12 +37,19 @@ auto TOBMuxRecorder::group_info() const -> std::Pair<float, float> {
     return std::Pair<std::usize, std::usize>{reuse_num, nonre_num};
 }
 
-auto TOBMuxRecorder::update(std::usize index, bool reuse_type) -> void {
+auto TOBMuxRecorder::update_num(std::usize index, bool reuse_type) -> void {
     if (index >= this->_size) {
         throw std::out_of_range(std::format("index {} is out of range [0, {})", index, this->_size));
     }
 
     this->_mux_type_recorder.at(index).update(reuse_type);
+}
+
+auto TOBMuxRecorder::update_cost() -> void {
+    auto [reuse_num, nonre_num] = this->group_info();
+    for (auto& recorder: this->_mux_type_recorder) {
+        recorder.update_cost(reuse_num, nonre_num);
+    }
 }
 
 auto TOBMuxRecorder::re_initialize() -> void {
@@ -51,20 +58,24 @@ auto TOBMuxRecorder::re_initialize() -> void {
     }
 }
 
-TOBRecorder::TOBRecorder() {
+auto TOBMuxRecorder::clear_history_record(std::usize index) -> void {
+    this->_mux_type_recorder.at(index).reset_type();
+}
+
+TOBRecorder::TOBRecorder(bool use_cost) {
     this->_bump_to_hori_recorder.reserve(hardware::TOB::BUMP_TO_HORI_MUX_COUNT);
     for (auto i: std::views::iota(0, (int)hardware::TOB::BUMP_TO_HORI_MUX_COUNT)) {
-        this->_bump_to_hori_recorder.emplace_back(TOBMuxRecorder{hardware::TOB::BUMP_TO_HORI_MUX_SIZE});
+        this->_bump_to_hori_recorder.emplace_back(TOBMuxRecorder{hardware::TOB::BUMP_TO_HORI_MUX_SIZE, use_cost});
     }
 
     this->_hori_to_vert_recorder.reserve(hardware::TOB::HORI_TO_VERI_MUX_COUNT);
     for (auto i: std::views::iota(0, (int)hardware::TOB::HORI_TO_VERI_MUX_COUNT)) {
-        this->_hori_to_vert_recorder.emplace_back(TOBMuxRecorder{hardware::TOB::HORI_TO_VERI_MUX_SIZE});
+        this->_hori_to_vert_recorder.emplace_back(TOBMuxRecorder{hardware::TOB::HORI_TO_VERI_MUX_SIZE, use_cost});
     }
 
     this->_vert_to_track_recorder.reserve(hardware::TOB::VERI_TO_TRACK_MUX_COUNT);
     for (auto i: std::views::iota(0, (int)hardware::TOB::VERI_TO_TRACK_MUX_COUNT)) {
-        this->_vert_to_track_recorder.emplace_back(TOBMuxRecorder{hardware::TOB::VERI_TO_TRACK_MUX_SIZE});
+        this->_vert_to_track_recorder.emplace_back(TOBMuxRecorder{hardware::TOB::VERI_TO_TRACK_MUX_SIZE, use_cost});
     }
 }
 
@@ -118,7 +129,7 @@ auto TOBRecorder::tob_cost(std::usize bump_index, std::usize track_index, bool r
     std::usize cost {0};
     auto calculate = [&](const TOBMuxRecorder& mux_recorder, std::usize index) -> float {
         auto [reuse_num, nonre_num] = mux_recorder.group_info();
-        return mux_recorder.mux_cost(index, reuse_num, nonre_num);
+        return mux_recorder.mux_cost(index);
     };
     cost += calculate(this->_bump_to_hori_recorder.at(bump_mux), bump_mux_input);
     cost += calculate(this->_hori_to_vert_recorder.at(hori_mux), hori_mux_input);
@@ -127,15 +138,26 @@ auto TOBRecorder::tob_cost(std::usize bump_index, std::usize track_index, bool r
     return cost;
 }
 
-auto TOBRecorder::update(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void {
+auto TOBRecorder::update_num(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void {
     auto [bump_group, bump_group_index] = this->bump_group_info(bump_index);
-    this->_bump_to_hori_recorder.at(bump_group).update(bump_group_index, reuse_type);
+    this->_bump_to_hori_recorder.at(bump_group).update_num(bump_group_index, reuse_type);
 
     auto [hori_group, hori_group_index] = this->hori_group_info(hori_index);
-    this->_hori_to_vert_recorder.at(hori_group).update(hori_group_index, reuse_type);
+    this->_hori_to_vert_recorder.at(hori_group).update_num(hori_group_index, reuse_type);
 
     auto [vert_group, vert_group_index] = this->vert_group_info(vert_index);
-    this->_vert_to_track_recorder.at(vert_group).update(vert_group_index, reuse_type);
+    this->_vert_to_track_recorder.at(vert_group).update_num(vert_group_index, reuse_type);
+}
+
+auto TOBRecorder::update_cost(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void {
+    auto [bump_group, bump_group_index] = this->bump_group_info(bump_index);
+    this->_bump_to_hori_recorder.at(bump_group).update_cost();
+
+    auto [hori_group, hori_group_index] = this->hori_group_info(hori_index);
+    this->_hori_to_vert_recorder.at(hori_group).update_cost();
+
+    auto [vert_group, vert_group_index] = this->vert_group_info(vert_index);
+    this->_vert_to_track_recorder.at(vert_group).update_cost();
 }
 
 auto TOBRecorder::bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize> {
@@ -183,6 +205,17 @@ auto TOBRecorder::re_initialize() -> void {
     for (auto &recorder: this->_vert_to_track_recorder) {
         recorder.re_initialize();
     }
+}
+
+auto TOBRecorder::clear_history_record(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void {
+    auto [bump_group, bump_group_index] = this->bump_group_info(bump_index);
+    this->_bump_to_hori_recorder.at(bump_group).clear_history_record(bump_group_index);
+
+    auto [hori_group, hori_group_index] = this->hori_group_info(hori_index);
+    this->_hori_to_vert_recorder.at(hori_group).clear_history_record(hori_group_index);
+
+    auto [vert_group, vert_group_index] = this->vert_group_info(vert_index);
+    this->_vert_to_track_recorder.at(vert_group).clear_history_record(vert_group_index);
 }
 
 }

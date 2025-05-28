@@ -16,7 +16,7 @@ namespace kiwi::algo {
 class HardwareRecorder {
     // a recorder is generated only when it is used
 public:
-    HardwareRecorder(hardware::Interposer* interposer): _track_recorders{}, _tob_recorders{}, _cob_recorders{}, _interposer{interposer} {}
+    HardwareRecorder(hardware::Interposer* interposer): _track_recorders{}, _tob_recorders{}, _cob_recorders{}, _interposer{interposer}, _use_cost{true} {}
     ~HardwareRecorder() = default;
 
 public:
@@ -35,13 +35,21 @@ public:
     auto update_track_recorders(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
     auto update_cob_recorders(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
     auto update_tob_recorders(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
+
+    auto clear_history_records(const circuit::PathPackage& package, bool reuse_type) -> void;
+    auto clear_track_history_records(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
+    auto clear_cob_history_records(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
+    auto clear_tob_history_records(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
+
     auto re_initialize() -> void;
+    auto set_use_cost(bool use_cost) -> void;
     
 private:
     std::HashMap<hardware::Track*, TypeRecorder> _track_recorders;
     std::HashMap<hardware::TOBCoord, TOBRecorder> _tob_recorders;
     std::HashMap<hardware::COBCoord, COBRecorder> _cob_recorders;
     hardware::Interposer* _interposer;
+    bool _use_cost;
 };
 
 }

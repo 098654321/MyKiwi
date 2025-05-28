@@ -446,6 +446,13 @@ namespace kiwi::circuit
             net->clear_path();
         }
     }
+
+    // return: [num_of_nets, length]
+    auto SyncNet::sync_length() const -> std::Tuple<std::usize, std::usize> {
+        return std::Tuple<std::usize, std::usize>{
+            this->_btbnets.size() + this->_bttnets.size() + this->_ttbnets.size(), this->_path_package._length
+        };
+    }
 }
 
 

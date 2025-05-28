@@ -7,7 +7,7 @@
 namespace kiwi::algo{
 
 auto HardwareRecorder::get_track_recorder(hardware::Track* track, bool reuse_type) -> TypeRecorder& {
-    auto iter = this->_track_recorders.emplace(track, TypeRecorder{reuse_type});
+    auto iter = this->_track_recorders.emplace(track, TypeRecorder{reuse_type, this->_use_cost});
     return iter.first->second;
 }
 
@@ -16,12 +16,12 @@ auto HardwareRecorder::get_track_recorder(hardware::Track* track, bool reuse_typ
 }
 
 auto HardwareRecorder::get_tob_recorder(hardware::TOBCoord coord) -> TOBRecorder& {
-    auto iter = this->_tob_recorders.emplace(coord, TOBRecorder{});
+    auto iter = this->_tob_recorders.emplace(coord, TOBRecorder{this->_use_cost});
     return iter.first->second;
 }
 
 auto HardwareRecorder::get_cob_recorder(hardware::COBCoord coord) -> COBRecorder& {
-    auto iter = this->_cob_recorders.emplace(coord, COBRecorder{});
+    auto iter = this->_cob_recorders.emplace(coord, COBRecorder{this->_use_cost});
     return iter.first->second;
 }
 
@@ -47,34 +47,8 @@ catch(std::exception& e) {
 }
 
 auto HardwareRecorder::track_cost(hardware::Track* track, bool reuse_type) -> float {
-try {
     auto& type_recorder = this->get_track_recorder(track, reuse_type);
-
-    auto track_coord = track->coord();
-    int group_index = track_coord.index / TRACKGROUPSIZE;
-
-    auto reuse_num = 0, nonre_num = 0;
-    for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
-        if (i != track_coord.index) {
-            auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
-            auto t = this->_interposer->get_track(coord);
-
-            if (t.has_value() && this->_track_recorders.contains(t.value())) {
-                auto track_recorder = this->_track_recorders.at(t.value());
-                
-                if (track_recorder.current_type().has_value()) {
-                    auto track_type = *track_recorder.current_type();
-                    track_type ? reuse_num++ : nonre_num++;
-                }
-            }
-        }
-    }
-
-    return type_recorder.cost(reuse_num, nonre_num);
-}
-catch (std::exception& e) {
-    throw FinalError(std::format("track_cost(): {} with track {}", e.what(), track->coord()));
-}
+    return type_recorder.cost();
 }
 
 auto HardwareRecorder::expand_cost(hardware::Track* track, hardware::COBConnector& connector, bool reuse_type) -> float {
@@ -114,22 +88,100 @@ auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, boo
 auto HardwareRecorder::update_cob_recorders(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
-        this->get_cob_recorder(coord).update(connector.from_track_index(), reuse_type);
+        this->get_cob_recorder(coord).update_num(connector.from_track_index(), reuse_type);
+    }
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_cost(connector.from_track_index());
     }
 }
 
 auto HardwareRecorder::update_track_recorders(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
+    // update number
     for (auto& track: tracks) {
         auto& recorder = this->get_track_recorder(track, reuse_type);
         recorder.update(reuse_type);
     }
-}   
+
+    // update cost in group
+    for (auto& track: tracks) {
+        auto track_coord = track->coord();
+        int group_index = track_coord.index / TRACKGROUPSIZE;
+
+        auto reuse_num=0, nonre_num= 0;
+        for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
+            auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
+            auto t = this->_interposer->get_track(coord);
+
+            if(t.has_value() && this->_track_recorders.contains(t.value())) {
+                auto track_recorder = this->_track_recorders.at(t.value());
+
+                if(track_recorder.current_type().has_value()){
+                    auto track_type = *track_recorder.current_type();
+                    track_type ? reuse_num++ : nonre_num++;
+                }
+            }
+        }
+
+        auto& recorder = this->get_track_recorder(track, reuse_type);
+        recorder.update_cost(reuse_num, nonre_num);
+    }   
+}
 
 auto HardwareRecorder::update_tob_recorders(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
     for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
         auto& [coord, connector] = *iter;
         auto& recorder = this->get_tob_recorder(coord);
-        recorder.update(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+        recorder.update_num(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+    }
+    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
+        auto& [coord, connector] = *iter;
+        auto& recorder = this->get_tob_recorder(coord);
+        recorder.update_cost(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+    }
+}
+
+auto HardwareRecorder::clear_history_records(const circuit::PathPackage& package, bool reuse_type) -> void {
+    std::Vector<hardware::Track*> tracks {};
+    std::Vector<hardware::COBConnector> cobconnectors {};
+    for (auto& [track, connector]: package._regular_path) {
+        tracks.emplace_back(track);
+        if (connector.has_value()) {
+            cobconnectors.emplace_back(*connector);
+        }
+    }
+    this->clear_track_history_records(tracks, reuse_type);
+    this->clear_cob_history_records(cobconnectors, reuse_type);
+
+    std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
+    for (auto& [bump, connector, track]: package._tob_to_track) {
+        tobconnectors.emplace(bump->tob()->coord(), connector);
+    }
+    for (auto& [bump, connector, track]: package._track_to_tob) {
+        tobconnectors.emplace(bump->tob()->coord(), connector);
+    }
+    this->clear_tob_history_records(tobconnectors, reuse_type);
+}
+
+auto HardwareRecorder::clear_track_history_records(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
+    for (auto& track: tracks) {
+        auto& recorder = this->get_track_recorder(track, reuse_type);
+        recorder.reset_type();
+    }
+}
+
+auto HardwareRecorder::clear_cob_history_records(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        auto& recorder = this->get_cob_recorder(coord);
+        recorder.clear_history_record(connector.from_track_index());
+    }
+}
+
+auto HardwareRecorder::clear_tob_history_records(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
+    for(auto& [coord, connector]: connectors) {
+        auto& recorder = this->get_tob_recorder(coord);
+        recorder.clear_history_record(connector.bump_index(), connector.hori_index(), connector.vert_index());
     }
 }
 
@@ -143,6 +195,10 @@ auto HardwareRecorder::re_initialize() -> void {
     for (auto& [coord, recorder]: this->_cob_recorders) {
         recorder.re_initialize();
     }
+}
+
+auto HardwareRecorder::set_use_cost(bool use_cost) -> void {
+    this->_use_cost = use_cost;
 }
 
 }

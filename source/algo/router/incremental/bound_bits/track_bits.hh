@@ -58,6 +58,7 @@ public:
     auto record_track(const hardware::TrackCoord& coord, bool reuse_type) -> void;
 
     auto show() -> void;
+    auto info() -> std::Tuple<std::usize, std::usize, std::usize>;
 
 private:
     std::HashMap<TrackGroupCoord, BitsGroup<TrackGroupSize>> _track_groups;

@@ -66,6 +66,14 @@ namespace kiwi::algo {
             total_length += net->length();
         }
         debug::info_fmt("Total length of all nets: {}", total_length);
+
+        float sync_num{0.0}, sync_l{0.0};
+        for (const auto& net: nets) {
+            auto [n, l] = net->sync_length();
+            sync_num += n;
+            sync_l += l;
+        }
+        debug::info_fmt("Average length of sync nets: {}", sync_l / sync_num);
         
         if (incremental) {
             show_bits(engine.all_nets());
@@ -92,7 +100,8 @@ namespace kiwi::algo {
                 bits.record_tob(bump->tob()->coord(), connector, *type);
             }
         }
-        bits.show();    // TODO: 返回被一种线网占用、两种线网占用、没有被使用的绑定组数量
+        // bits.show_bits();    
+        bits.show_rate();
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {

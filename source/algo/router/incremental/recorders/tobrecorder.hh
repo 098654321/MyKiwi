@@ -9,7 +9,7 @@ namespace kiwi::algo {
     
 class TOBMuxRecorder {
 public:
-    TOBMuxRecorder(std::usize size);
+    TOBMuxRecorder(std::usize size, bool use_cost);
     ~TOBMuxRecorder() = default;
 
 public:
@@ -19,11 +19,11 @@ public:
     // return <reuse_num, nonre_num>
     auto group_info() const -> std::Pair<float, float>;
     
-    auto mux_cost(std::usize index, float reuse_num, float nonre_num) const -> float;
-    auto update(std::usize index, bool reuse_type) -> void;
+    auto mux_cost(std::usize index) const -> float;
+    auto update_num(std::usize index, bool reuse_type) -> void;
+    auto update_cost() -> void;
     auto re_initialize() -> void;
-
-    auto check_shared() const -> bool;
+    auto clear_history_record(std::usize index) -> void;
 
 private:
     std::usize _size;
@@ -33,7 +33,7 @@ private:
 
 class TOBRecorder {
 public:
-    TOBRecorder();
+    TOBRecorder(bool use_cost);
     ~TOBRecorder() = default;
 
 public:
@@ -44,8 +44,10 @@ public:
     auto mux_chain_index(std::usize bump_index, std::usize track_index) const -> std::Tuple<std::usize, std::usize, std::usize, std::usize, std::usize, std::usize>;
     auto tob_cost(std::usize bump_index, std::usize track_index, bool reuse_type) const -> float;
 
-    auto update(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
+    auto update_num(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
+    auto update_cost(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
     auto re_initialize() -> void;
+    auto clear_history_record(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void;
 
 private:
     auto bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize>;

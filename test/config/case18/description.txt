@@ -1,1 +1,1 @@
-modified case6 to test incremental incremental routing stage 1 & output
+modified case6 to test incremental incremental routing stage 1 & output, a simple test

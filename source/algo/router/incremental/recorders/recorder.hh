@@ -10,7 +10,7 @@
 namespace kiwi::algo {
 
 const float BASICCOST = 5;
-const float EPSILON = 10;
+const float EPSILON = 5;
 const float GROUPCOEF = 0.5;
 const float HISTORYCOEF = 0.5;
 const float TOBMUXGROUPSIZE = 8;
@@ -18,8 +18,8 @@ const float TRACKGROUPSIZE = 32;
 
 class TypeRecorder {
 public:
-    TypeRecorder() : _reuse_type(std::nullopt), _history({0, 0}){}
-    TypeRecorder(bool reuse_type) : _reuse_type(reuse_type), _history({0, 0}){}
+    TypeRecorder(bool use_cost) : _reuse_type(std::nullopt), _history({0, 0}), _cost{BASICCOST}, _use_cost{use_cost} {}
+    TypeRecorder(bool reuse_type, bool use_cost) : _reuse_type(reuse_type), _history({0, 0}), _cost{BASICCOST}, _use_cost{use_cost} {}
     ~TypeRecorder() = default;
 
 public:
@@ -28,6 +28,8 @@ public:
     auto non_re_history_times() const -> float {return this->_history.second;}
 
 public:
+    auto set_use_cost(bool use_cost) -> void {this->_use_cost = use_cost;}
+
     auto set_type(bool reuse_type) -> void {
         this->_reuse_type = reuse_type;
     }
@@ -44,12 +46,7 @@ public:
         reuse_type ? this->_history.first++ : this->_history.second++;
     }
 
-    auto update(bool reuse_type) -> void {
-        this->set_type(reuse_type);
-        this->update_history(reuse_type);
-    }
-
-    auto cost(float reuse_num, float nonre_num) const -> float {
+    auto update_cost(float reuse_num, float nonre_num) -> float {
         if (!this->_reuse_type.has_value()) {
             return BASICCOST;
         }
@@ -58,18 +55,30 @@ public:
         auto h_nonre_n = std::get<1>(this->_history);
         auto history_ratio = (this->_reuse_type ? (h_reuse_n-h_nonre_n) : (h_nonre_n-h_reuse_n)) / (h_reuse_n+h_nonre_n+EPSILON);
         auto group_ratio = (this->_reuse_type ? (reuse_num-nonre_num) : (nonre_num-reuse_num))/(nonre_num + reuse_num + EPSILON);
-        auto final_cost = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
-        return final_cost;
+        this->_cost = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
+    }
+
+    auto update(bool reuse_type) -> void {
+        this->set_type(reuse_type);
+        this->update_history(reuse_type);
+    }
+
+    auto cost() const -> float {return this->_use_cost ? this->_cost : BASICCOST;}
+
+    auto reset_type() -> void {
+        this->_reuse_type.reset();
     }
 
     auto re_initialize() -> void {
-        this->_reuse_type = std::nullopt;
+        this->reset_type();
         this->_history = {0, 0};
     }
 
 private:
     std::Option<bool> _reuse_type;                           // true if reusable
     std::Pair<float, float> _history; // <reusable_times, non_reusable_times>
+    float _cost;
+    bool _use_cost;
 };
 
 class SharedRecorder {

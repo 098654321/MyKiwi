@@ -77,6 +77,34 @@ auto TOBGroup::to_string() const -> std::String {
     return message;
 }
 
+auto TOBGroup::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+    auto not_used{0}, monopolized{0}, mixed{0};
+    auto collect = [&](const auto& array) {
+        for (auto& group: array) {
+            auto reuse = group.reuse_number();
+            auto nonreuse = group.nonreuse_number();
+
+            if (!reuse && !nonreuse) {
+                not_used++;
+            }
+            else if (reuse && nonreuse) {
+                mixed++;
+            }
+            else {
+                monopolized++;
+            }
+        }
+    };
+
+    collect(this->_bump_groups);
+    collect(this->_hori_groups);
+    collect(this->_vert_groups);
+    
+    return std::Tuple<std::usize, std::usize, std::usize>{
+        not_used, monopolized, mixed
+    };
+}
+
 auto GlobalTOBGroup::tob_group(const hardware::TOBCoord& coord) -> TOBGroup& {
     return this->_tob_groups.emplace(coord, TOBGroup{}).first->second;
 }
@@ -92,6 +120,20 @@ auto GlobalTOBGroup::show() const -> void {
         debug::debug_fmt("{}:\n {}", coord, group.to_string());
     }
     debug::debug("\n");
+}
+
+auto GlobalTOBGroup::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+    auto not_used{0}, monopolized{0}, mixed{0};
+    for (auto& [coord, group]: this->_tob_groups) {
+        auto [group_not_used, group_mono, group_mixed] = group.info();
+        not_used += group_not_used;
+        monopolized += group_mono;
+        mixed += group_mixed;
+    }
+
+    return std::Tuple<std::usize, std::usize, std::usize>{
+        not_used, monopolized, mixed
+    };
 }
 
 }
