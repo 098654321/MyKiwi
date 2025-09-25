@@ -209,7 +209,7 @@ catch(RetryExpt& re) {
     throw RetryExpt{msg};
 }
 catch(std::exception& e) {
-    debug::debug_fmt("Unexpected exception in set hardware() >> {}", e.what());
+    debug::info_fmt("Unexpected exception in set hardware() >> {}", e.what());
     std::exit(EXIT_FAILURE);
 }
 }
@@ -329,7 +329,7 @@ catch(RetryExpt& re) {
     throw RetryExpt{msg};
 }
 catch(std::exception& e) {
-    debug::debug_fmt("Unexpected exception in max_matching(): {}", e.what());
+    debug::info_fmt("Unexpected exception in max_matching(): {}", e.what());
     std::exit(EXIT_FAILURE);
 }
 }

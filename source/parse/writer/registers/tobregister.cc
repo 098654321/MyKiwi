@@ -4,6 +4,7 @@
 #include <hardware/interposer.hh>
 #include <hardware/tob/tobcoord.hh>
 #include <format>
+#include <debug/debug.hh>
 
 
 namespace kiwi::parse
@@ -151,7 +152,7 @@ namespace kiwi::parse
                     }
                     else{
                         try{
-                        fetch_methods.at(method)(FETCH_FUNCTION_PARAMS{tob, tob_value, tobcoord});
+                            fetch_methods.at(method)(FETCH_FUNCTION_PARAMS{tob, tob_value, tobcoord});
                         }
                         catch(std::exception& e)
                         {
@@ -214,10 +215,13 @@ namespace kiwi::parse
 
     auto TobRegister::map_empty_mux() -> void 
     {
+        debug::info("TobRegister::map_empty_mux() ...");
         for (std::i64 row = 0; row < hardware::Interposer::TOB_ARRAY_WIDTH; ++row)
         {
             for (std::i64 col = 0; col < hardware::Interposer::TOB_ARRAY_HEIGHT; ++col)
             {
+                debug::info_fmt("Processing TOB({}, {})", row, col);
+
                 hardware::TOBCoord tobcoord {row, col};
                 const auto& tob = _pinterposer->get_tob(tobcoord);
                 if (tob == std::nullopt)
@@ -226,6 +230,7 @@ namespace kiwi::parse
                 tob.value()->randomly_map_remain_indexes();
             }
         }
+        debug::info("TobRegister::map_empty_mux() done");
     }
 
 }

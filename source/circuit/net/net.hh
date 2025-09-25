@@ -83,6 +83,7 @@ namespace kiwi::circuit {
         virtual auto set_reuse_type(bool type) -> void {this->_reuse_type.emplace(type);}
         virtual auto reuse_type() const -> std::Option<bool> {return this->_reuse_type;}
         virtual auto history_pathpackage() -> PathPackage& {return this->_history_path_package;}
+        virtual auto name() const -> const std::String& {return this->_name;}
 
         // check if node is the same with nodes belongs to this 
         virtual auto check_relativity(const hardware::Bump* node) const -> const Net* {return nullptr;}
@@ -122,12 +123,13 @@ namespace kiwi::circuit {
         }
     
     public:
-        Net(Priority priority, const std::HashSet<int>& modes):
-            _priority{priority}, _path_package{}, _history_path_package{}, _reuse_type{std::nullopt}, _related_nets_track{}, _related_nets_bump{}, _modes{modes} {}
+        Net(Priority priority, const std::HashSet<int>& modes, std::String& name):
+            _priority{priority}, _path_package{}, _history_path_package{}, _reuse_type{std::nullopt}, _related_nets_track{}, _related_nets_bump{}, _modes{modes}, _name{name} {}
         virtual ~Net() noexcept {}
     
     protected:
         Priority _priority;
+        std::String _name;
         PathPackage _path_package;
         PathPackage _history_path_package;
         std::HashSet<int> _modes;

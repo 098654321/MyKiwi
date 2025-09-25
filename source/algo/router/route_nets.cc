@@ -21,7 +21,13 @@ namespace kiwi::algo {
         bool incremental,
         bool path_exists
     ) -> std::usize {
-        debug::info("Route nets");
+        debug::info(
+            "\n\
+            **********************************************************************************\n\
+                                            Route nets\n\
+            **********************************************************************************\
+            "
+        );
         auto invoker = Invoker{};
         auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, path_exists, interposer};
         invoker.set_route_commands(incremental, path_exists);
@@ -59,56 +65,64 @@ namespace kiwi::algo {
         bool incremental
     ) -> std::usize {
         std::usize total_length {0};
+        float sync_num{0.0}, sync_l{0.0};
         const auto& nets = engine.nets();
+        bool has_unrouted_net {false};
+
+        // record length info
+        debug::info(
+            "\n\
+            **********************************************************************************\n\
+                                            Net & Path Infomation\n\
+            **********************************************************************************\
+            "
+        );
         for (const auto& net: nets) {
-            debug::debug(net->to_string());
-            net->show_path();
+            debug::info(net->to_string());
+            auto l = net->length();
+
+            if (l > 0) {
+                net->show_path();
+                total_length += l;
+                auto [n, l] = net->sync_length();
+                sync_num += n;
+                sync_l += l;
+            }
+            else {
+                debug::info("Routing failed for this net");
+                has_unrouted_net = true;
+            }
             total_length += net->length();
         }
-        debug::info_fmt("Total length of all nets: {}", total_length);
 
-        float sync_num{0.0}, sync_l{0.0};
-        for (const auto& net: nets) {
-            auto [n, l] = net->sync_length();
-            sync_num += n;
-            sync_l += l;
+        // show length info
+        debug::info(
+            "\n\
+            **********************************************************************************\n\
+                                            Data Analysis\n\
+            **********************************************************************************\
+            "
+        );
+        if (has_unrouted_net) {
+            debug::info("Unrouted nets exist");
+            debug::info_fmt("Total length of routed nets: {}", total_length);
+            debug::info_fmt("Average length of routed sync nets: {}", sync_l / sync_num);
         }
-        debug::info_fmt("Average length of sync nets: {}", sync_l / sync_num);
+        else {
+            debug::info_fmt("Total length of all nets: {}", total_length);
+            debug::info_fmt("Average length of sync nets: {}", sync_l / sync_num);
+        }
         
         if (incremental) {
-            show_bits(engine.all_nets());
+            engine.show_global_bits_info(engine.all_nets());
         }
 
         return total_length;
     }
 
-    auto show_bits(const std::Vector<circuit::Net*>& nets) -> void {
-        GlobalBoundBits bits {};
-        for (const auto& net: nets) {
-            auto type = net->reuse_type();
-            if (!type.has_value()) {
-                throw std::logic_error("show_bits(): net reuse type should not be nullopt when routing");
-            }
-
-            for (auto& [track, cob_connector]: net->pathpackage()._regular_path) {
-                bits.record_track(track->coord(), *type);
-                if (cob_connector.has_value()) {
-                    bits.record_cob(*cob_connector, *type);
-                }
-            }
-            for (auto& [bump, connector, track]: net->pathpackage()._tob_to_track) {
-                bits.record_tob(bump->tob()->coord(), connector, *type);
-            }
-        }
-        // bits.show_bits();    
-        bits.show_rate();
-    }
-
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {
         //TODO: 会出现路径重复的问题
-        debug::debug("\n");
-        debug::debug("Show details of retry exception");
-        debug::debug(net->to_string());
+        debug::debug(std::String("\nShow details of retry exception" + net->to_string()));
         
         auto state = net_connection_state(net, interposer);
 

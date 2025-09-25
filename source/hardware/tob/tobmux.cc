@@ -6,6 +6,7 @@
 #include <std/range.hh>
 #include <stdexcept>
 #include <format>
+#include <debug/debug.hh>
 
 namespace kiwi::hardware {
 
@@ -36,6 +37,14 @@ namespace kiwi::hardware {
 
     auto TOBMuxConnector::disconnect() -> void {
         this->_register->reset();
+    }
+
+    auto TOBMuxConnector::check_consistency() const -> void {
+        this->_register->check_consistency(this->_output_index);
+    }
+
+    auto TOBMuxConnector::check_reg_address() const -> uintptr_t {
+        return reinterpret_cast<uintptr_t>(this->_register);
     }
 
     ////////////////////////////////////////////////////////////////
@@ -124,16 +133,33 @@ namespace kiwi::hardware {
 
     auto TOBMux::randomly_map_remain_indexes() -> void {
         auto unused_indexes = this->available_output_indexes();
-        std::usize index = 0;
+
+        // show total unused indexes
+        std::String message{"["};
+        for (auto& index : unused_indexes) {
+            message += std::format("{}, ", index);
+        }
+        message += "]";
+        debug::debug_fmt("randomly_map(): Total unused indexes: {}", message);
+
+        // randomly map remain indexes
+        std::usize index = 0, reg_count = 0;
         for (auto& reg : this->_registers) {
             if (!reg.get().has_value()) {
-                assert(!reg.is_given_out());
+                if (reg.is_given_out()) {
+                    throw std::runtime_error("randomly_map(): reg is given out without a value");
+                }
                 reg.set(unused_indexes.at(index));
                 index += 1;
+
+                debug::debug_fmt("randomly_map(): reg_{} is set to {}", reg_count, reg.get().value());
             }
             else{
                 assert(reg.is_given_out());
+                debug::debug_fmt("randomly_map(): reg_{} already has a value {}", reg_count, reg.get().value());
             }
+
+            reg_count += 1;
         }
         assert(index == unused_indexes.size());
     }

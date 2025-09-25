@@ -19,6 +19,9 @@ namespace kiwi::hardware {
         auto input_index() const -> std::usize { return this->_input_index; }
         auto output_index() const -> std::usize { return this->_output_index; }
 
+        auto check_consistency() const -> void;
+        auto check_reg_address() const -> uintptr_t;
+
     private:
         std::usize _input_index;
         std::usize _output_index;

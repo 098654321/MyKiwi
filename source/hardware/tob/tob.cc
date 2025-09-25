@@ -13,6 +13,7 @@
 #include <cassert>
 #include <stdexcept>
 
+
 namespace kiwi::hardware {
 
     TOB::TOB(TOBCoord const& coord, Coord const& coord_in_interposer) :
@@ -247,15 +248,22 @@ namespace kiwi::hardware {
     }
 
     auto TOB::randomly_map_remain_indexes() -> void {
+        int count{0};
+
         for (auto& mux : this->_bump_to_hori_muxs) {
+            debug::debug_fmt("bump_to_hori_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
 
+        count = 0;
         for (auto& mux : this->_hori_to_vert_muxs) {
+            debug::debug_fmt("hori_to_vert_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
 
+        count = 0;
         for (auto& mux : this->_vert_to_track_muxs) {
+            debug::debug_fmt("vert_to_track_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
     }
@@ -355,7 +363,7 @@ namespace kiwi::hardware {
         else if (mux_register0.value() == 1 && mux_register1.value() == 0)
             return 1;
         else{
-            throw std::runtime_error(std::format("Unknown config on track mux, with register = [{}, {}]", mux_register0.value(), mux_register1.value()));
+            throw std::runtime_error(std::format("Unknown config on track mux, with TOB({}, {}), register_{} = [{}, {}]", this->coord().row, this->coord().col, index, mux_register0.value(), mux_register1.value()));
         }
     } 
     

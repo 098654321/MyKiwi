@@ -30,24 +30,24 @@ struct PathPackage {
     PathPackage(): _regular_path{}, _tob_to_track{}, _track_to_tob{}, _length{0} {}
 
     auto show() const -> void {
-        debug::debug("\nPrinting path...");
+        debug::info("\nPrinting path...");
 
         if (this->_tob_to_track.size() > 0) {
             for (auto& [bump, tobconnector, track]: this->_tob_to_track) {
-                debug::debug_fmt("Begin_bump: ({}, index={})", bump->coord(), bump->index());
+                debug::info_fmt("Begin_bump: ({}, index={})", bump->coord(), bump->index());
             }
         }
 
         for (auto& [track, cob_connector]: this->_regular_path) {
-            debug::debug_fmt("{}", track->coord());
+            debug::info_fmt("{}", track->coord());
         }
 
         if (this->_track_to_tob.size() > 0) {
             for (auto& [bump, tobconnector, track]: this->_track_to_tob) {
-                debug::debug_fmt("End_bump: ({}, index={})", bump->coord(), bump->index());
+                debug::info_fmt("End_bump: ({}, index={})", bump->coord(), bump->index());
             }
         }
-        debug::debug("\n");
+        debug::info("\n");
     }
 
     auto find_bump(const hardware::Bump* bump) const -> std::Option<std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>> {
@@ -133,6 +133,31 @@ struct PathPackage {
         for (auto& [bump, tob_connector, t_track] : this->_track_to_tob) {
             bump->set_connected_track(t_track, hardware::TOBSignalDirection::TrackToBump);
             tob_connector.connect();
+        }
+    }
+
+    auto check_tobconenctor_consistency() const -> void {
+        std::String except_mess {};
+
+        auto check = [&](const hardware::TOBConnector& connector) {
+        try{
+            connector.check_consistency();
+        }
+        catch (const std::exception& e) {
+            std::String mess{std::format("({}, {}, {}, {}): ", connector.bump_index(), connector.hori_index(), connector.vert_index(), connector.track_index())};
+            except_mess += mess + std::string(e.what()) + "\n";
+        }
+        };
+    
+        for (const auto& [bump, tob_connector, track]: this->_tob_to_track) {
+            check(tob_connector);
+        }
+        for (const auto& [bump, tob_connector, track]: this->_track_to_tob) {
+            check(tob_connector);
+        }
+
+        if (except_mess.size() > 0) {
+            throw std::runtime_error(except_mess);
         }
     }
 

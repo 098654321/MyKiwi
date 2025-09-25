@@ -10,7 +10,7 @@ Route::Route() {
 }
 
 auto Route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    debug::debug("routing ...");
+    debug::info("routing ...");
 
     auto nets = engine.nets();
     auto posi = engine.position();

@@ -5,7 +5,7 @@
 namespace kiwi::algo {
 
 auto Reroute::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    debug::debug("Rerouting ...");
+    debug::info("Rerouting ...");
     debug::unimplement("Rerouting module is not implemented yet");
 }
 

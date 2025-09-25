@@ -63,7 +63,7 @@ catch (std::exception& e) {
 }
 
 auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, bool reuse_type) -> void  {
-    debug::debug("Update recorders");
+    debug::info("Update recorders");
     std::Vector<hardware::Track*> tracks {};
     std::Vector<hardware::COBConnector> cobconnectors {};
     for (auto& [track, connector]: package._regular_path) {

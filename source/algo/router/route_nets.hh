@@ -36,8 +36,6 @@ namespace kiwi::algo {
         bool incremental
     ) -> std::usize;
 
-    auto show_bits(const std::Vector<circuit::Net*>& net) -> void;
-
 
     // debug
     auto show_retry_expt(circuit::Net*, RouteEngine&, hardware::Interposer*) -> void;

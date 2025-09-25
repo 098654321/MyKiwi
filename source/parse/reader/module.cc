@@ -43,7 +43,7 @@ namespace kiwi::parse {
         circuit::BaseDie* basedie,
         int mode
     ) -> std::Pair<bool, bool> {
-        debug::debug("Load controlbits ...");
+        debug::info("Load controlbits ...");
 
         auto controlbits = load_controlbits(config_folder, mode);
         if (controlbits.has_value()) {

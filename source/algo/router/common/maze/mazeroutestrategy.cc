@@ -12,6 +12,7 @@
 #include <std/range.hh>
 #include <debug/debug.hh>
 #include <algorithm>
+#include <std/format.hh>
 
 #include <cassert>
 #include <type_traits>
@@ -22,7 +23,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::BumpToBumpNet* net
     ) const -> void {
     try {
-        debug::debug("Maze routing for bump to bump net");
+        debug::info(std::format("Maze routing for {}", net->name()));
         
         auto begin_bump = net->begin_bump();
         auto end_bump = net->end_bump();
@@ -51,7 +52,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::TrackToBumpNet* net
     ) const -> void {
     try {
-        debug::debug("Maze routing for track to bump net");
+        debug::info(std::format("Maze routing for {}", net->name()));
         
         auto begin_track = net->begin_track();
         auto end_bump = net->end_bump();
@@ -79,7 +80,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::BumpToTrackNet* net
     ) const -> void {
     try {
-        debug::debug("Maze routing for bump to track net");
+        debug::info(std::format("Maze routing for {}", net->name()));
         
         auto begin_bump = net->begin_bump();
         auto end_track = net->end_track();
@@ -180,7 +181,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::BumpToBumpsNet* net
     )  const -> void {
     try {
-        debug::debug("Maze routing for bump to bumps net");
+        debug::info(std::format("Maze routing for {}", net->name()));
         
         auto begin_bump = net->begin_bump();
         const auto& end_bumps = net->end_bumps();
@@ -264,7 +265,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::TrackToBumpsNet* net
     ) const -> void {
     try {
-        debug::debug("Maze routing for track to bumps net");
+        debug::info(std::format("Maze routing for {}", net->name()));
         
         auto begin_track = net->begin_track();
         const auto& end_bumps = net->end_bumps();
@@ -330,7 +331,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::BumpToTracksNet* net
     ) const -> void {
     try {
-        debug::debug("Maze routing for bump to tracks net");
+        debug::info(std::format("Maze routing for {}", net->name()));
 
         auto begin_bump = net->begin_bump();
         const auto& end_tracks = net->end_tracks();
@@ -398,7 +399,7 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, circuit::TracksToBumpsNet* net
     ) const -> void {
     try {
-        debug::debug("Maze routing for tracks to bumps net");
+        debug::info(std::format("Maze routing for {}", net->name()));
         
         auto& begin_tracks = net->begin_tracks();
         auto& end_bumps = net->end_bumps();
@@ -457,7 +458,7 @@ namespace kiwi::algo {
     try{
         // three: [bump_to_bump, track_to_bump, bump_to_track]
 
-        debug::debug("Maze routing for synchronized nets");
+        debug::info(std::format("Maze routing for synchronized {}", ptr_sync_net->name()));
         
         std::HashSet<hardware::Track*> occupied_tracks_vec {}; 
         std::usize max_length {0};
@@ -506,17 +507,14 @@ namespace kiwi::algo {
             btt_nets.emplace_back(net.get());
         }
         while (true){
-            debug::debug("Route BumpToBump Synchronized Net");
             auto [success, ml] = sync_reroute(
                 ptr_interposer, btb_nets, max_length
             );
             if (success){
-                debug::debug("Route TrackToBump Synchronized Net");
                 auto [success, ml] = sync_reroute(
                     ptr_interposer, ttb_nets, max_length
                 );
                 if (success){
-                    debug::debug("Route BumpToTrack Synchronized Net");
                     auto [success, ml] = sync_reroute(
                         ptr_interposer, btt_nets, max_length
                     );
@@ -814,12 +812,18 @@ namespace kiwi::algo {
         hardware::Interposer* interposer, std::Vector<circuit::Net*>& nets, std::usize max_length
     ) const -> std::tuple<bool, std::usize>{
         std::Vector<circuit::Net*> nets_to_be_rerouted {};
+        std::String reroute_nets{};
 
         // collect nets to be rerouted, along with their end bumps and track to tob maps
         for (auto& net: nets) {
             if (net->pathpackage()._length < max_length) {
                 nets_to_be_rerouted.push_back(net);
+                reroute_nets += net->name() + " \n";
             }
+        }
+
+        if (nets_to_be_rerouted.size() > 0) {
+            debug::info(std::format("sync_reroute(): reroute nets {}", reroute_nets));
         }
 
         // reroute

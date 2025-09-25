@@ -18,7 +18,7 @@ namespace kiwi::circuit {
 
     class BumpToBumpNet : public Net {
     public:
-        BumpToBumpNet(hardware::Bump* begin_bump, hardware::Bump* end_bump, const std::HashSet<int>& mode);
+        BumpToBumpNet(hardware::Bump* begin_bump, hardware::Bump* end_bump, const std::HashSet<int>& mode, std::String& name);
         virtual ~BumpToBumpNet() noexcept; 
 
     public:
@@ -37,6 +37,7 @@ namespace kiwi::circuit {
         virtual auto nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> override;
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> override;
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
+        virtual auto name() const -> const std::String& override;
 
     public:
         virtual auto operator == (const Net& net) const -> bool override;

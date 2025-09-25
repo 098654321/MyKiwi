@@ -29,7 +29,6 @@ namespace kiwi {
         
         if (mode == 0) {
             algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{false}, algo::HK{}, mode, false);
-            // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
             parse::write_control_bits(
                 interposer.get(),
                 output_file
@@ -40,7 +39,6 @@ namespace kiwi {
             auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode);
             if (!has_bits) {
                 algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
-                // interposer->randomly_map_remain_indexes();   the same as tobregister->map_empty_mux()
                 parse::write_control_bits(
                     interposer.get(),
                     output_file

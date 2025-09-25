@@ -47,13 +47,16 @@ auto RouteEngine::update_net_seq(std::Vector<circuit::Net*>& nets) -> void {
     this->_nets.at(this->_mode) = nets;
 }
 
+// return nets with the initial sequence in routeengine
 auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
     if (this->_incremental) {
         auto all_nets = std::Vector<circuit::Net*> {};
         auto s = std::Set<circuit::Net*> {};
+
         for (auto& [m, net_v]: this->_nets) {
             s.insert(net_v.begin(), net_v.end());
         }
+
         for (auto& [m, net_v]: this->_nets) {
             for (auto& net: net_v) {
                 if (s.contains(net)) {
@@ -111,6 +114,33 @@ auto RouteEngine::non_reusable_nets() const -> std::Set<circuit::Net*> {
         }
     }
     return res;
+}
+
+
+auto RouteEngine::show_global_bits_info(const std::Vector<circuit::Net*>& nets) -> void {
+    GlobalBoundBits bits {};
+    for (const auto& net: nets) {
+        auto type = net->reuse_type();
+        if (!type.has_value()) {
+            throw std::logic_error("show_bits(): net reuse type should not be nullopt when routing");
+        }
+
+        for (auto& [track, cob_connector]: net->pathpackage()._regular_path) {
+            bits.record_track(track->coord(), *type);
+            if (cob_connector.has_value()) {
+                bits.record_cob(*cob_connector, *type);
+            }
+        }
+        for (auto& [bump, connector, track]: net->pathpackage()._tob_to_track) {
+            bits.record_tob(bump->tob()->coord(), connector, *type);
+        }
+        for (auto& [bump, connector, track]: net->pathpackage()._track_to_tob) {
+            bits.record_tob(bump->tob()->coord(), connector, *type);
+        }
+    }
+    
+    // bits.show_bits();    
+    bits.show_rate();
 }
 
 }

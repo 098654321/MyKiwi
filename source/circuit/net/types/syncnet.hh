@@ -39,7 +39,8 @@ namespace kiwi::circuit {
             std::Vector<std::Rc<BumpToBumpNet>> btbnets,
             std::Vector<std::Rc<BumpToTrackNet>> bttnets,
             std::Vector<std::Rc<TrackToBumpNet>> ttbnets,
-            const std::HashSet<int>& modes
+            const std::HashSet<int>& modes,
+            std::String& name
         );
         
     public:
@@ -61,6 +62,7 @@ namespace kiwi::circuit {
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
         virtual auto set_reuse_type(bool reuse_type) -> void override;
         virtual auto clear_path() -> void override;
+        virtual auto name() const -> const std::String& override;
 
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         

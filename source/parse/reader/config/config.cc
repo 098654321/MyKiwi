@@ -12,7 +12,7 @@
 #include <utility/string.hh>
 #include <serde/de.hh>
 #include <serde/json/json.hh>
-#include <xlnt/xlnt.hpp>
+// #include <xlnt/xlnt.hpp>
 
 namespace kiwi::parse {
 
@@ -108,7 +108,7 @@ namespace kiwi::parse {
     THROW_UP_WITH("Load config")
 
     static auto load_interposer_config(const std::FilePath& path, InterposerConfig& config) -> void {
-        debug::debug("Load interposer config");
+        debug::info("Load interposer config");
 
         // Only support .json
         serde::deserialize(serde::Json::load_from(path), config);   
@@ -116,7 +116,7 @@ namespace kiwi::parse {
 
     static auto load_topdies_config(const std::FilePath& path, std::HashMap<std::String, TopDieConfig>& topdies) -> void 
     try {
-        debug::debug("Load topdies config");
+        debug::info("Load topdies config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -131,7 +131,7 @@ namespace kiwi::parse {
 
     static auto load_topdie_insts_config(const std::FilePath& path, std::HashMap<std::String, TopdieInstConfig>& topdie_insts) -> void 
     try {
-        debug::debug("Load topdir insts config");
+        debug::info("Load topdir insts config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -146,7 +146,7 @@ namespace kiwi::parse {
 
     static auto load_external_ports_config(const std::FilePath& path, std::HashMap<std::String, ExternalPortConfig>& exports) -> void 
     try {
-        debug::debug("Load external ports config");
+        debug::info("Load external ports config");
         
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -161,7 +161,7 @@ namespace kiwi::parse {
 
     static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode) -> void 
     try {
-        debug::debug("Load connections config");
+        debug::info("Load connections config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -176,36 +176,37 @@ namespace kiwi::parse {
                 serde::deserialize(serde::Json::load_from(path), connections);
             }
         } 
-        else if (extension == ".xlsx") {
-            auto workbook = xlnt::workbook();
-            workbook.load(path);
+        // else if (extension == ".xlsx") {
+        //     auto workbook = xlnt::workbook();
+        //     workbook.load(path);
 
-            if (mode == 0) {
-                std::HashMap<int, std::Vector<ConnectionConfig>> inner_connections {};
-                for (const auto& row : workbook.sheet_by_index(0).rows()) {
-                    // | input  |  output  | syns |
-                    if (row.length() != 3) {
-                        debug::exception_fmt("Except '3' columns but got '{}'", row.length());
-                    }
+        //     if (mode == 0) {
+        //         std::HashMap<int, std::Vector<ConnectionConfig>> inner_connections {};
+        //         for (const auto& row : workbook.sheet_by_index(0).rows()) {
+        //             // | input  |  output  | syns |
+        //             if (row.length() != 3) {
+        //                 debug::exception_fmt("Except '3' columns but got '{}'", row.length());
+        //             }
     
-                    auto input = row[0].to_string();
-                    if (input.empty()) {
-                        continue;
-                    }
-                    auto output = row[1].to_string();
-                    auto sync = utility::string_to_i32(row[2].to_string());
+        //             auto input = row[0].to_string();
+        //             if (input.empty()) {
+        //                 continue;
+        //             }
+        //             auto output = row[1].to_string();
+        //             auto sync = utility::string_to_i32(row[2].to_string());
     
-                    auto result = inner_connections.emplace(sync, std::Vector<ConnectionConfig>{});
-                    auto& iter = result.first;
-                    assert(iter->first == sync);
-                    auto& v = iter->second.emplace_back(std::move(input), std::move(output));
-                }
-                connections.emplace(0, inner_connections);
-            }
-            else {
-                debug::unimplement("do not support the incremental mode config temperorily");
-            }
-        } else {
+        //             auto result = inner_connections.emplace(sync, std::Vector<ConnectionConfig>{});
+        //             auto& iter = result.first;
+        //             assert(iter->first == sync);
+        //             auto& v = iter->second.emplace_back(std::move(input), std::move(output));
+        //         }
+        //         connections.emplace(0, inner_connections);
+        //     }
+        //     else {
+        //         debug::unimplement("do not support the incremental mode config temperorily");
+        //     }
+        // } 
+        else {
             debug::exception_fmt("Unspport extension '{}' for connections config", extension);
         }
     } 
@@ -213,7 +214,7 @@ namespace kiwi::parse {
 
     static auto load_from_txt(const std::FilePath& path, Config& config, int mode) -> void 
     try {
-        debug::debug("Load from txt");
+        debug::info("Load from txt");
         if (mode != 0) {
             debug::unimplement("do not support the incremental mode config temperorily");
         }
@@ -326,7 +327,7 @@ namespace kiwi::parse {
 
     auto load_ports_01_config(const std::FilePath& path, std::HashMap<std::String, std::HashMap<std::String, hardware::TrackCoord>>& ports_01) -> void
     try {
-        debug::debug("Load 0/1 ports config");
+        debug::info("Load 0/1 ports config");
         
         auto extension = path.filename().extension().string();
         if (extension == ".json") {

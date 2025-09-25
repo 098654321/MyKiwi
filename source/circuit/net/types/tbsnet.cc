@@ -7,10 +7,10 @@
 
 namespace kiwi::circuit {
 
-    TrackToBumpsNet::TrackToBumpsNet(hardware::Track* begin_track, std::Vector<hardware::Bump*> end_bumps, const std::HashSet<int>& modes) :
+    TrackToBumpsNet::TrackToBumpsNet(hardware::Track* begin_track, std::Vector<hardware::Bump*> end_bumps, const std::HashSet<int>& modes, std::String& name) :
         _begin_track{begin_track},
         _end_bumps{std::move(end_bumps)},
-        Net{Priority{1}, modes}
+        Net{Priority{1}, modes, name}
     {
     }
 
@@ -70,7 +70,7 @@ namespace kiwi::circuit {
 
     auto TrackToBumpsNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << std::format("TrackToBumpsNet: Begin track '{}' to End bumps '[", this->_begin_track->coord());
+        ss << std::format("{}: Begin track '{}' to End bumps '[", this->_name, this->_begin_track->coord());
         for (int i = 0; i < this->_end_bumps.size(); ++i) {
             if (i != 0) {
                 ss << ", ";
@@ -103,6 +103,11 @@ namespace kiwi::circuit {
 
     auto TrackToBumpsNet::search_related_nets(std::Vector<Net*>& nets) -> void {
         clear_related_nets();
+
+        auto iter = std::find(nets.begin(), nets.end(), this);
+        if (iter != nets.end()) {
+            nets.erase(iter);
+        }
         this->_related_nets_track.emplace(this->_begin_track, search_nets_node<hardware::Track>(this->_begin_track, nets));
         for (auto bump : this->_end_bumps) {
             this->_related_nets_bump.emplace(bump, search_nets_node<hardware::Bump>(bump, nets));
@@ -185,5 +190,9 @@ namespace kiwi::circuit {
         else {
             throw std::logic_error("TrackToBumpsNet::track_ports(): collected tracks.size() > port_number()");
         }
+    }
+
+    auto TrackToBumpsNet::name() const -> const std::String& {
+        return this->_name;
     }
 }

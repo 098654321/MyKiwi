@@ -5,7 +5,7 @@
 namespace kiwi::algo {
 
 auto Connect::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    debug::debug("connecting paths ...");
+    debug::info("connecting paths ...");
     auto nets = engine.all_nets();
     for (auto& net : nets) {
         auto& path_package = net->pathpackage();    

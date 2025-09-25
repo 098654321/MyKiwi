@@ -14,12 +14,13 @@ namespace kiwi::circuit
         std::Vector<std::Rc<BumpToBumpNet>> btbnets,
         std::Vector<std::Rc<BumpToTrackNet>> bttnets,
         std::Vector<std::Rc<TrackToBumpNet>> ttbnets,
-        const std::HashSet<int>& modes
+        const std::HashSet<int>& modes,
+        std::String& name
     ) :
         _btbnets{btbnets},
         _bttnets{bttnets},
         _ttbnets{ttbnets},
-        Net{Priority{0}, modes}
+        Net{Priority{0}, modes, name}
     {
     }
 
@@ -119,7 +120,7 @@ namespace kiwi::circuit
 
     auto SyncNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << "Syncnet net:\n";
+        ss << std::format("{}: Syncnet net:\n", this->_name);
         for (auto& net: _btbnets) {
             ss << "    " << net->to_string() << '\n';
         }
@@ -280,8 +281,9 @@ namespace kiwi::circuit
             flag = false;
         }
 
-        this->_history_path_package = this->_path_package;
-        this->_path_package.clear_all();
+        this->_history_path_package = this->_path_package;  // notice: history_package share same tobmuxregister with package
+                                                            // because registes are stored by a pointer, and they share the same pointer
+        // this->_path_package.clear_all();
         auto collect = [&](circuit::Net* net, PathPackage& new_package) {
             auto& package = net->pathpackage();
 
@@ -452,6 +454,10 @@ namespace kiwi::circuit
         return std::Tuple<std::usize, std::usize>{
             this->_btbnets.size() + this->_bttnets.size() + this->_ttbnets.size(), this->_path_package._length
         };
+    }
+
+    auto SyncNet::name() const -> const std::String& {
+        return this->_name;
     }
 }
 

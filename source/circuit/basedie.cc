@@ -31,7 +31,7 @@ namespace kiwi::circuit {
     }
     
     auto BaseDie::add_topdie(std::String name, std::HashMap<std::String, std::usize> pin_map) -> TopDie* {
-        debug::debug_fmt("Add topdie '{}'", name);
+        debug::info_fmt("Add topdie '{}'", name);
 
         auto topdie = std::make_unique<TopDie>(std::move(name), std::move(pin_map));
         auto res = this->_topdies.emplace(topdie->name_view(), nullptr);
@@ -51,7 +51,7 @@ namespace kiwi::circuit {
         assert(topdie != nullptr);
         assert(tob != nullptr);
 
-        debug::debug_fmt("Add topdie instance '{}' of '{}'", name, topdie->name());
+        debug::info_fmt("Add topdie instance '{}' of '{}'", name, topdie->name());
 
         auto p = new TopDieInstance{std::move(name), topdie, tob};
         auto topdie_inst = std::Box<TopDieInstance>(p);
@@ -72,7 +72,7 @@ namespace kiwi::circuit {
     }
 
     auto BaseDie::add_external_port(std::String name, const hardware::TrackCoord& coord) -> ExternalPort* {
-        debug::debug_fmt("Add external port '{}' in '{}'", name, coord);
+        debug::info_fmt("Add external port '{}' in '{}'", name, coord);
 
         auto p = new ExternalPort{std::move(name), coord};
         auto external_port = std::Box<ExternalPort>{p};
@@ -86,7 +86,7 @@ namespace kiwi::circuit {
     }
 
     auto BaseDie::add_connection(int mode, int sync, Pin input, Pin output) -> Connection* {
-        debug::debug_fmt("Add connection from '{}' to '{}' in mode {}", input, output, mode);
+        debug::info_fmt("Add connection from '{}' to '{}' with group {} in mode {}", input, output, sync, mode);
 
         auto p = new Connection{mode, sync, std::move(input), std::move(output)};
         auto connection = std::Box<Connection>{p};
@@ -131,7 +131,7 @@ namespace kiwi::circuit {
     }
 
     auto BaseDie::remove_topdie_inst(std::StringView name) -> bool {
-        debug::debug_fmt("Remove topdie instance '{}'", name);
+        debug::info_fmt("Remove topdie instance '{}'", name);
 
         // return this->_topdie_insts.erase(name);
         auto node = this->_topdie_insts.extract(name);
@@ -153,7 +153,7 @@ namespace kiwi::circuit {
                     auto is_output = output_pin.is_bump() && output_pin.to_connect_bump().inst == topdie_inst_ptr;
     
                     if (is_input || is_output) {
-                        debug::debug_fmt("Remove net '{}'", *c);
+                        debug::info_fmt("Remove net '{}'", *c);
                         return true;
                     }
                     return false;
@@ -181,7 +181,7 @@ namespace kiwi::circuit {
     }
 
     auto BaseDie::remove_external_port(std::StringView name) -> bool {
-        debug::debug_fmt("Remove external port '{}'", name);
+        debug::info_fmt("Remove external port '{}'", name);
 
         auto node = this->_external_ports.extract(name);
         if (node.empty()) {
@@ -195,7 +195,7 @@ namespace kiwi::circuit {
         for (auto& [mode, inner_connection]: this->_connections) {
             for (auto& [sync, connections] : inner_connection) {
                 for (auto i = connections.begin(); i != connections.end(); ++i) {
-                    debug::debug_fmt("B connection '{}'", *(i->get()));
+                    debug::info_fmt("B connection '{}'", *(i->get()));
                 }
     
                 auto iter = std::remove_if(connections.begin(), connections.end(), [port_ptr](const std::Box<Connection>& c) -> bool {
@@ -206,7 +206,7 @@ namespace kiwi::circuit {
                     auto is_output = output_pin.is_external_port() && output_pin.to_connect_export().port == port_ptr;
                     
                     if (is_input || is_output) {
-                        debug::debug_fmt("Remove net '{}'", *c);
+                        debug::info_fmt("Remove net '{}'", *c);
                         return true;
                     }
                     return false;
@@ -224,7 +224,7 @@ namespace kiwi::circuit {
             return false;
         }
 
-        debug::debug_fmt("Remove connection '{}'", *connection);
+        debug::info_fmt("Remove connection '{}'", *connection);
 
         auto inner_connection = this->_connections.find(connection->mode());
         if (inner_connection == this->_connections.end()) {
@@ -255,7 +255,7 @@ namespace kiwi::circuit {
     }
 
     void BaseDie::topdie_inst_rename(std::StringView old_name, std::String new_name) {
-        debug::debug_fmt("Rename topdie instance '{}' to '{}'", old_name, new_name);
+        debug::info_fmt("Rename topdie instance '{}' to '{}'", old_name, new_name);
 
         if (old_name == new_name) {
             return;
@@ -281,7 +281,7 @@ namespace kiwi::circuit {
     }
 
     void BaseDie::external_port_rename(std::StringView old_name, std::String new_name) {
-        debug::debug_fmt("Rename external port '{}' to '{}'", old_name, new_name);
+        debug::info_fmt("Rename external port '{}' to '{}'", old_name, new_name);
         
         if (old_name == new_name) {
             return;
@@ -303,7 +303,7 @@ namespace kiwi::circuit {
 
     void BaseDie::external_port_set_coord(ExternalPort* eport, const hardware::TrackCoord& coord) {
         assert(eport != nullptr);
-        debug::debug_fmt("Set coord for external port '{}' from '{}' to '{}'", eport->name_view(), eport->coord(), coord);
+        debug::info_fmt("Set coord for external port '{}' from '{}' to '{}'", eport->name_view(), eport->coord(), coord);
 
         // MARK check coord !
         auto coord_exit = false;
@@ -321,11 +321,11 @@ namespace kiwi::circuit {
         }
 
         if (coord_exit) {
-            debug::debug_fmt("The coord '{}' already been used!", coord);
+            debug::info_fmt("The coord '{}' already been used!", coord);
         }
 
         if (!eport_exit) {
-            debug::debug_fmt("External port '{}' no exits", eport->name());
+            debug::info_fmt("External port '{}' no exits", eport->name());
         }
 
         eport->set_coord(coord);
@@ -341,13 +341,13 @@ namespace kiwi::circuit {
     }
 
     void BaseDie::connection_set_input(Connection* connection, Pin input) {
-        debug::debug_fmt("Set connection '{}' input to '{}'", *connection, input);
+        debug::info_fmt("Set connection '{}' input to '{}'", *connection, input);
 
         connection->set_input(std::move(input));
     }
 
     void BaseDie::connection_set_output(Connection* connection, Pin output) {
-        debug::debug_fmt("Set connection '{}' output to '{}'", *connection, output);
+        debug::info_fmt("Set connection '{}' output to '{}'", *connection, output);
 
         connection->set_output(std::move(output));
     }
@@ -357,7 +357,7 @@ namespace kiwi::circuit {
             return;
         } 
 
-        debug::debug_fmt("Set connection '{}' sync form '{}' to '{}'", *connection, connection->sync(), sync);
+        debug::info_fmt("Set connection '{}' sync form '{}' to '{}'", *connection, connection->sync(), sync);
         
         auto& inner_connection = this->_connections.at(connection->mode());
         auto& old_group = inner_connection.at(connection->sync());
@@ -444,7 +444,7 @@ namespace kiwi::circuit {
         for (auto& [mode, inner]: this->_nets) {
             for (auto& net: inner) {
                 if (net == nullptr) {
-                    debug::debug("merge_same_mode_nets(): net is nullptr");
+                    debug::info("merge_same_mode_nets(): net is nullptr");
                 }
                 
                 std::Rc<Net> flag {nullptr};

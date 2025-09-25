@@ -261,7 +261,7 @@ namespace kiwi::parse {
                 auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl%8)*8;
                 auto track_index = controlbits.vctrltotrack.at(tobcoord)[vctrl%64] == 0? vctrl : (vctrl+64)%128;
                 auto connector = bump->tob()->bump_track_connectors_chain(bump_index, track_index, dir);   // already set the state to "given_out"
-                debug::debug_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
+                debug::info_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
 
                 auto track_coord = hardware::TrackCoord{bump->coord().row, bump->coord().col, hardware::TrackDirection::Vertical, track_index};
                 auto track = interposer->get_track(track_coord);

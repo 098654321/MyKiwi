@@ -9,6 +9,7 @@
 #include <utility/string.hh>
 #include <std/utility.hh>
 #include <debug/debug.hh>
+#include <std/format.hh>
 
 namespace kiwi::algo {
 
@@ -28,9 +29,9 @@ namespace kiwi::algo {
         for (auto& [mode, inner_connection]: this->_basedie->connections()) {
             for (auto& [sync, connections] : inner_connection) {
                 if (sync == -1) {
-                    this->build_no_sync_nets(connections, mode);
+                    this->build_no_sync_nets(connections, -1, mode);
                 } else {
-                    this->build_sync_net(connections, mode);
+                    this->build_sync_net(connections, sync, mode);
                 }
             }
             this->build_fixed_nets(mode);
@@ -38,7 +39,7 @@ namespace kiwi::algo {
     }
     THROW_UP_WITH("Build nets")
 
-    auto NetBuilder::build_no_sync_nets(std::Span<const std::Box<circuit::Connection>> connections, int m) -> void {
+    auto NetBuilder::build_no_sync_nets(std::Span<const std::Box<circuit::Connection>> connections, int group, int m) -> void {
         // How to deal one to mul net?
         // Build a map: start to ends
         auto track_to_bumps = std::HashMap<hardware::Track*, std::Vector<hardware::Bump*>>{};
@@ -116,13 +117,20 @@ namespace kiwi::algo {
 
         // Track => Bump
         for (auto& [begin_track, end_bumps] : track_to_bumps) {
-            
+            auto coord = begin_track->coord();
+
             // Create net 
             auto net = std::Rc<circuit::Net>{};
             if (end_bumps.size() == 1) {
-                net = std::make_shared<circuit::TrackToBumpNet>(begin_track, end_bumps[0], std::HashSet<int>{m});
+                auto net_name = std::String{
+                    std::format("TrackToBumpNet_from_cob_{}_{}_to_cob_{}_{}_in_group_{}", begin_track->coord().row, begin_track->coord().col, end_bumps[0]->coord().row, end_bumps[0]->coord().col, group)
+                };
+                net = std::make_shared<circuit::TrackToBumpNet>(begin_track, end_bumps[0], std::HashSet<int>{m}, net_name);
             } else {
-                net = std::make_shared<circuit::TrackToBumpsNet>(begin_track, std::move(end_bumps), std::HashSet<int>{m});
+                auto net_name = std::String{
+                    std::format("TrackToBumpsNet_from_cob_{}_{}_in_group_{}_with_{}_ends", coord.row, coord.col, group, end_bumps.size())
+                };
+                net = std::make_shared<circuit::TrackToBumpsNet>(begin_track, std::move(end_bumps), std::HashSet<int>{m}, net_name);
             }
 
             // Insert to basedie & topdieinsts
@@ -140,12 +148,20 @@ namespace kiwi::algo {
 
         // Bump => Bump
         for (auto& [begin_bump, end_bumps] : bump_to_bumps) {
+            auto coord = begin_bump->coord();
+
             // Create net 
             auto net = std::Rc<circuit::Net>{};
             if (end_bumps.size() == 1) {
-                net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bumps.front(), std::HashSet<int>{m});
+                auto net_name = std::String{
+                    std::format("BumpToBumpNet_from_cob_{}_{}_to_cob_{}_{}_in_group_{}", begin_bump->coord().row, begin_bump->coord().col, end_bumps[0]->coord().row, end_bumps[0]->coord().col, group)
+                };
+                net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bumps.front(), std::HashSet<int>{m}, net_name);
             } else {
-                net = std::make_shared<circuit::BumpToBumpsNet>(begin_bump, std::move(end_bumps), std::HashSet<int>{m});
+                auto net_name = std::String{
+                    std::format("BumpToBumpsNet_from_cob_{}_{}_in_group_{}_with_{}_ends", coord.row, coord.col, group, end_bumps.size())
+                };
+                net = std::make_shared<circuit::BumpToBumpsNet>(begin_bump, std::move(end_bumps), std::HashSet<int>{m}, net_name);
             }
 
             // Insert to basedie & topdieinsts
@@ -164,12 +180,20 @@ namespace kiwi::algo {
 
         // Bump => Track
         for (auto& [begin_bump, end_tracks] : bump_to_tracks) {
+            auto coord = begin_bump->coord();
+
             // Create net 
             auto net = std::Rc<circuit::Net>{};
             if (end_tracks.size() == 1) {
-                net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, end_tracks.front(), std::HashSet<int>{m});
+                auto net_name = std::String{
+                    std::format("BumpToTrackNet_from_cob_{}_{}_to_cob_{}_{}_in_group_{}", begin_bump->coord().row, begin_bump->coord().col, end_tracks[0]->coord().row, end_tracks[0]->coord().col, group)
+                };
+                net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, end_tracks.front(), std::HashSet<int>{m}, net_name);
             } else {
-                net = std::make_shared<circuit::BumpToTracksNet>(begin_bump, std::move(end_tracks), std::HashSet<int>{m});
+                auto net_name = std::String{
+                    std::format("BumpToTracksNet_from_cob_{}_{}_in_group_{}_with_{}_ends", coord.row, coord.col, group, end_tracks.size())
+                };
+                net = std::make_shared<circuit::BumpToTracksNet>(begin_bump, std::move(end_tracks), std::HashSet<int>{m}, net_name);
             }
 
             // Insert to basedie & topdieinsts
@@ -178,7 +202,7 @@ namespace kiwi::algo {
         }
     }
 
-    auto NetBuilder::build_sync_net(std::Span<const std::Box<circuit::Connection>> connections, int m) -> void {
+    auto NetBuilder::build_sync_net(std::Span<const std::Box<circuit::Connection>> connections, int group, int m) -> void {
         auto btb_sync_nets = std::Vector<std::Rc<circuit::BumpToBumpNet>>{};
         auto btt_sync_nets = std::Vector<std::Rc<circuit::BumpToTrackNet>>{};
         auto ttb_sync_nets = std::Vector<std::Rc<circuit::TrackToBumpNet>>{};
@@ -206,7 +230,10 @@ namespace kiwi::algo {
                         },
                         [&](hardware::Bump* begin_bump) {
                             // 2. Bump => Track
-                            auto net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, end_track, std::HashSet<int>{m});
+                            auto net_name = std::String{
+                                std::format("BumpToTrackNet_from_cob_{}_{}_to_cob_{}_{}_in_group_{}", begin_bump->coord().row, begin_bump->coord().col, end_track->coord().row, end_track->coord().col, group)
+                            };
+                            auto net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, end_track, std::HashSet<int>{m}, net_name);
                             this->_bump_to_topdie_inst.at(begin_bump)->add_net(net.get());
                             btt_sync_nets.emplace_back(std::move(net));
                         }
@@ -216,13 +243,19 @@ namespace kiwi::algo {
                     std::match(begin_node, 
                         [&](hardware::Track* begin_track) {
                             // 3. Track => Bump
-                            auto net = std::make_shared<circuit::TrackToBumpNet>(begin_track, end_bump, std::HashSet<int>{m});
+                            auto net_name = std::String{
+                                std::format("TrackToBumpNet_from_cob_{}_{}_to_cob_{}_{}_in_group_{}", begin_track->coord().row, begin_track->coord().col, end_bump->coord().row, end_bump->coord().col, group)
+                            };
+                            auto net = std::make_shared<circuit::TrackToBumpNet>(begin_track, end_bump, std::HashSet<int>{m}, net_name);
                             this->_bump_to_topdie_inst.at(end_bump)->add_net(net.get());
                             ttb_sync_nets.emplace_back(std::move(net)); 
                         },
                         [&](hardware::Bump* begin_bump) {
                             // 4. Bump to Bump
-                            auto net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bump, std::HashSet<int>{m});
+                            auto net_name = std::String{
+                                std::format("BumpToBumpNet_from_cob_{}_{}_to_cob_{}_{}_in_group_{}", begin_bump->coord().row, begin_bump->coord().col, end_bump->coord().row, end_bump->coord().col, group)
+                            };
+                            auto net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bump, std::HashSet<int>{m}, net_name);
                             this->_bump_to_topdie_inst.at(begin_bump)->add_net(net.get());
                             this->_bump_to_topdie_inst.at(end_bump)->add_net(net.get());
                             btb_sync_nets.emplace_back(std::move(net)); 
@@ -232,11 +265,13 @@ namespace kiwi::algo {
             );
         }
 
+        auto net_name = std::String(std::format("SyncNet in group {}", group));
         this->_basedie->add_net(std::make_shared<circuit::SyncNet>(
             btb_sync_nets,
             btt_sync_nets,
             ttb_sync_nets,
-            std::HashSet<int>{m}
+            std::HashSet<int>{m},
+            net_name
         ), m);
     }
 
@@ -253,8 +288,9 @@ namespace kiwi::algo {
                 }
             }
 
+            auto net_name = std::String("Nege nets");
             this->_basedie->add_net(std::make_shared<circuit::TracksToBumpsNet>(
-                std::move(nege_tracks), std::move(this->_bumps_with_nege), std::HashSet<int>{m}
+                std::move(nege_tracks), std::move(this->_bumps_with_nege), std::HashSet<int>{m}, net_name
             ), m);
         }
 
@@ -270,8 +306,9 @@ namespace kiwi::algo {
                 }
             }
 
+            auto net_name = std::String("Pose nets");
             this->_basedie->add_net(std::make_shared<circuit::TracksToBumpsNet>(
-                std::move(pose_tracks), std::move(this->_bumps_with_pose),std::HashSet<int>{m}
+                std::move(pose_tracks), std::move(this->_bumps_with_pose), std::HashSet<int>{m}, net_name
             ), m);
         }
     }

@@ -7,8 +7,8 @@
 namespace kiwi::algo {
 
 auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    debug::debug("routing in incremental mode ...");
-    auto nets = engine.nets();              //* 现在做的是所有 net 
+    debug::info("routing in incremental mode ...");
+    auto nets = engine.nets();              
     auto& recorder = engine.recorder();
 
     recorder.set_use_cost(true);
@@ -22,7 +22,7 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
     }
 
     auto res = iterate_routing(interposer, engine, nets, recorder);
-    if (!res) {
+    if (!res) {                 // fail in the first iteration
         reset(engine, nets);
         res = iterate_routing(interposer, engine, nets, recorder);
         if (!res) {
@@ -30,15 +30,74 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
         }
     }
 
-    // succeed
+    // succeed: fail in the iteration > 2, but has a path in the former iteration
     if (engine.position() < nets.size() - 1) {
         set_history_as_current(nets);    
+    }
+}
+
+
+// for debug
+void check_tobconnector_consistency(std::Vector<circuit::Net*>& nets) {
+    std::String except_mess{};
+
+    for (auto& net: nets) {
+        const auto& package = net->pathpackage();
+    try {
+        package.check_tobconenctor_consistency();
+    }
+    catch (const std::exception& e) {
+        except_mess += (net->name() + ", check_tobconnector_consistency failed. " + std::string(e.what()) + "\n");
+    }
+    }
+
+    if (except_mess.size() > 0) {
+        except_mess = "Incre_route::iterate_routing(): " + except_mess;
+        debug::debug(except_mess);
+    }
+}
+//
+
+void check_address(std::Vector<circuit::Net*> nets) {
+    std::unordered_map<uintptr_t, std::String> address_to_net;
+    std::unordered_map<std::String, std::String> net_share_reg;
+
+    for (auto& net: nets) {
+        const auto& package = net->pathpackage();
+        for (const auto& [pbump, tobconnector, ptrack]: package._tob_to_track) {
+            auto address = tobconnector.check_vert_to_track_reg_address();
+            if (address_to_net.contains(address)) {
+                net_share_reg.emplace(net->name(), address_to_net[address]);
+            }
+            else{
+                address_to_net.emplace(address, net->name());
+            }
+        }
+        for (const auto& [pbump, tobconnector, ptrack]: package._track_to_tob) {
+            auto address = tobconnector.check_vert_to_track_reg_address();
+            if (address_to_net.contains(address)) {
+                net_share_reg.emplace(net->name(), address_to_net[address]);
+            }
+            else{
+                address_to_net.emplace(address, net->name());
+            }
+        }
+    }
+
+    if (net_share_reg.size() > 0) {
+        std::String except_mess{"check_address(): "};
+        for (const auto& [net_name, share_net_name]: net_share_reg) {
+            except_mess += (net_name + " share reg with " + share_net_name + "\n");
+        }
+        debug::debug(except_mess);
     }
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
     std::usize cycle{0}, min_cycle{3};
     while(cycle < min_cycle) {
+        debug::info_fmt("cycle {} start", cycle);
+
         for (auto net: nets) {
             net->pathpackage().reset_all(); //! tobconnector 里面是指针，history和当前一样。只有完整运行一轮的情况才能得到正确的结果，运行到一半由于history是假的
             recorder.clear_history_records(net->history_pathpackage(), net->reuse_type().value());
@@ -51,20 +110,23 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
             net->search_related_nets(routed_nets);
             
             // route
-            auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);
+            auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);    
             if (!res) {
                 return cycle == 0 ? false : true;
             }
             engine.move_on();
             
-            recorder.update_recorders(net->pathpackage(), net->reuse_type().value());   // update numbers & cost
+            // update numbers & cost
+            recorder.update_recorders(net->pathpackage(), net->reuse_type().value());   
         }
-        debug::debug_fmt("cycle {} done", cycle);
-
+        debug::info_fmt("cycle {} done", cycle);
+        engine.show_global_bits_info(engine.all_nets());
+        
         cycle++;
     }
     return true;
 }
+
 
 auto Incre_route::reset(RouteEngine& engine, std::Vector<circuit::Net*>& nets) const -> void {
     auto iter = std::remove_if(nets.begin(), nets.end(), [&](auto& net) {

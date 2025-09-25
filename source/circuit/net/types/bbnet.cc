@@ -9,10 +9,10 @@
 
 namespace kiwi::circuit {
 
-    BumpToBumpNet::BumpToBumpNet(hardware::Bump* begin_bump, hardware::Bump* end_bump, const std::HashSet<int>& modes) :
+    BumpToBumpNet::BumpToBumpNet(hardware::Bump* begin_bump, hardware::Bump* end_bump, const std::HashSet<int>& modes, std::String& name) :
         _begin_bump{begin_bump},
         _end_bump{end_bump},
-        Net{Priority{4}, modes}
+        Net{Priority{4}, modes, name}
     {
     }
 
@@ -66,7 +66,7 @@ namespace kiwi::circuit {
 
     auto BumpToBumpNet::to_string() const -> std::String {
         return std::format(
-            "BumpToBumpNet: Begin bump: '{}' to End bump '{}'", this->_begin_bump->coord(), this->_end_bump->coord()
+            "{}: Begin bump: '{}' to End bump '{}'", this->_name, this->_begin_bump->coord(), this->_end_bump->coord()
         );
     }
 
@@ -81,6 +81,11 @@ namespace kiwi::circuit {
 
     auto BumpToBumpNet::search_related_nets(std::Vector<Net*>& nets) -> void {
         clear_related_nets();
+
+        auto iter = std::find(nets.begin(), nets.end(), this);
+        if (iter != nets.end()) {
+            nets.erase(iter);
+        }
         this->_related_nets_bump.emplace(this->_begin_bump, search_nets_node<hardware::Bump>(this->_begin_bump, nets));
         this->_related_nets_bump.emplace(this->_end_bump, search_nets_node<hardware::Bump>(this->_end_bump, nets));
     }
@@ -122,6 +127,10 @@ namespace kiwi::circuit {
     catch(const std::bad_cast& e) {
         return false;
     }
+    }
+
+    auto BumpToBumpNet::name() const -> const std::String& {
+        return this->_name;
     }
 
     auto BumpToBumpNet::operator == (const BumpToBumpNet& net) const -> bool {

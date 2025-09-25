@@ -9,10 +9,11 @@ auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const 
     auto nets = engine.nets();  //TODO：这里没有引用，没排上序
 
     if (engine.incremental()) {
-        debug::debug("Sort by reuse frequency");
+        debug::info("Sort by reuse frequency");
     }
     else {
-        debug::debug("Sort by priority");
+        // sort by port number in descending order
+        debug::info("Sort by priority");
         std::usize max_port_num {0};
         for (const auto& net : nets) {
             max_port_num = std::max(max_port_num, net->port_number());
@@ -27,6 +28,11 @@ auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const 
         engine.update_net_seq(nets);
     }
     
+    // show sorted nets
+    auto i {0};
+    for (auto& n: nets) {
+        debug::info_fmt("net {}: {}", i++, n->name());
+    }
 }
 
 auto Sort::to_string() const -> const std::String {

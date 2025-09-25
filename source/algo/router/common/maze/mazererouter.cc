@@ -292,7 +292,7 @@ namespace kiwi::algo{
         hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
         std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
     ) const -> std::tuple<bool, std::usize>{
-        debug::debug("Refinding path ...");
+        debug::info("Refinding path ...");
         std::Vector<std::Rc<Node>> queue {tree._root};
         std::make_heap(queue.begin(), queue.end(), Node::CompareNodes);
 

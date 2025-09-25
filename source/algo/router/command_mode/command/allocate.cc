@@ -5,7 +5,7 @@
 namespace kiwi::algo {
 
 auto Allocate::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    debug::debug("allocating tob resources for bumps ...");
+    debug::info("allocating tob resources for bumps ...");
 
     engine.allocatestrategy().allocate(interposer, engine.nets());
     

@@ -5,6 +5,7 @@
 #include "./common/allocatestrategy.hh"
 #include "./incremental/maze/routing.hh"
 #include "./incremental/recorders/hardware_recorder.hh"
+#include "./incremental/bound_bits/global_bits.hh"
 #include <std/collection.hh>
 #include <std/memory.hh>
 #include <hardware/bump/bump.hh>
@@ -42,6 +43,7 @@ public:
     auto all_nets() const -> std::Vector<circuit::Net*>;
     auto reusable_nets() const -> std::Set<circuit::Net*>;
     auto non_reusable_nets() const -> std::Set<circuit::Net*>;
+    auto show_global_bits_info(const std::Vector<circuit::Net*>& nets) -> void;
 
     auto mode() const -> int {return this->_mode;}
     auto incremental() const -> bool {return this->_incremental;}   
