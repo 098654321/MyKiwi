@@ -20,7 +20,7 @@ namespace kiwi::algo {
         int m,
         bool incremental,
         bool path_exists
-    ) -> std::usize {
+    ) -> DataPerCycle {
         debug::info(
             "\n\
             **********************************************************************************\n\
@@ -48,14 +48,15 @@ namespace kiwi::algo {
             // }
         }
         catch (const FinalError& err){
-            debug::exception_in("route_nets()", err.what());
+            debug::info_fmt("route_nets(): {}", err.what());
+            throw err;
         }
         catch (const std::exception& err){
             throw std::runtime_error("route_nets() >> " + std::String(err.what()));
         }
 
-        auto total_length = analyze_results(interposer, engine, incremental);
-        return total_length;
+        auto route_data = analyze_results(interposer, engine, incremental);
+        return route_data;
     }
 
     // return total length of all nets
@@ -63,11 +64,8 @@ namespace kiwi::algo {
         hardware::Interposer* interposer,
         RouteEngine& engine,
         bool incremental
-    ) -> std::usize {
-        std::usize total_length {0};
-        float sync_num{0.0}, sync_l{0.0};
+    ) -> DataPerCycle {
         const auto& nets = engine.nets();
-        bool has_unrouted_net {false};
 
         // record length info
         debug::info(
@@ -83,16 +81,10 @@ namespace kiwi::algo {
 
             if (l > 0) {
                 net->show_path();
-                total_length += l;
-                auto [n, l] = net->sync_length();
-                sync_num += n;
-                sync_l += l;
             }
             else {
-                debug::info("Routing failed for this net");
-                has_unrouted_net = true;
+                debug::info_fmt("Routing failed for this net: {}", net->name());
             }
-            total_length += net->length();
         }
 
         // show length info
@@ -103,21 +95,9 @@ namespace kiwi::algo {
             **********************************************************************************\
             "
         );
-        if (has_unrouted_net) {
-            debug::info("Unrouted nets exist");
-            debug::info_fmt("Total length of routed nets: {}", total_length);
-            debug::info_fmt("Average length of routed sync nets: {}", sync_l / sync_num);
-        }
-        else {
-            debug::info_fmt("Total length of all nets: {}", total_length);
-            debug::info_fmt("Average length of sync nets: {}", sync_l / sync_num);
-        }
-        
-        if (incremental) {
-            engine.show_global_bits_info(engine.all_nets());
-        }
+        auto data = engine.show_final_data(nets, incremental);
 
-        return total_length;
+        return data;
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {

@@ -11,7 +11,7 @@ RouteEngine::RouteEngine(
     const std::HashMap<int, std::Vector<std::Rc<circuit::Net>>>& nets, const RouteStrategy& str, const AllocateStrategy& as, int m,
     bool incremental, bool path_exists, hardware::Interposer* interposer
 )
-    : _posi{0}, _routestrategy{str}, _allocator{as}, _mode{m}, _incremental{incremental}, _path_exists{path_exists}, _incre_strategy{}, _recorder{interposer}
+    : _posi{0}, _routestrategy{str}, _allocator{as}, _mode{m}, _incremental{incremental}, _path_exists{path_exists}, _incre_strategy{}, _recorder{interposer}, _route_data{}
 {
     for (auto& [m, net_v]: nets) {
         auto res = this->_nets.emplace(m, std::Vector<circuit::Net*>{});
@@ -46,6 +46,42 @@ auto RouteEngine::routed_nets() const -> std::Vector<circuit::Net*> {
 auto RouteEngine::update_net_seq(std::Vector<circuit::Net*>& nets) -> void {
     this->_nets.at(this->_mode) = nets;
 }
+
+
+auto RouteEngine::show_data_in_cycle(std::usize cycle, const std::Vector<circuit::Net*>& nets) -> void {
+    this->_route_data.collect_data_in_cycle(cycle, nets);
+    this->_route_data.show_data_in_cycle(cycle, true);
+}
+
+
+auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool incre) -> DataPerCycle {
+    auto data = this->_route_data.collect_data(nets, incre);
+
+    if (incre) {
+        auto [monopolized_rate, mixed_rate] = data._reg_data;
+        debug::info_fmt("\n\
+        Total Length: {}\n\
+        Sync Net Number: {}\n\
+        Average Sync Length: {}\n\
+        Monopolized Rate: {}%\n\
+        Mixed Rate: {}%\n\
+        Failed routing nubmer: {}\n\
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, 100*monopolized_rate, 100*mixed_rate, data._failed_net
+        );
+    }
+    else {
+        debug::info_fmt("\n\
+        Total Length: {}\n\
+        Sync Net Number: {}\n\
+        Average Sync Length: {}\n\
+        Failed routing nubmer: {}\n\
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, data._failed_net
+        );
+    }
+
+    return data;
+}
+
 
 // return nets with the initial sequence in routeengine
 auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
@@ -114,33 +150,6 @@ auto RouteEngine::non_reusable_nets() const -> std::Set<circuit::Net*> {
         }
     }
     return res;
-}
-
-
-auto RouteEngine::show_global_bits_info(const std::Vector<circuit::Net*>& nets) -> void {
-    GlobalBoundBits bits {};
-    for (const auto& net: nets) {
-        auto type = net->reuse_type();
-        if (!type.has_value()) {
-            throw std::logic_error("show_bits(): net reuse type should not be nullopt when routing");
-        }
-
-        for (auto& [track, cob_connector]: net->pathpackage()._regular_path) {
-            bits.record_track(track->coord(), *type);
-            if (cob_connector.has_value()) {
-                bits.record_cob(*cob_connector, *type);
-            }
-        }
-        for (auto& [bump, connector, track]: net->pathpackage()._tob_to_track) {
-            bits.record_tob(bump->tob()->coord(), connector, *type);
-        }
-        for (auto& [bump, connector, track]: net->pathpackage()._track_to_tob) {
-            bits.record_tob(bump->tob()->coord(), connector, *type);
-        }
-    }
-    
-    // bits.show_bits();    
-    bits.show_rate();
 }
 
 }

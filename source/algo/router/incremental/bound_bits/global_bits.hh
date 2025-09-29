@@ -38,9 +38,9 @@ public:
         debug::debug("\n");
     }
 
-    auto show_rate() -> void {
+    auto get_rate() const -> std::Tuple<double, double> {
         auto not_used{0.0}, monopolized{0.0}, mixed{0.0};
-        auto collect = [&](auto& groups) {
+        auto collect = [&](const auto& groups) {
             auto [group_not_used, group_monopolized, group_mixed] = groups.info();
             not_used += group_not_used;
             monopolized += group_monopolized;
@@ -52,8 +52,14 @@ public:
         collect(this->_tob_groups);
 
         auto sum = monopolized + mixed;
+        return std::make_tuple(monopolized/sum, mixed/sum);
+    }
+
+    auto show_rate() const -> void {
+        auto [monopolized_rate, mixed_rate] = this->get_rate();
+        
         debug::info_fmt(
-            "Global registers: monopolized {}%, mixed {}%", 100*monopolized/sum, 100*mixed/sum
+            "Global registers: monopolized {}%, mixed {}%", 100*monopolized_rate, 100*mixed_rate
         );
     }
 

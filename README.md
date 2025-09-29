@@ -19,7 +19,7 @@
 
     ```c++
     cycle = 0
-    load nets, sort nets by reuse frequency
+    load nets, sort nets by reuse frequency（在原有布线优先级的基础上，对于同一种优先级的线网之间用 reuse frequency 排序）
     while {
         for net in nets {
             path = route net with maze(using the new cost function)

@@ -1,1 +1,1 @@
-modified case4, a hard test
+modified case18 to with more reusable/uon-reusable nets be mixed together

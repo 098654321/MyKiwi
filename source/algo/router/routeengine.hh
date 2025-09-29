@@ -11,6 +11,7 @@
 #include <hardware/bump/bump.hh>
 #include <hardware/track/track.hh>
 #include <functional>
+#include <algo/route_data.hh>
 
 
 namespace kiwi::circuit {
@@ -37,13 +38,14 @@ public:
     auto move_on() -> void { this->_posi += 1; }
     auto reset_position() -> void { this->_posi = 0; }
     auto update_net_seq(std::Vector<circuit::Net*>& nets) -> void;
+    auto show_data_in_cycle(std::usize cycle, const std::Vector<circuit::Net*>& nets) -> void;
+    auto show_final_data(const std::Vector<circuit::Net*>& nets, bool incre) -> DataPerCycle;
 
 public:
     auto nets() const -> std::Vector<circuit::Net*>;
     auto all_nets() const -> std::Vector<circuit::Net*>;
     auto reusable_nets() const -> std::Set<circuit::Net*>;
     auto non_reusable_nets() const -> std::Set<circuit::Net*>;
-    auto show_global_bits_info(const std::Vector<circuit::Net*>& nets) -> void;
 
     auto mode() const -> int {return this->_mode;}
     auto incremental() const -> bool {return this->_incremental;}   
@@ -52,6 +54,11 @@ public:
     auto allocatestrategy() const -> const AllocateStrategy& {return this->_allocator;}
     auto incre_route_strategy() const -> const IncreRouting& {return this->_incre_strategy;}
     auto recorder() -> HardwareRecorder& {return this->_recorder;}
+    auto route_data() -> RouteData& {return this->_route_data;}
+    auto init_route_data() -> void {this->_route_data.clear_data();}
+    auto collect_data_when_fail(const std::Vector<circuit::Net*>& nets, bool incremental) -> void {
+        this->_route_data.collect_data(nets, incremental);
+    }
 
 private:
     std::HashMap<int, std::Vector<circuit::Net*>> _nets;
@@ -62,6 +69,7 @@ private:
     const AllocateStrategy& _allocator;
     IncreRouting _incre_strategy;
     HardwareRecorder _recorder;
+    RouteData _route_data;
     bool _incremental;
     bool _path_exists;
 };

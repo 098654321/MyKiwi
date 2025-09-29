@@ -215,12 +215,12 @@ namespace kiwi::parse
 
     auto TobRegister::map_empty_mux() -> void 
     {
-        debug::info("TobRegister::map_empty_mux() ...");
+        debug::info("Mapping empty mux ...");
         for (std::i64 row = 0; row < hardware::Interposer::TOB_ARRAY_WIDTH; ++row)
         {
             for (std::i64 col = 0; col < hardware::Interposer::TOB_ARRAY_HEIGHT; ++col)
             {
-                debug::info_fmt("Processing TOB({}, {})", row, col);
+                debug::debug_fmt("Processing TOB({}, {})", row, col);
 
                 hardware::TOBCoord tobcoord {row, col};
                 const auto& tob = _pinterposer->get_tob(tobcoord);
@@ -230,7 +230,7 @@ namespace kiwi::parse
                 tob.value()->randomly_map_remain_indexes();
             }
         }
-        debug::info("TobRegister::map_empty_mux() done");
+        debug::info("Mapping empty mux done");
     }
 
 }

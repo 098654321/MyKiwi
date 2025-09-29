@@ -13,10 +13,10 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     recorder.set_use_cost(true);
 
-    auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
-        return n1->modes().size() > n2->modes().size();
-    };
-    std::sort(nets.begin(), nets.end(), compare);
+    // auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
+    //     return n1->modes().size() > n2->modes().size();
+    // };
+    // std::sort(nets.begin(), nets.end(), compare);
     for (auto& net: nets) {
         net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
     }
@@ -26,13 +26,14 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
         reset(engine, nets);
         res = iterate_routing(interposer, engine, nets, recorder);
         if (!res) {
+            engine.collect_data_when_fail(nets, true);
             throw FinalError("Incremental Routing failed");
         }
     }
 
     // succeed: fail in the iteration > 2, but has a path in the former iteration
     if (engine.position() < nets.size() - 1) {
-        set_history_as_current(nets);    
+        set_history_as_current(nets);    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     }
 }
 
@@ -94,12 +95,12 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{3};
+    std::usize cycle{0}, min_cycle{5};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
         for (auto net: nets) {
-            net->pathpackage().reset_all(); //! tobconnector 里面是指针，history和当前一样。只有完整运行一轮的情况才能得到正确的结果，运行到一半由于history是假的
+            net->pathpackage().reset_all();
             recorder.clear_history_records(net->history_pathpackage(), net->reuse_type().value());
         }
         engine.reset_position();
@@ -120,7 +121,7 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
             recorder.update_recorders(net->pathpackage(), net->reuse_type().value());   
         }
         debug::info_fmt("cycle {} done", cycle);
-        engine.show_global_bits_info(engine.all_nets());
+        engine.show_data_in_cycle(cycle, nets);
         
         cycle++;
     }
@@ -142,6 +143,7 @@ auto Incre_route::reset(RouteEngine& engine, std::Vector<circuit::Net*>& nets) c
     }
     engine.reset_position();
     engine.recorder().re_initialize();
+    engine.init_route_data();
 }
 
 auto Incre_route::set_history_as_current(std::Vector<circuit::Net*>& nets) const -> void {

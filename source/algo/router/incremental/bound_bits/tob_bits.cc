@@ -77,10 +77,10 @@ auto TOBGroup::to_string() const -> std::String {
     return message;
 }
 
-auto TOBGroup::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+auto TOBGroup::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
     auto not_used{0}, monopolized{0}, mixed{0};
     auto collect = [&](const auto& array) {
-        for (auto& group: array) {
+        for (const auto& group: array) {
             auto reuse = group.reuse_number();
             auto nonreuse = group.nonreuse_number();
 
@@ -122,9 +122,9 @@ auto GlobalTOBGroup::show() const -> void {
     debug::debug("\n");
 }
 
-auto GlobalTOBGroup::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+auto GlobalTOBGroup::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
     auto not_used{0}, monopolized{0}, mixed{0};
-    for (auto& [coord, group]: this->_tob_groups) {
+    for (const auto& [coord, group]: this->_tob_groups) {
         auto [group_not_used, group_mono, group_mixed] = group.info();
         not_used += group_not_used;
         monopolized += group_mono;

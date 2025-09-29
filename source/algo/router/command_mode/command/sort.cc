@@ -6,14 +6,27 @@
 namespace kiwi::algo {
 
 auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
-    auto nets = engine.nets();  //TODO：这里没有引用，没排上序
+    auto nets = engine.nets();  
+    auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
+        return n1->priority() > n2->priority();
+    };
 
     if (engine.incremental()) {
+        // sort by reuse frequency in descending order
         debug::info("Sort by reuse frequency");
+
+        std::usize max_reuse_times {0};
+        for (const auto& net : nets) {
+            max_reuse_times = std::max(max_reuse_times, net->modes().size());
+        }
+        for (auto& net : nets) {
+            net->update_priority(0.9*(net->modes().size() / max_reuse_times));
+        }
     }
     else {
         // sort by port number in descending order
         debug::info("Sort by priority");
+
         std::usize max_port_num {0};
         for (const auto& net : nets) {
             max_port_num = std::max(max_port_num, net->port_number());
@@ -21,12 +34,10 @@ auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const 
         for (auto& net : nets) {
             net->update_priority(0.9*(net->port_number() / max_port_num));
         }
-        auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
-            return n1->priority() > n2->priority();
-        };
-        std::sort(nets.begin(), nets.end(), compare);
-        engine.update_net_seq(nets);
     }
+
+    std::sort(nets.begin(), nets.end(), compare);
+    engine.update_net_seq(nets);
     
     // show sorted nets
     auto i {0};

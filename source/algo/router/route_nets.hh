@@ -6,6 +6,8 @@
 #include <std/memory.hh>
 #include "./routeengine.hh"
 #include <std/collection.hh>
+#include <algo/route_data.hh>
+
 
 namespace kiwi::hardware {
     class Interposer;
@@ -28,13 +30,13 @@ namespace kiwi::algo {
         int m,
         bool incremental,
         bool path_exists = false
-    ) -> std::usize;
+    ) -> DataPerCycle;
 
     auto analyze_results(
         hardware::Interposer* interposer,
         RouteEngine& engine,
         bool incremental
-    ) -> std::usize;
+    ) -> DataPerCycle;
 
 
     // debug

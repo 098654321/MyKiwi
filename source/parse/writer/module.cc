@@ -8,14 +8,14 @@ namespace kiwi::parse {
         debug::info_fmt(
             "\n\
             **********************************************************************************\n\
-                                        Write control bits into '{}'\n\
+                            Write control bits into '{}'\n\
             **********************************************************************************\
             ", output_path.string()
         );
         auto writer = parse::Writer{interposer};
         writer.fetch_and_write(output_path);
 
-        debug::info_fmt("Writing finished!");
+        debug::info_fmt("END\n\n");
     }
 
 }

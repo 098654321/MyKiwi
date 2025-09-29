@@ -20,6 +20,7 @@
 namespace kiwi {
 
     auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode) -> int {
+    try {
         debug::initial_log("./debug.log");
         std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".") / ("controlbits_" + std::to_string(mode) + ".txt");
 
@@ -50,6 +51,10 @@ namespace kiwi {
         }
         
         return 0;
+    }
+    catch (const Exception& err){
+        debug::exception("Unexpected exception");
+    }
     }
 
 }

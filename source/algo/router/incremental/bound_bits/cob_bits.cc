@@ -41,10 +41,10 @@ auto COBGroup::cobdirection_to_string(hardware::COBDirection direction) const ->
     }
 }
 
-auto COBGroup::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+auto COBGroup::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
     auto not_used{0}, monopolized{0}, mixed{0};
-    for (auto& [_, array]: this->_groups) {
-        for (auto& group: array) {
+    for (const auto& [_, array]: this->_groups) {
+        for (const auto& group: array) {
             auto reuse = group.reuse_number();
             auto nonreuse = group.nonreuse_number();
 
@@ -81,9 +81,9 @@ auto GlobalCOBGroups::show() const -> void {
     debug::debug("\n");
 }
 
-auto GlobalCOBGroups::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+auto GlobalCOBGroups::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
     auto not_used{0}, monopolized{0}, mixed{0};
-    for (auto& [coord, cob]: this->_cob_groups) {
+    for (const auto& [coord, cob]: this->_cob_groups) {
         auto [cob_not_used, cob_monopolized, cob_mixed] = cob.info();
         not_used += cob_not_used;
         monopolized += cob_monopolized;

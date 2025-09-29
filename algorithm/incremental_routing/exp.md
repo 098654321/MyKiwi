@@ -14,3 +14,11 @@ return BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
 
 第一条线正常，从后面开始绕路绕的太远，过于牺牲路径长度换 controlbits 优化
 绕路的时候会在某个cob附近打转
+
+
+
+### ex2 2025.09.29
+
+1. case 18 的两种 net 的重合度不够，改成 case 19
+
+2. 

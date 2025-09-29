@@ -33,7 +33,7 @@ auto GlobalTrackGroups::record_track(const hardware::TrackCoord& coord, bool reu
     reuse_type ? group.add_reuse_number() : group.add_nonreuse_number();
 }
 
-auto GlobalTrackGroups::show() -> void {
+auto GlobalTrackGroups::show() const -> void {
     for (auto& [coord, group]: this->_track_groups) {
         debug::debug_fmt("{}:\n {}", coord.to_string(), group.to_string());
     }
@@ -41,9 +41,9 @@ auto GlobalTrackGroups::show() -> void {
 }
 
 // return <not_used, monopolized, mixed>
-auto GlobalTrackGroups::info() -> std::Tuple<std::usize, std::usize, std::usize> {
+auto GlobalTrackGroups::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
     auto not_used{0}, monopolized{0}, mixed{0};
-    for (auto& [coord, group]: this->_track_groups) {
+    for (const auto& [coord, group]: this->_track_groups) {
         auto reuse = group.reuse_number();
         auto nonreuse = group.nonreuse_number();
 

@@ -31,4 +31,22 @@ namespace kiwi::utility {
         return content;
     }
 
+    void append_logs(std::String input_file, std::String output_file) {
+        std::ifstream src(input_file, std::ios::binary);
+        std::ofstream dst(output_file, std::ios::binary | std::ios::app);
+
+        if (!src.is_open()) {
+            throw std::runtime_error {std::format("util::append_logs: File '{}' does not open.", input_file)};
+        }
+
+        if (!dst.is_open()) {
+            throw std::runtime_error {std::format("util::append_logs: File '{}' does not open.", output_file)};
+        }
+
+        dst << src.rdbuf();
+
+        src.close();
+        dst.close();
+    }
+
 }

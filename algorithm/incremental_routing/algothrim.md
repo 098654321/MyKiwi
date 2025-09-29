@@ -73,27 +73,28 @@
     第二个版本：不考虑共享
     ```c++
     cycle = 0
-    load nets, sort nets by reuse frequency
+    load nets, sort nets by reuse frequency（在原有布线优先级的基础上，对于同一种优先级的线网之间用 reuse frequency 排序）
     while {
         for net in nets {
             path = route net with maze(using the new cost function)
-
-            if fail {
-              if (cycle == 0) {
-                  remove nets not belongs to this mode
-                  reroute
-              }
-              else {
-                  return success with path from last cycle
-              }
-          }
-              
-          update recorder 
         }
         
-        cycle++
+        if fail {
+            if (cycle == 0) {
+                remove nets not belongs to this mode
+                reroute
+            }
+            else {
+                return success with path from last cycle
+            }
+        }
+            
+        update recorder        
+
         if (cycle >= MIN_CYCLE_NUMBER)
             return success with path
+
+        cycle++
     }
     ```
 
