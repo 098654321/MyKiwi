@@ -9,10 +9,6 @@
 
 namespace kiwi::algo {
 
-    class circuit::Net;
-    class GlobalBoundBits;
-
-
     struct DataPerCycle {
         DataPerCycle(float total_length, float ave_sync_length, std::Tuple<float, float> reg_data, std::usize sync_net_number, std::usize failed_net) :
             _total_length(total_length),

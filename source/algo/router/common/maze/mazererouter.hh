@@ -94,7 +94,7 @@ namespace kiwi::algo{
 
     class MazeRerouter{
 
-    static constexpr int CUT_RATE = 0.2;
+    static constexpr float CUT_RATE = 0.2;
     
     public:
         MazeRerouter(bool incremental = false): _incremental{incremental}, _recorder{nullptr} {}
@@ -106,7 +106,7 @@ namespace kiwi::algo{
     
     private:
         auto remove_tracks(
-            circuit::PathPackage* path_ptr, int cut_rate = MazeRerouter::CUT_RATE
+            circuit::PathPackage* path_ptr, float cut_rate = MazeRerouter::CUT_RATE
         ) const -> void;
         auto refind_path(
             hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\

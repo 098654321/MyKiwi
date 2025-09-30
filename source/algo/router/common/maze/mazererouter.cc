@@ -153,7 +153,7 @@ namespace kiwi::algo{
     }
 
     auto MazeRerouter::remove_tracks(
-        circuit::PathPackage* path_ptr, int cut_rate
+        circuit::PathPackage* path_ptr, float cut_rate
     ) const -> void{
         // check if the net is a btb/btt/ttb net, and only has two port
         auto port_num = path_ptr->_tob_to_track.size() + path_ptr->_track_to_tob.size();
