@@ -283,7 +283,6 @@ namespace kiwi::circuit
 
         this->_history_path_package = this->_path_package;  // notice: history_package share same tobmuxregister with package
                                                             // because registes are stored by a pointer, and they share the same pointer
-        // this->_path_package.clear_all();
         auto collect = [&](circuit::Net* net, PathPackage& new_package) {
             auto& package = net->pathpackage();
 

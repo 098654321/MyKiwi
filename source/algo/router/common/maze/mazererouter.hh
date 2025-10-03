@@ -94,7 +94,7 @@ namespace kiwi::algo{
 
     class MazeRerouter{
 
-    static constexpr float CUT_RATE = 0.2;
+    static constexpr float CUT_RATE = 0.5;
     
     public:
         MazeRerouter(bool incremental = false): _incremental{incremental}, _recorder{nullptr} {}

@@ -13,10 +13,11 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     recorder.set_use_cost(true);
 
-    // auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
-    //     return n1->modes().size() > n2->modes().size();
-    // };
-    // std::sort(nets.begin(), nets.end(), compare);
+    // sort by reuse frequency in descending order
+    auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
+        return n1->modes().size() > n2->modes().size();
+    };
+    std::sort(nets.begin(), nets.end(), compare);
     for (auto& net: nets) {
         net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
     }

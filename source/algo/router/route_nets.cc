@@ -80,6 +80,8 @@ namespace kiwi::algo {
             auto l = net->length();
 
             if (l > 0) {
+                debug::info_fmt("Routing length of this net: {}", l);
+                debug::info_fmt("Routing priority of this net: {}", net->priority().value());
                 net->show_path();
             }
             else {
@@ -101,7 +103,6 @@ namespace kiwi::algo {
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {
-        //TODO: 会出现路径重复的问题
         debug::debug(std::String("\nShow details of retry exception" + net->to_string()));
         
         auto state = net_connection_state(net, interposer);
