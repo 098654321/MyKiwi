@@ -38,28 +38,29 @@ public:
         debug::debug("\n");
     }
 
-    auto get_rate() const -> std::Tuple<double, double> {
-        auto not_used{0.0}, monopolized{0.0}, mixed{0.0};
+    auto get_rate() const -> std::Tuple<double, double, double> {
+        auto not_used{0.0}, monopolized_by_reuse{0.0}, has_nonreuse{0.0};
         auto collect = [&](const auto& groups) {
-            auto [group_not_used, group_monopolized, group_mixed] = groups.info();
+            auto [group_not_used, group_monopolized_by_reuse, group_has_nonreuse] = groups.info();
             not_used += group_not_used;
-            monopolized += group_monopolized;
-            mixed += group_mixed;
+            monopolized_by_reuse += group_monopolized_by_reuse;
+            has_nonreuse += group_has_nonreuse;
         };
 
         collect(this->_track_groups);
         collect(this->_cob_groups);
         collect(this->_tob_groups);
 
-        auto sum = monopolized + mixed;
-        return std::make_tuple(monopolized/sum, mixed/sum);
+        return std::make_tuple(not_used, monopolized_by_reuse, has_nonreuse);
     }
 
     auto show_rate() const -> void {
-        auto [monopolized_rate, mixed_rate] = this->get_rate();
+        auto [not_used, monopolized_by_reuse, has_nonreuse] = this->get_rate();
+        auto sum = not_used + monopolized_by_reuse + has_nonreuse;
         
         debug::info_fmt(
-            "Global registers: monopolized {}%, mixed {}%", 100*monopolized_rate, 100*mixed_rate
+            "Global registers: not used {}({}%), monopolized by reuse {}({}%), has nonreuse {}({}%)", 
+            not_used, 100*not_used/sum, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum
         );
     }
 

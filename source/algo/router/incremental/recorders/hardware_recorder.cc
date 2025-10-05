@@ -62,8 +62,8 @@ catch (std::exception& e) {
 }
 }
 
-auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, bool reuse_type) -> void  {
-    debug::info("Update recorders");
+auto HardwareRecorder::update_recorders_current(const circuit::PathPackage& package, bool reuse_type) -> void  {
+    debug::info("Update recorders current");
     std::Vector<hardware::Track*> tracks {};
     std::Vector<hardware::COBConnector> cobconnectors {};
     for (auto& [track, connector]: package._regular_path) {
@@ -72,8 +72,8 @@ auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, boo
             cobconnectors.emplace_back(*connector);
         }
     }
-    this->update_track_recorders(tracks, reuse_type);
-    this->update_cob_recorders(cobconnectors, reuse_type);
+    this->update_track_recorders_current(tracks, reuse_type);
+    this->update_cob_recorders_current(cobconnectors, reuse_type);
 
     std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
     for (auto& [bump, connector, track]: package._tob_to_track) {
@@ -82,13 +82,36 @@ auto HardwareRecorder::update_recorders(const circuit::PathPackage& package, boo
     for (auto& [bump, connector, track]: package._track_to_tob) {
         tobconnectors.emplace(bump->tob()->coord(), connector);
     }
-    this->update_tob_recorders(tobconnectors, reuse_type);
+    this->update_tob_recorders_current(tobconnectors, reuse_type);
 }
 
-auto HardwareRecorder::update_cob_recorders(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
+auto HardwareRecorder::update_recorders_history(const circuit::PathPackage& package, bool reuse_type) -> void {
+    debug::info("Update recorders history");
+    std::Vector<hardware::Track*> tracks {};
+    std::Vector<hardware::COBConnector> cobconnectors {};
+    for (auto& [track, connector]: package._regular_path) {
+        tracks.emplace_back(track);
+        if (connector.has_value()) {
+            cobconnectors.emplace_back(*connector);
+        }
+    }
+    this->update_track_recorders_history(tracks, reuse_type);
+    this->update_cob_recorders_history(cobconnectors, reuse_type);
+
+    std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
+    for (auto& [bump, connector, track]: package._tob_to_track) {
+        tobconnectors.emplace(bump->tob()->coord(), connector);
+    }
+    for (auto& [bump, connector, track]: package._track_to_tob) {
+        tobconnectors.emplace(bump->tob()->coord(), connector);
+    }
+    this->update_tob_recorders_history(tobconnectors, reuse_type);
+}
+
+auto HardwareRecorder::update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
-        this->get_cob_recorder(coord).update_num(connector.from_track_index(), reuse_type);
+        this->get_cob_recorder(coord).update_type(connector.from_track_index(), reuse_type);
     }
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
@@ -96,14 +119,19 @@ auto HardwareRecorder::update_cob_recorders(const std::Vector<hardware::COBConne
     }
 }
 
-auto HardwareRecorder::update_track_recorders(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
-    // update number
-    for (auto& track: tracks) {
-        auto& recorder = this->get_track_recorder(track, reuse_type);
-        recorder.update(reuse_type);
+auto HardwareRecorder::update_cob_recorders_history(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_history(connector.from_track_index(), reuse_type);
     }
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_cost(connector.from_track_index());
+    }
+}
 
-    // update cost in group
+
+auto HardwareRecorder::update_track_recorders_cost(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
     for (auto& track: tracks) {
         auto track_coord = track->coord();
         int group_index = track_coord.index / TRACKGROUPSIZE;
@@ -125,14 +153,50 @@ auto HardwareRecorder::update_track_recorders(const std::Vector<hardware::Track*
 
         auto& recorder = this->get_track_recorder(track, reuse_type);
         recorder.update_cost(reuse_num, nonre_num);
-    }   
+    }
 }
 
-auto HardwareRecorder::update_tob_recorders(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
+
+auto HardwareRecorder::update_track_recorders_current(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
+    // set type
+    for (auto& track: tracks) {
+        auto& recorder = this->get_track_recorder(track, reuse_type);
+        recorder.set_type(reuse_type);
+    }
+
+    // update cost in group
+    this->update_track_recorders_cost(tracks, reuse_type);
+}
+
+auto HardwareRecorder::update_track_recorders_history(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
+    // update history
+    for (auto& track: tracks) {
+        auto& recorder = this->get_track_recorder(track, reuse_type);
+        recorder.update_history(reuse_type);
+    }
+
+    // update cost in group
+    this->update_track_recorders_cost(tracks, reuse_type);
+}
+
+auto HardwareRecorder::update_tob_recorders_current(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
     for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
         auto& [coord, connector] = *iter;
         auto& recorder = this->get_tob_recorder(coord);
-        recorder.update_num(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+        recorder.update_type(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+    }
+    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
+        auto& [coord, connector] = *iter;
+        auto& recorder = this->get_tob_recorder(coord);
+        recorder.update_cost(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+    }
+}
+
+auto HardwareRecorder::update_tob_recorders_history(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
+    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
+        auto& [coord, connector] = *iter;
+        auto& recorder = this->get_tob_recorder(coord);
+        recorder.update_history(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
     }
     for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
         auto& [coord, connector] = *iter;

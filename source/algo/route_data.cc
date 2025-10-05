@@ -13,6 +13,7 @@ auto RouteData::collect_net_length(const std::Vector<circuit::Net*>& nets) const
     
     for (const auto& net: nets) {
         auto l = net->length();
+        debug::debug_fmt("net {} length: {}", net->name(), l);
 
         if (l > 0) {
             total_length += l;
@@ -56,19 +57,18 @@ auto RouteData::collect_global_bits(const std::Vector<circuit::Net*>& nets) cons
 
 
 auto RouteData::collect_data(const std::Vector<circuit::Net*>& nets, bool incre) -> DataPerCycle {
-    float monopolized_rate {0.0}, mixed_rate {0.0};
+    double not_used {0.0}, monopolized_by_reuse {0.0}, has_nonreuse {0.0};
 
     if (incre) {
         auto global_bits = this->collect_global_bits(nets);
-        auto rate_tuple = global_bits.get_rate();
-        monopolized_rate = std::get<0>(rate_tuple);
-        mixed_rate = std::get<1>(rate_tuple);
+        auto reg_rate = global_bits.get_rate();
+        std::tie(not_used, monopolized_by_reuse, has_nonreuse) = reg_rate;
     }
 
     auto [total_length, sync_net_number, sync_length, failed_net] = this->collect_net_length(nets);
     auto ave_sync_length = sync_length / sync_net_number;
 
-    return DataPerCycle(total_length, ave_sync_length, std::make_tuple(monopolized_rate, mixed_rate), sync_net_number, failed_net);
+    return DataPerCycle(total_length, ave_sync_length, std::make_tuple(not_used, monopolized_by_reuse, has_nonreuse), sync_net_number, failed_net);
 }
 
 
@@ -88,17 +88,19 @@ try {
     auto& data = this->_data.at(cycle);
 
     if (incre) {
-        auto [monopolized_rate, mixed_rate] = data._reg_data;
+        auto [not_used, monopolized_by_reuse, has_nonreuse] = data._reg_data;
+        auto sum = not_used + monopolized_by_reuse + has_nonreuse;
         debug::info_fmt("\n\
         --------------------------------Cycle {}--------------------------------\n\
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
-        Monopolized Rate: {}%\n\
-        Mixed Rate: {}%\n\
+        Not Used: {}({}%)\n\
+        Monopolized by Reuse: {}({}%)\n\
+        Has Nonreuse: {}({}%)\n\
         Failed routing nubmer: {}\n\
         ------------------------------------------------------------------------\
-        ", cycle, data._total_length, data._sync_net_number, data._ave_sync_length, 100*monopolized_rate, 100*mixed_rate, data._failed_net
+        ", cycle, data._total_length, data._sync_net_number, data._ave_sync_length, not_used, 100*not_used/sum, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
         );
     }
     else {

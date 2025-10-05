@@ -56,7 +56,7 @@ namespace kiwi::test {
         GIVEN("Configs, describing connections, external_ports, topdies and topdie_insts"){
             // std::ofstream file("regression_test.log", std::ios::trunc);
             //! notice: cob array here is 9*12
-            PLEASE_DO_NOT_FAIL_INCRE(19, "modified case18 to with more reusable/uon-reusable nets be mixed together", 1, 30);
+            PLEASE_DO_NOT_FAIL_INCRE(19, "modified case18 to with more reusable/uon-reusable nets be mixed together", 1, 1);
         }
     }
 
@@ -72,8 +72,9 @@ namespace kiwi::test {
         std::Vector<float> ave_sync_l_vec{};
         std::Vector<std::usize> sync_net_num_vec{};
         std::Vector<std::usize> fail_net_vec{};
-        std::Vector<float> mono_data_vec{};
-        std::Vector<float> mixed_data_vec{};
+        std::Vector<float> not_used_data_vec{};
+        std::Vector<float> monopolized_by_reuse_data_vec{};
+        std::Vector<float> has_nonreuse_data_vec{};
 
         // collect data in each cycle
         for (const auto& [cycle, data_per_cycle]: data.data()) {
@@ -86,14 +87,18 @@ namespace kiwi::test {
             ave_sync_l_vec.emplace_back(data_per_cycle._ave_sync_length);
             sync_net_num_vec.emplace_back(data_per_cycle._sync_net_number);
             fail_net_vec.emplace_back(data_per_cycle._failed_net);
-            mono_data_vec.emplace_back(std::get<0>(data_per_cycle._reg_data));
-            mixed_data_vec.emplace_back(std::get<1>(data_per_cycle._reg_data));
+            not_used_data_vec.emplace_back(std::get<0>(data_per_cycle._reg_data));
+            monopolized_by_reuse_data_vec.emplace_back(std::get<1>(data_per_cycle._reg_data));
+            has_nonreuse_data_vec.emplace_back(std::get<2>(data_per_cycle._reg_data));
         }
 
         // print global message
         message.emplace_back(std::format("Average Total Length: {}\n", ave_total_length / (float)data.data().size()));
         message.emplace_back(std::format("Average Sync Length: {}\n", ave_sync_length / total_sync_net));
         message.emplace_back(std::format("Average Fail Rate: {}\n", ave_fail_rate / (float)data.data().size()));
+        message.emplace_back(std::format("Final Not Used: {}\n", not_used_data_vec.back()));
+        message.emplace_back(std::format("Final Monopolized by Reuse: {}\n", monopolized_by_reuse_data_vec.back()));
+        message.emplace_back(std::format("Final Has Nonreuse: {}\n", has_nonreuse_data_vec.back()));
         message.emplace_back(
             "**************************End of Loop Test Result**************************\n"
         );
@@ -116,14 +121,15 @@ namespace kiwi::test {
             output_file_stream << "\n";
         };
 
-        output_file_stream << "// cycle, total_length, ave_sync_length, sync_net_number, failed_net, reg_monopoliezd, reg_mixed\n";
+        output_file_stream << "// cycle, total_length, ave_sync_length, sync_net_number, failed_net, not_used, monopolized_by_reuse, has_nonreuse\n";
         output_file_stream << data.data().size() << "\n";
         output(total_length_vec);
         output(ave_sync_l_vec);
         output(sync_net_num_vec);
         output(fail_net_vec);
-        output(mono_data_vec);
-        output(mixed_data_vec);
+        output(not_used_data_vec);
+        output(monopolized_by_reuse_data_vec);
+        output(has_nonreuse_data_vec);
     }
 
 }

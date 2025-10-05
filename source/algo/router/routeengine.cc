@@ -58,15 +58,17 @@ auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool i
     auto data = this->_route_data.collect_data(nets, incre);
 
     if (incre) {
-        auto [monopolized_rate, mixed_rate] = data._reg_data;
+        auto [not_used, monopolized_by_reuse, has_nonreuse] = data._reg_data;
+        auto sum = not_used + monopolized_by_reuse + has_nonreuse;
         debug::info_fmt("\n\
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
-        Monopolized Rate: {}%\n\
-        Mixed Rate: {}%\n\
+        Not Used: {}({}%)\n\
+        Monopolized by Reuse: {}({}%)\n\
+        Has Nonreuse: {}({}%)\n\
         Failed routing nubmer: {}\n\
-        ", data._total_length, data._sync_net_number, data._ave_sync_length, 100*monopolized_rate, 100*mixed_rate, data._failed_net
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, not_used, 100*not_used/sum, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
         );
     }
     else {
@@ -80,6 +82,25 @@ auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool i
     }
 
     return data;
+}
+
+
+auto RouteEngine::show_net_and_path() -> void {
+    auto nets = this->nets();
+
+    for (const auto& net: nets) {
+        debug::info(net->to_string());
+        auto l = net->length();
+
+        if (l > 0) {
+            debug::info_fmt("Routing length of this net: {}", l);
+            debug::info_fmt("Routing priority of this net: {}", net->priority().value());
+            net->show_path();
+        }
+        else {
+            debug::info_fmt("Routing failed for this net: {}", net->name());
+        }
+    }
 }
 
 

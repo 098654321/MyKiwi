@@ -35,7 +35,8 @@ public:
     auto cob_cost(std::usize index, bool reuse_type) const -> float;
     auto parse_index(std::usize index) const -> std::Tuple<std::usize, std::usize>;
     auto group_info(std::usize index) const -> std::Tuple<std::usize, std::usize>;
-    auto update_num(std::usize index, bool reuse_type) -> void;
+    auto update_type(std::usize index, bool reuse_type) -> void;
+    auto update_history(std::usize index, bool reuse_type) -> void;
     auto update_cost(std::usize index) -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;

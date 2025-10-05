@@ -31,10 +31,15 @@ public:
     auto track_cost(hardware::Track*, bool) -> float;
     auto expand_cost(hardware::Track*, hardware::COBConnector&, bool) -> float;
     
-    auto update_recorders(const circuit::PathPackage& package, bool reuse_type) -> void;
-    auto update_track_recorders(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
-    auto update_cob_recorders(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
-    auto update_tob_recorders(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
+    auto update_recorders_current(const circuit::PathPackage& package, bool reuse_type) -> void;
+    auto update_recorders_history(const circuit::PathPackage& package, bool reuse_type) -> void;
+    auto update_track_recorders_current(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
+    auto update_track_recorders_history(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
+    auto update_track_recorders_cost(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
+    auto update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
+    auto update_cob_recorders_history(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
+    auto update_tob_recorders_current(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
+    auto update_tob_recorders_history(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
 
     auto clear_history_records(const circuit::PathPackage& package, bool reuse_type) -> void;
     auto clear_track_history_records(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;

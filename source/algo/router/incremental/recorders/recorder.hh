@@ -54,14 +54,18 @@ public:
         auto h_reuse_n = std::get<0>(this->_history);
         auto h_nonre_n = std::get<1>(this->_history);
         auto history_ratio = (this->_reuse_type ? (h_reuse_n-h_nonre_n) : (h_nonre_n-h_reuse_n)) / (h_reuse_n+h_nonre_n+EPSILON);
+
         auto group_ratio = (this->_reuse_type ? (reuse_num-nonre_num) : (nonre_num-reuse_num))/(nonre_num + reuse_num + EPSILON);
         this->_cost = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
+
+        // auto group_ratio = 1 + (this->_reuse_type ? nonre_num : reuse_num);
+        // this->_cost = BASICCOST * (1-history_ratio) * group_ratio;
     }
 
-    auto update(bool reuse_type) -> void {
-        this->set_type(reuse_type);
-        this->update_history(reuse_type);
-    }
+    // auto update(bool reuse_type) -> void {
+    //     this->set_type(reuse_type);
+    //     this->update_history(reuse_type);
+    // }
 
     auto cost() const -> float {return this->_use_cost ? this->_cost : BASICCOST;}
 

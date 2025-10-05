@@ -74,6 +74,7 @@ struct PathPackage {
     }
 
     auto reset_all() -> void {
+        this->_length = 0;
         for (auto& [t, cob_connector]: this->_regular_path) {
             if (cob_connector.has_value()) {
                 (*cob_connector).disconnect();

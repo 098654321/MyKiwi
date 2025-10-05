@@ -40,9 +40,9 @@ auto GlobalTrackGroups::show() const -> void {
     debug::debug("\n");
 }
 
-// return <not_used, monopolized, mixed>
+// return <not_used, monopolized_by_reuse, has_nonreuse>
 auto GlobalTrackGroups::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
-    auto not_used{0}, monopolized{0}, mixed{0};
+    auto not_used{0}, monopolized_by_reuse{0}, has_nonreuse{0};
     for (const auto& [coord, group]: this->_track_groups) {
         auto reuse = group.reuse_number();
         auto nonreuse = group.nonreuse_number();
@@ -50,15 +50,15 @@ auto GlobalTrackGroups::info() const -> std::Tuple<std::usize, std::usize, std::
         if (!reuse && !nonreuse) {
             not_used++;
         }
-        else if (reuse && nonreuse) {
-            mixed++;
+        else if (reuse > 0 && !nonreuse) {
+            monopolized_by_reuse++;
         }
-        else {
-            monopolized++;
+        else if (nonreuse > 0) {
+            has_nonreuse++;
         }
     }
     return std::Tuple<std::usize, std::usize, std::usize>{
-        not_used, monopolized, mixed
+        not_used, monopolized_by_reuse, has_nonreuse
     };
 }
 

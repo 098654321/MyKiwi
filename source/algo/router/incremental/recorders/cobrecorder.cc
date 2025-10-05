@@ -110,13 +110,22 @@ catch (std::exception& e) {
 }
 }
 
-auto COBRecorder::update_num(std::usize index, bool reuse_type) -> void {
+auto COBRecorder::update_type(std::usize index, bool reuse_type) -> void {
     if (index >= hardware::TOB::INDEX_SIZE) {
         throw std::out_of_range("COBRecorder::unit_recorder(): index out of range");
     }
 
     auto [unit, index_in_unit] = this->parse_index(index);
-    this->_cob_recorder.at(unit).recorder(index_in_unit).update(reuse_type);
+    this->_cob_recorder.at(unit).recorder(index_in_unit).set_type(reuse_type);
+}
+
+auto COBRecorder::update_history(std::usize index, bool reuse_type) -> void {
+    if (index >= hardware::TOB::INDEX_SIZE) {
+        throw std::out_of_range("COBRecorder::unit_recorder(): index out of range");
+    }
+
+    auto [unit, index_in_unit] = this->parse_index(index);
+    this->_cob_recorder.at(unit).recorder(index_in_unit).update_history(reuse_type);
 }
 
 auto COBRecorder::update_cost(std::usize index) -> void {

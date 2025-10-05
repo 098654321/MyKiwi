@@ -75,19 +75,7 @@ namespace kiwi::algo {
             **********************************************************************************\
             "
         );
-        for (const auto& net: nets) {
-            debug::info(net->to_string());
-            auto l = net->length();
-
-            if (l > 0) {
-                debug::info_fmt("Routing length of this net: {}", l);
-                debug::info_fmt("Routing priority of this net: {}", net->priority().value());
-                net->show_path();
-            }
-            else {
-                debug::info_fmt("Routing failed for this net: {}", net->name());
-            }
-        }
+        engine.show_net_and_path();
 
         // show length info
         debug::info(

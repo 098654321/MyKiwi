@@ -40,6 +40,7 @@ public:
     auto update_net_seq(std::Vector<circuit::Net*>& nets) -> void;
     auto show_data_in_cycle(std::usize cycle, const std::Vector<circuit::Net*>& nets) -> void;
     auto show_final_data(const std::Vector<circuit::Net*>& nets, bool incre) -> DataPerCycle;
+    auto show_net_and_path() -> void;
 
 public:
     auto nets() const -> std::Vector<circuit::Net*>;

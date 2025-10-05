@@ -34,7 +34,7 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     // succeed: fail in the iteration > 2, but has a path in the former iteration
     if (engine.position() < nets.size() - 1) {
-        set_history_as_current(nets);    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        set_history_as_current(nets);    
     }
 }
 
@@ -96,16 +96,18 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{5};
+    std::usize cycle{0}, min_cycle{100};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
+        // init for cycle
         for (auto net: nets) {
             net->pathpackage().reset_all();
             recorder.clear_history_records(net->history_pathpackage(), net->reuse_type().value());
         }
         engine.reset_position();
 
+        // routing for each net
         for (auto net: nets) {
             // check existing path
             auto routed_nets = engine.routed_nets();
@@ -118,10 +120,17 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
             }
             engine.move_on();
             
-            // update numbers & cost
-            recorder.update_recorders(net->pathpackage(), net->reuse_type().value());   
+            // update current cost
+            recorder.update_recorders_current(net->pathpackage(), net->reuse_type().value());   
         }
+
+        // update history cost 
+        for (auto net:nets) {
+            recorder.update_recorders_history(net->pathpackage(), net->reuse_type().value());   
+        }
+
         debug::info_fmt("cycle {} done", cycle);
+        engine.show_net_and_path();
         engine.show_data_in_cycle(cycle, nets);
         
         cycle++;
