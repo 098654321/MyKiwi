@@ -24,7 +24,7 @@ public:
     auto record_tobmux(const hardware::TOBConnector& connector, bool reuse_type) -> void;
 
     auto to_string() const -> std::String;
-    auto info() const -> std::Tuple<std::usize, std::usize, std::usize>;
+    auto info() const -> std::Tuple<std::usize, std::usize>;
 
 private:
     std::Array<BitsGroup<BumpMuxSize>, BumpMuxNum> _bump_groups;
@@ -42,7 +42,7 @@ public:
     auto record_tob(const hardware::TOBCoord& coord, const hardware::TOBConnector& connector, bool reuse_type) -> void;
 
     auto show() const -> void;
-    auto info() const -> std::Tuple<std::usize, std::usize, std::usize>;
+    auto info() const -> std::Tuple<std::usize, std::usize>;
 
 private:
     std::HashMap<hardware::TOBCoord, TOBGroup> _tob_groups;

@@ -77,17 +77,14 @@ auto TOBGroup::to_string() const -> std::String {
     return message;
 }
 
-auto TOBGroup::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
-    auto not_used{0}, monopolized_by_reuse{0}, has_nonreuse{0};
+auto TOBGroup::info() const -> std::Tuple<std::usize, std::usize> {
+    auto monopolized_by_reuse{0}, has_nonreuse{0};
     auto collect = [&](const auto& array) {
         for (const auto& group: array) {
             auto reuse = group.reuse_number();
             auto nonreuse = group.nonreuse_number();
 
-            if (!reuse && !nonreuse) {
-                not_used++;
-            }
-            else if (reuse > 0 && !nonreuse) {
+            if (reuse > 0 && !nonreuse) {
                 monopolized_by_reuse++;
             }
             else if (nonreuse > 0) {
@@ -100,8 +97,8 @@ auto TOBGroup::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
     collect(this->_hori_groups);
     collect(this->_vert_groups);
     
-    return std::Tuple<std::usize, std::usize, std::usize>{
-        not_used, monopolized_by_reuse, has_nonreuse
+    return std::Tuple<std::usize, std::usize>{
+        monopolized_by_reuse, has_nonreuse
     };
 }
 
@@ -122,17 +119,16 @@ auto GlobalTOBGroup::show() const -> void {
     debug::debug("\n");
 }
 
-auto GlobalTOBGroup::info() const -> std::Tuple<std::usize, std::usize, std::usize> {
-    auto not_used{0}, monopolized_by_reuse{0}, has_nonreuse{0};
+auto GlobalTOBGroup::info() const -> std::Tuple<std::usize, std::usize> {
+    auto monopolized_by_reuse{0}, has_nonreuse{0};
     for (const auto& [coord, group]: this->_tob_groups) {
-        auto [group_not_used, group_monopolized_by_reuse, group_has_nonreuse] = group.info();
-        not_used += group_not_used;
+        auto [group_monopolized_by_reuse, group_has_nonreuse] = group.info();
         monopolized_by_reuse += group_monopolized_by_reuse;
         has_nonreuse += group_has_nonreuse;
     }
 
-    return std::Tuple<std::usize, std::usize, std::usize>{
-        not_used, monopolized_by_reuse, has_nonreuse
+    return std::Tuple<std::usize, std::usize>{
+        monopolized_by_reuse, has_nonreuse
     };
 }
 

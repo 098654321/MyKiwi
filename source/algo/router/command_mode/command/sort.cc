@@ -12,16 +12,7 @@ auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const 
     };
 
     if (engine.incremental()) {
-        // sort by reuse frequency in descending order
-        // debug::info("Sort by reuse frequency");
 
-        // float max_reuse_times {0.0};
-        // for (const auto& net : nets) {
-        //     max_reuse_times = std::max(max_reuse_times, (float)net->modes().size());
-        // }
-        // for (auto& net : nets) {
-        //     net->update_priority(0.9 * ((float)net->modes().size() / max_reuse_times));
-        // }
     }
     else {
         // sort by port number in descending order
@@ -34,15 +25,14 @@ auto Sort::execute(hardware::Interposer* interposer, RouteEngine& engine) const 
         for (auto& net : nets) {
             net->update_priority(0.9 * ((float)net->port_number() / max_port_num));
         }
-    }
+        std::sort(nets.begin(), nets.end(), compare);
+        engine.update_net_seq(nets);
 
-    std::sort(nets.begin(), nets.end(), compare);
-    engine.update_net_seq(nets);
-    
-    // show sorted nets
-    auto i {0};
-    for (auto& n: nets) {
-        debug::info_fmt("net {}: {}", i++, n->name());
+        // show sorted nets
+        auto i {0};
+        for (auto& n: nets) {
+            debug::info_fmt("net {}: {}", i++, n->name());
+        }
     }
 }
 

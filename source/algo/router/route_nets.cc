@@ -65,8 +65,6 @@ namespace kiwi::algo {
         RouteEngine& engine,
         bool incremental
     ) -> DataPerCycle {
-        const auto& nets = engine.nets();
-
         // record length info
         debug::info(
             "\n\
@@ -85,6 +83,7 @@ namespace kiwi::algo {
             **********************************************************************************\
             "
         );
+        const auto& nets = engine.nets(engine.mode());
         auto data = engine.show_final_data(nets, incremental);
 
         return data;

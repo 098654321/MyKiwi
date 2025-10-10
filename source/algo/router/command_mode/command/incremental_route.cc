@@ -13,11 +13,8 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     recorder.set_use_cost(true);
 
-    // sort by reuse frequency in descending order
-    auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
-        return n1->modes().size() > n2->modes().size();
-    };
-    std::sort(nets.begin(), nets.end(), compare);
+    nets = sort_incre(nets);
+
     for (auto& net: nets) {
         net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
     }
@@ -36,6 +33,20 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
     if (engine.position() < nets.size() - 1) {
         set_history_as_current(nets);    
     }
+}
+
+auto Incre_route::sort_incre(std::Vector<circuit::Net*>& nets) const -> std::Vector<circuit::Net*> {
+    auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {
+            return n1->modes().size() > n2->modes().size();
+    };
+    std::sort(nets.begin(), nets.end(), compare);
+    
+    auto i {0};
+    for (auto& n: nets) {
+        debug::info_fmt("net {}: {}", i++, n->name());
+    }
+
+    return nets;
 }
 
 
@@ -96,7 +107,7 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{100};
+    std::usize cycle{0}, min_cycle{8};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
@@ -154,6 +165,12 @@ auto Incre_route::reset(RouteEngine& engine, std::Vector<circuit::Net*>& nets) c
     engine.reset_position();
     engine.recorder().re_initialize();
     engine.init_route_data();
+
+    for (auto& [m, net_v]: engine.nets_with_mode()) {
+        std::erase_if(net_v, [&](auto& net) {
+            return !net->modes().contains(engine.mode());
+        });
+    }
 }
 
 auto Incre_route::set_history_as_current(std::Vector<circuit::Net*>& nets) const -> void {

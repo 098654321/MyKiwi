@@ -10,6 +10,7 @@
 
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>
+#include <parse/comparator/controlbits_parser.hh>
 
 #include <std/utility.hh>
 #include <std/range.hh>
@@ -19,7 +20,7 @@
 
 namespace kiwi {
 
-    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode) -> int {
+    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode, std::optional<int> compare) -> int {
     try {
         debug::initial_log("./debug.log");
         std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".") / ("controlbits_" + std::to_string(mode) + ".txt");
@@ -47,6 +48,11 @@ namespace kiwi {
             }
             else {
                 debug::info("Already has control bits, skip the routing process");
+            }
+            if (compare.has_value()) {
+                std::string current_file {"controlbits_" + std::to_string(mode) + ".txt"};
+                std::string target_file {"controlbits_" + std::to_string(compare.value()) + ".txt"};
+                parse::compare(current_file, target_file);
             }
         }
         

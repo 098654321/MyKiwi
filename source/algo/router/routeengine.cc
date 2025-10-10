@@ -58,17 +58,16 @@ auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool i
     auto data = this->_route_data.collect_data(nets, incre);
 
     if (incre) {
-        auto [not_used, monopolized_by_reuse, has_nonreuse] = data._reg_data;
-        auto sum = not_used + monopolized_by_reuse + has_nonreuse;
+        auto [monopolized_by_reuse, has_nonreuse] = data._reg_data;
+        auto sum = monopolized_by_reuse + has_nonreuse;
         debug::info_fmt("\n\
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
-        Not Used: {}({}%)\n\
         Monopolized by Reuse: {}({}%)\n\
         Has Nonreuse: {}({}%)\n\
         Failed routing nubmer: {}\n\
-        ", data._total_length, data._sync_net_number, data._ave_sync_length, not_used, 100*not_used/sum, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
         );
     }
     else {
@@ -86,7 +85,7 @@ auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool i
 
 
 auto RouteEngine::show_net_and_path() -> void {
-    auto nets = this->nets();
+    auto nets = this->nets(this->_mode);
 
     for (const auto& net: nets) {
         debug::info(net->to_string());
@@ -140,6 +139,29 @@ auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
         return this->_nets.at(this->_mode);
     }
 }
+
+// return nets with the initial sequence in routeengine
+auto RouteEngine::nets(int mode) const -> std::Vector<circuit::Net*> {
+    auto net_in_mode = this->_nets.at(mode);
+    
+    if (this->_incremental) {
+        if (!this->_path_exists) {
+            return net_in_mode;
+        }
+        else {
+            auto iter = std::remove_if(net_in_mode.begin(), net_in_mode.end(), [](auto& net) {
+                return net->pathpackage()._regular_path.size() != 0;
+            });
+            net_in_mode.erase(iter, net_in_mode.end());
+            return net_in_mode;
+        }
+    }
+    else {
+        return this->_nets.at(this->_mode);
+    }
+}
+
+
 
 auto RouteEngine::all_nets() const -> std::Vector<circuit::Net*> {
     std::Set<circuit::Net*> res {};

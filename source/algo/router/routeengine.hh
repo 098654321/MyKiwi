@@ -44,6 +44,7 @@ public:
 
 public:
     auto nets() const -> std::Vector<circuit::Net*>;
+    auto nets(int mode) const -> std::Vector<circuit::Net*>;
     auto all_nets() const -> std::Vector<circuit::Net*>;
     auto reusable_nets() const -> std::Set<circuit::Net*>;
     auto non_reusable_nets() const -> std::Set<circuit::Net*>;
@@ -59,6 +60,9 @@ public:
     auto init_route_data() -> void {this->_route_data.clear_data();}
     auto collect_data_when_fail(const std::Vector<circuit::Net*>& nets, bool incremental) -> void {
         this->_route_data.collect_data(nets, incremental);
+    }
+    auto nets_with_mode() -> std::HashMap<int, std::Vector<circuit::Net*>>& {
+        return this->_nets;
     }
 
 private:

@@ -13,6 +13,7 @@ namespace kiwi::algo {
 auto IncreRouting::route_bump_to_bump_net(
     hardware::Interposer* interposer, circuit::BumpToBumpNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
@@ -26,7 +27,6 @@ try {
     auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
 
     // route
-    circuit::PathPackage path_package {};
     auto reuse_type = net->reuse_type();
     if (!reuse_type.has_value()) {
         throw std::logic_error("net reuse type should not be nullopt when routing");
@@ -48,6 +48,8 @@ try {
     return true;
 }
 catch (RetryExpt& err){
+    debug::info_fmt("IncreRouting::route_bump_to_bump_net: {}", err.what());
+    path_package.reset_all();
     return false;
 }
 }
@@ -55,6 +57,7 @@ catch (RetryExpt& err){
 auto IncreRouting::route_track_to_bump_net(
     hardware::Interposer* interposer, circuit::TrackToBumpNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
@@ -64,7 +67,6 @@ try {
     auto begins_map = searching_points<hardware::Track>(begin_track, net, interposer, shared);
     auto ends_map = searching_points<hardware::Bump>(end_bump, net, interposer, shared);
 
-    circuit::PathPackage path_package {};
     auto reuse_type = net->reuse_type();
     if (!reuse_type.has_value()) {
         throw std::logic_error("net reuse type should not be nullopt when routing");
@@ -84,6 +86,7 @@ try {
 }
 catch(RetryExpt& err) {
     debug::info_fmt("IncreRouting::route_track_to_bump_net: {}", err.what());
+    path_package.reset_all();
     return false;
 }
 }
@@ -91,6 +94,7 @@ catch(RetryExpt& err) {
 auto IncreRouting::route_bump_to_track_net(
     hardware::Interposer* interposer, circuit::BumpToTrackNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
@@ -100,7 +104,6 @@ try {
     auto begins_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
     auto ends_map = searching_points<hardware::Track>(end_track, net, interposer, shared);
 
-    circuit::PathPackage path_package {};
     auto reuse_type = net->reuse_type();
     if (!reuse_type.has_value()) {
         throw std::logic_error("net reuse type should not be nullopt when routing");
@@ -120,6 +123,7 @@ try {
 }
 catch (RetryExpt& err) {
     debug::info_fmt("IncreRouting::route_bump_to_track_net: {}", err.what());
+    path_package.reset_all();
     return false;
 }
 }
@@ -127,13 +131,13 @@ catch (RetryExpt& err) {
 auto IncreRouting::route_bump_to_bumps_net(
     hardware::Interposer* interposer, circuit::BumpToBumpsNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
     auto begin_bump = net->begin_bump();
     auto& end_bumps = net->end_bumps();
 
-    circuit::PathPackage path_package {};
     algo::routed_path total_regular_path {};
     for (auto end_bump: end_bumps) {
         auto current_begin_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
@@ -165,6 +169,7 @@ try {
 }
 catch (RetryExpt& err) {
     debug::info_fmt("IncreRouting::route_bump_to_bumps_net: {}", err.what());
+    path_package.reset_all();
     return false;
 }
 }
@@ -172,13 +177,13 @@ catch (RetryExpt& err) {
 auto IncreRouting::route_track_to_bumps_net(
     hardware::Interposer* interposer, circuit::TrackToBumpsNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
     auto begin_track = net->begin_track();
     auto& end_bumps = net->end_bumps();
 
-    circuit::PathPackage path_package {};
     algo::routed_path total_regular_path {};
     for (auto& end_bump: end_bumps) {
         auto current_begin_map = searching_points<hardware::Track>(begin_track, net, interposer, shared);
@@ -207,6 +212,8 @@ try {
     return true;
 }
 catch (RetryExpt& err) {
+    debug::info_fmt("IncreRouting::route_track_to_bumps_net: {}", net->name());
+    path_package.reset_all();
     return false;
 }
 }
@@ -214,13 +221,13 @@ catch (RetryExpt& err) {
 auto IncreRouting::route_bump_to_tracks_net(
     hardware::Interposer* interposer, circuit::BumpToTracksNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
     auto begin_bump = net->begin_bump();
     auto& end_tracks = net->end_tracks();
 
-    circuit::PathPackage path_package {};
     routed_path total_regular_path {};
     for (auto& end_track: end_tracks) {
         auto current_begin_map = searching_points<hardware::Bump>(begin_bump, net, interposer, shared);
@@ -250,6 +257,8 @@ try {
     return true;
 }
 catch (RetryExpt& err) {
+    debug::info_fmt("IncreRouting::route_bump_to_tracks_net: {}", net->name());
+    path_package.reset_all();
     return false;
 }
 }
@@ -257,13 +266,13 @@ catch (RetryExpt& err) {
 auto IncreRouting::route_tracks_to_bumps_net(
     hardware::Interposer* interposer, circuit::TracksToBumpsNet* net, RouteEngine& engine, bool shared
 ) const -> bool {
+    circuit::PathPackage path_package {};
 try {
     debug::info(std::format("Incremental routing for net: {}", net->name()));
 
     auto begin_tracks = net->begin_tracks();
     auto& end_bumps = net->end_bumps();
 
-    circuit::PathPackage path_package {};
     routed_path total_regular_path {};
     for (auto& end_bump: end_bumps) {
         std::sort(begin_tracks.begin(), begin_tracks.end(), [&](auto& t1, auto& t2){
@@ -291,6 +300,8 @@ try {
     return true;
 }
 catch (RetryExpt& err) {
+    debug::info_fmt("IncreRouting::route_tracks_to_bumps_net: {}", net->name());
+    path_package.reset_all();
     return false;
 }
 }
@@ -421,6 +432,15 @@ try {
 }
 catch (RetryExpt& err) {
     debug::info_fmt("IncreRouting::route_sync_net: {}", err.what());
+    auto reset_reg_state = [](auto& nets) {
+        for (auto& net: nets) {
+            net->pathpackage().reset_all();
+        }
+    };
+    reset_reg_state(sync_net->btbnets());
+    reset_reg_state(sync_net->ttbnets());
+    reset_reg_state(sync_net->bttnets());
+
     return false;
 }
 }

@@ -12,11 +12,13 @@
 
 - 首先在 preroute 得到一个新的 pathpackage 的时候，是存在分立的各个一对一小线网自己的 package 里面的，没有移动到 SyncNet 里面的 pathpackage 里面去的。所以 SyncNet 的 package 里面的内容还是旧的，但是小的 package 里面的内容是新的。但是二者使用的是同一个 TOB 上的 register 资源，所以其实都是重复的 register ，因为使用指针存的，指向的是同一个 register 。然后再 collect_package() 这个函数里面，this->_path_package.clear_all() 这一步看上去是清空了 SyncNet 自己的 package ，但是连带小的、最新的 register 一起清空了。这个是最主要的原因。当前的解决方式就是把 clear_all() 删了。**但是还有一个问题，增量布线失败的时候不能使用 history_package 作为结果，因为里面的 give_out 的值已经在当前轮次被修改的和 output_index 不一样了。可以把存储 history package 的方式改一改，用数值把 tobmuxregister 里面的东西都先存下来，不要直接 history_package = package**
 
-**改一下回归测试里面debug.log不能准确记录每一次运行信息的问题**
+**在通过 tob 选择 mux 和底部的 track时候也要加上 cost 的信息。因为选择的 track 会极大限制后续 expand 的时候可选择的 track 的范围**
 
-**处理 RetryExcept 的方法有点问题，一条线失败了可以考虑把使用的资源都退掉，然后后面的还可以接着布线**
+**在 write controlbits 的时候，不是当前 mode 的 net 如果布线成功了，结果需要保留下来。**
 
-**not used 数据统计的不全**
+**当前的程序中 reuse net 的路径没有再切换模式的时候复用**
 
-**直接加入切换的过程，看一下结果**
+**每一轮迭代结束，把所有路过的寄存器里面每一位的使用情况，以及寄存器历史占用情况，还有当前的 cost 都打印出来。然后对比在相邻两个迭代轮次之间的变化，检查这个变化和指标之间有什么联系**
+
+
 

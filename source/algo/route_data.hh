@@ -10,7 +10,7 @@
 namespace kiwi::algo {
 
     struct DataPerCycle {
-        DataPerCycle(float total_length, float ave_sync_length, std::Tuple<double, double, double> reg_data, std::usize sync_net_number, std::usize failed_net) :
+        DataPerCycle(float total_length, float ave_sync_length, std::Tuple<double, double> reg_data, std::usize sync_net_number, std::usize failed_net) :
             _total_length(total_length),
             _ave_sync_length(ave_sync_length),
             _reg_data(reg_data),
@@ -23,7 +23,7 @@ namespace kiwi::algo {
         float _ave_sync_length;
         std::usize _sync_net_number;
         std::usize _failed_net;
-        std::Tuple<double, double, double> _reg_data;
+        std::Tuple<double, double> _reg_data;
     };
 
 
