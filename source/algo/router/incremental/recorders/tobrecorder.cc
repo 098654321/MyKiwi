@@ -135,7 +135,7 @@ auto TOBRecorder::mux_chain_index(
 
 auto TOBRecorder::tob_cost(std::usize bump_index, std::usize track_index, bool reuse_type) const -> float {
     auto [bump_mux, bump_mux_input, hori_mux, hori_mux_input, vert_mux, vert_mux_input] = this->mux_chain_index(bump_index, track_index);
-    std::usize cost {0};
+    float cost {0};
     auto calculate = [&](const TOBMuxRecorder& mux_recorder, std::usize index) -> float {
         auto [reuse_num, nonre_num] = mux_recorder.group_info();
         return mux_recorder.mux_cost(index);
