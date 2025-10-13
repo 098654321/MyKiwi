@@ -18,9 +18,9 @@ auto COBUnitRecorder::recorder(std::usize index) -> TypeRecorder& {
     return this->_cobunit_recorder.at(index);
 }
 
-auto COBUnitRecorder::cobunit_cost(std::usize index) const -> float {
+auto COBUnitRecorder::cobunit_cost(std::usize index, bool reuse_type) const -> float {
 try {
-    return this->_cobunit_recorder.at(index).cost();
+    return this->_cobunit_recorder.at(index).cost(reuse_type);
 }
 catch (std::exception& e) {
     throw std::runtime_error(std::format("cobunit_cost(): at index = {}, _cobunit vector size = , {}", index, this->_cobunit_recorder.size(), e.what()));
@@ -53,6 +53,7 @@ auto COBUnitRecorder::clear_history_record(std::usize index) -> void {
     }
 
     this->_cobunit_recorder.at(index).reset_type();
+    this->_cobunit_recorder.at(index).update_cost(0, 0);
 }
 
 COBRecorder::COBRecorder(bool use_cost) {
@@ -70,7 +71,7 @@ auto COBRecorder::unit_recorder(std::usize index) -> COBUnitRecorder& {
 }
 
 auto COBRecorder::cob_cost(std::usize index, bool reuse_type) const -> float {
-    return this->_cob_recorder.at(index/hardware::COB::UNIT_SIZE).cobunit_cost(index%hardware::COBUnit::WILTON_SIZE);
+    return this->_cob_recorder.at(index/hardware::COB::UNIT_SIZE).cobunit_cost(index%hardware::COBUnit::WILTON_SIZE, reuse_type);
 }
 
 // return [cobunit, index_in_unit]

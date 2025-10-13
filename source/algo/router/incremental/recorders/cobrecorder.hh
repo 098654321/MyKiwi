@@ -15,7 +15,7 @@ public:
 public:
     auto recorder(std::usize index) -> TypeRecorder&;
     auto recorders() -> std::Vector<TypeRecorder>&;
-    auto cobunit_cost(std::usize index) const -> float;
+    auto cobunit_cost(std::usize index, bool reuse_type) const -> float;
     auto unit_info() const -> std::Pair<float, float>;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;

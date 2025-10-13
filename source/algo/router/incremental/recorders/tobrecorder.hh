@@ -19,7 +19,7 @@ public:
     // return <reuse_num, nonre_num>
     auto group_info() const -> std::Pair<float, float>;
     
-    auto mux_cost(std::usize index) const -> float;
+    auto mux_cost(std::usize index, bool reuse_type) const -> float;
     auto update_type(std::usize index, bool reuse_type) -> void;
     auto update_history(std::usize index, bool reuse_type) -> void;
     auto update_cost() -> void;

@@ -107,7 +107,7 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{8};
+    std::usize cycle{0}, min_cycle{1};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 

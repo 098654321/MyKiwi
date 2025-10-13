@@ -20,11 +20,11 @@ auto TOBMuxRecorder::type_recorder(std::usize index) -> TypeRecorder& {
     return this->_mux_type_recorder.at(index);
 }
 
-auto TOBMuxRecorder::mux_cost(std::usize index) const -> float {
+auto TOBMuxRecorder::mux_cost(std::usize index, bool reuse_type) const -> float {
     if (index >= this->_size) {
         throw std::out_of_range(std::format("index {} is out of range [0, {})", index, this->_size));
     }
-    return this->_mux_type_recorder.at(index).cost();
+    return this->_mux_type_recorder.at(index).cost(reuse_type);
 }
 
 auto TOBMuxRecorder::group_info() const -> std::Pair<float, float> {
@@ -69,6 +69,7 @@ auto TOBMuxRecorder::re_initialize() -> void {
 
 auto TOBMuxRecorder::clear_history_record(std::usize index) -> void {
     this->_mux_type_recorder.at(index).reset_type();
+    this->_mux_type_recorder.at(index).update_cost(0, 0);
 }
 
 TOBRecorder::TOBRecorder(bool use_cost) {
@@ -138,7 +139,7 @@ auto TOBRecorder::tob_cost(std::usize bump_index, std::usize track_index, bool r
     float cost {0};
     auto calculate = [&](const TOBMuxRecorder& mux_recorder, std::usize index) -> float {
         auto [reuse_num, nonre_num] = mux_recorder.group_info();
-        return mux_recorder.mux_cost(index);
+        return mux_recorder.mux_cost(index, reuse_type);
     };
     cost += calculate(this->_bump_to_hori_recorder.at(bump_mux), bump_mux_input);
     cost += calculate(this->_hori_to_vert_recorder.at(hori_mux), hori_mux_input);
@@ -172,7 +173,7 @@ auto TOBRecorder::update_history(std::usize bump_index, std::usize hori_index, s
 auto TOBRecorder::update_cost(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void {
     auto [bump_group, bump_group_index] = this->bump_group_info(bump_index);
     this->_bump_to_hori_recorder.at(bump_group).update_cost();
-
+    
     auto [hori_group, hori_group_index] = this->hori_group_info(hori_index);
     this->_hori_to_vert_recorder.at(hori_group).update_cost();
 

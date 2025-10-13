@@ -16,10 +16,10 @@ const float HISTORYCOEF = 0.5;
 const float TOBMUXGROUPSIZE = 8;
 const float TRACKGROUPSIZE = 32;
 
-class TypeRecorder {
+class TypeRecorder {    // 单个单位的 recorder
 public:
-    TypeRecorder(bool use_cost) : _reuse_type(std::nullopt), _history({0, 0}), _cost{BASICCOST}, _use_cost{use_cost} {}
-    TypeRecorder(bool reuse_type, bool use_cost) : _reuse_type(reuse_type), _history({0, 0}), _cost{BASICCOST}, _use_cost{use_cost} {}
+    TypeRecorder(bool use_cost) : _reuse_type(std::nullopt), _history({0, 0}), _cost_nonreuse{BASICCOST}, _cost_reuse{BASICCOST}, _use_cost{use_cost} {}
+    TypeRecorder(bool reuse_type, bool use_cost) : _reuse_type(reuse_type), _history({0, 0}), _cost_nonreuse{BASICCOST}, _cost_reuse{BASICCOST}, _use_cost{use_cost} {}
     ~TypeRecorder() = default;
 
 public:
@@ -53,10 +53,11 @@ public:
 
         auto h_reuse_n = std::get<0>(this->_history);
         auto h_nonre_n = std::get<1>(this->_history);
-        auto history_ratio = (this->_reuse_type ? (h_reuse_n-h_nonre_n) : (h_nonre_n-h_reuse_n)) / (h_reuse_n+h_nonre_n+EPSILON);
+        auto history_ratio = (h_reuse_n-h_nonre_n) / (h_reuse_n+h_nonre_n+EPSILON);
+        auto group_ratio = (reuse_num-nonre_num) / (nonre_num + reuse_num + EPSILON);
 
-        auto group_ratio = (this->_reuse_type ? (reuse_num-nonre_num) : (nonre_num-reuse_num))/(nonre_num + reuse_num + EPSILON);
-        this->_cost = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
+        this->_cost_reuse = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
+        this->_cost_nonreuse = BASICCOST * (1+GROUPCOEF*group_ratio+HISTORYCOEF*history_ratio);
 
         // auto group_ratio = 1 + (this->_reuse_type ? nonre_num : reuse_num);
         // this->_cost = BASICCOST * (1-history_ratio) * group_ratio;
@@ -67,7 +68,7 @@ public:
     //     this->update_history(reuse_type);
     // }
 
-    auto cost() const -> float {return this->_use_cost ? this->_cost : BASICCOST;}
+    auto cost(bool reuse_type) const -> float {return this->_use_cost ? (reuse_type ? this->_cost_reuse : this->_cost_nonreuse) : BASICCOST;}
 
     auto reset_type() -> void {
         this->_reuse_type.reset();
@@ -76,12 +77,15 @@ public:
     auto re_initialize() -> void {
         this->reset_type();
         this->_history = {0, 0};
+        this->_cost_reuse = BASICCOST;
+        this->_cost_nonreuse = BASICCOST;
     }
 
 private:
     std::Option<bool> _reuse_type;                           // true if reusable
-    std::Pair<float, float> _history; // <reusable_times, non_reusable_times>
-    float _cost;
+    std::Pair<float, float> _history;   // <reusable_times, non_reusable_times>
+    float _cost_reuse;                  // if called by reuse net
+    float _cost_nonreuse;               // if called by non-reuse net
     bool _use_cost;
 };
 

@@ -48,7 +48,7 @@ catch(std::exception& e) {
 
 auto HardwareRecorder::track_cost(hardware::Track* track, bool reuse_type) -> float {
     auto& type_recorder = this->get_track_recorder(track, reuse_type);
-    return type_recorder.cost();
+    return type_recorder.cost(reuse_type);
 }
 
 auto HardwareRecorder::expand_cost(hardware::Track* track, hardware::COBConnector& connector, bool reuse_type) -> float {
@@ -132,27 +132,51 @@ auto HardwareRecorder::update_cob_recorders_history(const std::Vector<hardware::
 
 
 auto HardwareRecorder::update_track_recorders_cost(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void {
+    std::unordered_map<hardware::TrackCoord, std::unordered_map<int, std::Pair<float, float>>> group_info {};
+
+    // collect group info
     for (auto& track: tracks) {
         auto track_coord = track->coord();
         int group_index = track_coord.index / TRACKGROUPSIZE;
 
-        auto reuse_num=0, nonre_num= 0;
-        for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
-            auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
-            auto t = this->_interposer->get_track(coord);
+        if (group_info.contains(track_coord) && group_info.at(track_coord).contains(group_index)) {
+            continue;
+        }
+        else {
+            auto reuse_num=0, nonre_num= 0;
+            for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
+                auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
+                auto t = this->_interposer->get_track(coord);
 
-            if(t.has_value() && this->_track_recorders.contains(t.value())) {
-                auto track_recorder = this->_track_recorders.at(t.value());
+                if(t.has_value() && this->_track_recorders.contains(t.value())) {
+                    auto track_recorder = this->_track_recorders.at(t.value());
 
-                if(track_recorder.current_type().has_value()){
-                    auto track_type = *track_recorder.current_type();
-                    track_type ? reuse_num++ : nonre_num++;
+                    if(track_recorder.current_type().has_value()){
+                        auto track_type = *track_recorder.current_type();
+                        track_type ? reuse_num++ : nonre_num++;
+                    }
+                }
+            }
+
+            auto iter = group_info.emplace(track_coord, std::unordered_map<int, std::Pair<float, float>>{});
+            iter.first->second.emplace(group_index, std::make_pair(reuse_num, nonre_num));
+        }
+    }
+
+    // update all groups
+    for (const auto& [track_coord, info]: group_info) {
+        for (const auto& [group, use_info]: info) {
+            for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group), (int)(TRACKGROUPSIZE*group+TRACKGROUPSIZE-1))) {
+                auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
+                auto t = this->_interposer->get_track(coord);
+                
+                if(t.has_value()) {
+                    auto& track_recorder = this->get_track_recorder(t.value(), reuse_type);
+                    track_recorder.update_cost(use_info.first, use_info.second);
                 }
             }
         }
-
-        auto& recorder = this->get_track_recorder(track, reuse_type);
-        recorder.update_cost(reuse_num, nonre_num);
+        
     }
 }
 
@@ -231,6 +255,7 @@ auto HardwareRecorder::clear_track_history_records(const std::Vector<hardware::T
     for (auto& track: tracks) {
         auto& recorder = this->get_track_recorder(track, reuse_type);
         recorder.reset_type();
+        recorder.update_cost(0, 0);
     }
 }
 
