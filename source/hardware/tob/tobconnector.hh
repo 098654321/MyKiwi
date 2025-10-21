@@ -41,6 +41,7 @@ namespace kiwi::hardware {
 
         auto check_consistency() const -> void;
         auto check_vert_to_track_reg_address() const -> uintptr_t;
+        auto check_mux_pregister() const -> const std::unordered_set<const TOBMuxRegister*>;
 
     private:
         std::usize _bump_index;

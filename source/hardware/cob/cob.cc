@@ -191,4 +191,12 @@ namespace kiwi::hardware {
         return cob_selregister->get();
     }
 
+    auto COB::get_cob_connector(COBDirection form_dir, std::size_t from_track_index, COBDirection to_dir, std::size_t to_track_index, COBCoord coord) -> COBConnector {
+        return COBConnector(
+            form_dir, from_track_index, to_dir, to_track_index, 
+            sw_register(form_dir, from_track_index, to_dir), sel_register(form_dir, from_track_index), sel_register(to_dir, to_track_index), 
+            coord
+        );
+    }
+
 }

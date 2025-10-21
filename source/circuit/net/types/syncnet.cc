@@ -281,8 +281,7 @@ namespace kiwi::circuit
             flag = false;
         }
 
-        this->_history_path_package = this->_path_package;  // notice: history_package share same tobmuxregister with package
-                                                            // because registes are stored by a pointer, and they share the same pointer
+        this->_history_path_package = circuit::HistoryPathPackage(this->_path_package);
         auto collect = [&](circuit::Net* net, PathPackage& new_package) {
             auto& package = net->pathpackage();
 
@@ -433,7 +432,7 @@ namespace kiwi::circuit
 
     auto SyncNet::clear_path() -> void {
         this->_path_package.clear_all();
-        this->_history_path_package.clear_all();
+        this->_history_path_package.reset();
         this->_related_nets_bump.clear();
         this->_related_nets_track.clear();
 
@@ -458,6 +457,35 @@ namespace kiwi::circuit
     auto SyncNet::name() const -> const std::String& {
         return this->_name;
     }
+
+    auto SyncNet::reset_pathpackage() -> void {
+        this->_path_package.reset_all();
+
+        for (auto& net: this->_btbnets) {
+            net->reset_pathpackage();
+        }
+        for (auto& net: this->_bttnets) {
+            net->reset_pathpackage();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->reset_pathpackage();
+        }
+    }
+
+    auto SyncNet::move_history_to_current(hardware::Interposer* interposer) -> void {
+        this->_path_package = circuit::PathPackage(this->_history_path_package.value(), interposer);
+        
+        for (auto& net: this->_btbnets) {
+            net->move_history_to_current(interposer);
+        }
+        for (auto& net: this->_bttnets) {
+            net->move_history_to_current(interposer);
+        }
+        for (auto& net: this->_ttbnets) {
+            net->move_history_to_current(interposer);
+        }
+    }
+
 }
 
 

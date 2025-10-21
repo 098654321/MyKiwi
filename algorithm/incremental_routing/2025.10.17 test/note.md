@@ -2,7 +2,7 @@
 
 - 测试目的：对比现在的布线算法在布线质量上和之前的布线算法有什么差别。布线质量包括**全局布线长度、同步线布线长度、布通率**
 
-- 测试数据：用 case13 ，case12，case9 分别测试（case14，15，16现在的方法还无法连通）
+- 测试数据：用 case13 ，case12，case8 分别测试（case14，15，16现在的方法还无法连通）
 
 - 实验设置：
 
@@ -26,6 +26,13 @@
             this->_cost_reuse = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
             this->_cost_nonreuse = BASICCOST * (1+GROUPCOEF*group_ratio+HISTORYCOEF*history_ratio);
             ```
+
+        其中迭代 20 轮是因为根据之前的数据，布线长度信息在 20 轮的时候开始稳定
+
+    * 实验结果
+
+        见 excel 文件
+        
 
         
 

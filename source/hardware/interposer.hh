@@ -20,7 +20,7 @@ namespace kiwi::hardware {
     class Interposer {
     public:
         enum {
-            COB_ARRAY_WIDTH   = 12,
+            COB_ARRAY_WIDTH   = 13,
             COB_ARRAY_HEIGHT  = 9,
 
             TOB_ARRAY_WIDTH   = 4,
@@ -54,14 +54,18 @@ namespace kiwi::hardware {
     public:
         auto get_cob(const COBCoord& coord) -> std::Option<COB*>;
         auto get_cob(std::i64 row, std::i64 col) -> std::Option<COB*>;
-         
+        
+        // get TOB by TOB array coordinate(not coordinate in interposer!)
         auto get_tob(const TOBCoord& coord) -> std::Option<TOB*>;
+        // get TOB by TOB array coordinate(not coordinate in interposer!)
         auto get_tob(std::i64 row, std::i64 col) -> std::Option<TOB*>;
 
         auto get_track(const TrackCoord& coord) -> std::Option<Track*>;
         auto get_track(std::i64 row, std::i64 col, TrackDirection dir, std::usize index) -> std::Option<Track*>;
 
+        // get Bump by TOB array coordinate(not coordinate in interposer!)
         auto get_bump(const TOBCoord& coord, std::usize index) -> std::Option<Bump*>;
+        // get Bump by TOB array coordinate(not coordinate in interposer!)
         auto get_bump(std::i64 row, std::i64 col, std::usize index) -> std::Option<Bump*>;
 
         auto get_a_idle_tob() -> std::Option<TOB*>;                                                         

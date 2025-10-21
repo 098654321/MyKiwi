@@ -74,6 +74,11 @@ namespace kiwi::circuit {
         virtual auto show_path() const -> void;
         virtual auto length() const -> std::usize;
         virtual auto set_pathpackage(const PathPackage& path_package) -> void;
+        virtual auto move_history_to_current(hardware::Interposer*) -> void;
+
+        // reset all package elements in iterate routing for incremental routing
+        virtual auto reset_pathpackage() -> void {this->_path_package.reset_all();}
+
         virtual auto sync_length() const -> std::Tuple<std::usize, std::usize> {return std::Tuple<std::usize, std::usize>{0, 0};}
         virtual auto pathpackage() -> PathPackage& {return this->_path_package;}
         virtual auto pathpackage() const -> const PathPackage& {return this->_path_package;}
@@ -82,7 +87,7 @@ namespace kiwi::circuit {
         virtual auto add_mode(int m) -> void {this->_modes.insert(m);}
         virtual auto set_reuse_type(bool type) -> void {this->_reuse_type.emplace(type);}
         virtual auto reuse_type() const -> std::Option<bool> {return this->_reuse_type;}
-        virtual auto history_pathpackage() -> PathPackage& {return this->_history_path_package;}
+        virtual auto history_pathpackage() -> std::optional<HistoryPathPackage>& {return this->_history_path_package;}
         virtual auto name() const -> const std::String& {return this->_name;}
 
         // check if node is the same with nodes belongs to this 
@@ -124,14 +129,14 @@ namespace kiwi::circuit {
     
     public:
         Net(Priority priority, const std::HashSet<int>& modes, std::String& name):
-            _priority{priority}, _path_package{}, _history_path_package{}, _reuse_type{std::nullopt}, _related_nets_track{}, _related_nets_bump{}, _modes{modes}, _name{name} {}
+            _priority{priority}, _path_package{}, _history_path_package{std::nullopt}, _reuse_type{std::nullopt}, _related_nets_track{}, _related_nets_bump{}, _modes{modes}, _name{name} {}
         virtual ~Net() noexcept {}
     
     protected:
         Priority _priority;
         std::String _name;
         PathPackage _path_package;
-        PathPackage _history_path_package;
+        std::optional<HistoryPathPackage> _history_path_package;
         std::HashSet<int> _modes;
         std::Option<bool> _reuse_type;
 

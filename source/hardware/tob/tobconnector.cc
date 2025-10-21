@@ -107,4 +107,13 @@ namespace kiwi::hardware {
         return this->_vert_to_track.check_reg_address();
     }
 
+    auto TOBConnector::check_mux_pregister() const -> const std::unordered_set<const TOBMuxRegister*> {
+        auto preg_set = std::unordered_set<const TOBMuxRegister*>{};
+        preg_set.emplace(this->_bump_to_hori.check_pregister());
+        preg_set.emplace(this->_hori_to_vert.check_pregister());
+        preg_set.emplace(this->_vert_to_track.check_pregister());
+        
+        return preg_set;
+    }
+
 }

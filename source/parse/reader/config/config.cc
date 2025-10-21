@@ -214,10 +214,7 @@ namespace kiwi::parse {
 
     static auto load_from_txt(const std::FilePath& path, Config& config, int mode) -> void 
     try {
-        debug::info("Load from txt");
-        if (mode != 0) {
-            debug::unimplement("do not support the incremental mode config temperorily");
-        }
+        debug::info_fmt("Load from txt with mode = {}", mode);
         config.connections.emplace(mode, std::HashMap<int, std::Vector<ConnectionConfig>>{});
 
         std::ifstream file(path);
@@ -261,10 +258,6 @@ namespace kiwi::parse {
 
     auto parse_txt_line(const std::String& topdie1, const std::String& topdie2, const std::Array<int, 11>& numbers, Config& config, int mode) -> void
     try{
-        if (mode != 0) {
-            debug::unimplement("do not support the incremental mode config temperorily");
-        }
-
         const auto net_tag = numbers.back();
         std::String input{}, output{};
 

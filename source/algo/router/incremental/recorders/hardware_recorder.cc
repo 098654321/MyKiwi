@@ -106,6 +106,8 @@ auto HardwareRecorder::update_recorders_history(const circuit::PathPackage& pack
         tobconnectors.emplace(bump->tob()->coord(), connector);
     }
     this->update_tob_recorders_history(tobconnectors, reuse_type);
+
+    // 打印从给 bump -> track -> cob -> ..... -> track -> bump 的路径中，每一个布线资源所属的寄存器组的资源使用情况。
 }
 
 auto HardwareRecorder::update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {

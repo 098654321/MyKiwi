@@ -116,12 +116,15 @@ namespace kiwi::hardware {
         return indexes;
     }
 
-    auto TOBMux::connector(std::usize input_index, std::usize output_index) -> TOBMuxConnector {
+    auto TOBMux::connector(std::usize input_index, std::usize output_index, bool give_out) -> TOBMuxConnector {
     try {
         assert(this->_registers.size() > input_index);
         assert(!this->_registers.at(input_index).is_given_out());
 
-        this->_registers.at(input_index).give_out(output_index);
+        if (give_out) {
+            this->_registers.at(input_index).give_out(output_index);
+        }
+        
         return TOBMuxConnector {
             input_index, output_index, &this->_registers.at(input_index)
         };

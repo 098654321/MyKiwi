@@ -198,6 +198,7 @@ namespace kiwi::hardware {
     auto Interposer::get_bump(const TOBCoord& coord, std::usize index) -> std::Option<Bump*> {
         auto tob = this->get_tob(coord);
         if (!tob.has_value()) {
+            debug::info_fmt("Interposer::get_bummp(): TOB not found, coord: ({}, {})", coord.row, coord.col);
             return std::nullopt;
         }
         return (*tob)->get_bump(index);

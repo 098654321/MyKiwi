@@ -70,6 +70,8 @@ namespace kiwi::circuit {
         auto length() const -> std::usize override;
         auto sync_length() const -> std::Tuple<std::usize, std::usize> override;
         auto set_pathpackage(const circuit::PathPackage&) -> void override;
+        auto reset_pathpackage() -> void override;
+        auto move_history_to_current(hardware::Interposer*) -> void override;
 
         // return false if this->_path_package is already filled
         auto collect_package() -> bool;

@@ -70,9 +70,14 @@ namespace kiwi::hardware {
         auto bump_to_hori_register(std::usize bump_index) const -> const TOBMuxRegister*;
         auto hori_to_vert_register(std::usize hori_index) const -> const TOBMuxRegister*;
         auto vert_to_track_register(std::usize vert_index) const -> const TOBMuxRegister*;
+        auto bump_dir_register(std::usize bump_index) -> TOBBumpDirRegister*;
+        auto track_dir_register(std::usize track_index) -> TOBTrackDirRegister*;
         auto bump_to_hori_muxs() const -> const std::Vector<std::Box<TOBMux>>& {return this->_bump_to_hori_muxs;}
+        auto bump_to_hori_muxs(std::size_t n) const -> const std::Box<TOBMux>&;
         auto hori_to_vert_muxs() const -> const std::Vector<std::Box<TOBMux>>& {return this->_hori_to_vert_muxs;}
+        auto hori_to_vert_muxs(std::size_t n) const -> const std::Box<TOBMux>&;
         auto vert_to_track_muxs() const -> const std::Vector<std::Box<TOBMux>>& {return this->_vert_to_track_muxs;}
+        auto vert_to_track_muxs(std::size_t n) const -> const std::Box<TOBMux>&;
 
     public:
         auto randomly_map_remain_indexes() -> void;

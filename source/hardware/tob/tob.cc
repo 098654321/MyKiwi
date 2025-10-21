@@ -12,6 +12,7 @@
 #include <std/utility.hh>
 #include <cassert>
 #include <stdexcept>
+#include <format>
 
 
 namespace kiwi::hardware {
@@ -386,7 +387,45 @@ namespace kiwi::hardware {
     }
 
     auto TOB::check_index(std::usize index) -> void {
-        if (index >= TOB::INDEX_SIZE)
-            debug::exception_fmt("horizontal mux index should be in the range of [0, {})", static_cast<int>(TOB::INDEX_SIZE));
+        if (index >= TOB::INDEX_SIZE) {
+            throw std::runtime_error(std::format("TOB::check_index(): index should be in the range of [0, {})", static_cast<int>(TOB::INDEX_SIZE)));
+        }
+    }
+
+    auto TOB::bump_to_hori_muxs(std::usize index) const -> const std::Box<TOBMux>& {
+        if (index >= TOB::BUMP_TO_HORI_MUX_COUNT) {
+            std::size_t count = TOB::BUMP_TO_HORI_MUX_COUNT;
+            throw std::runtime_error(std::format("TOB::bump_to_hori_muxs(): bump to hori mux index should be in the range of [0, {})", count));
+        }
+
+        return this->_bump_to_hori_muxs.at(index);
+    }
+
+    auto TOB::hori_to_vert_muxs(std::usize index) const -> const std::Box<TOBMux>& {
+        if (index >= TOB::HORI_TO_VERI_MUX_COUNT) {
+            std::size_t count = TOB::HORI_TO_VERI_MUX_COUNT;
+            throw std::runtime_error(std::format("TOB::hori_to_vert_muxs(): hori to vert mux index should be in the range of [0, {})", count));
+        }
+
+        return this->_hori_to_vert_muxs.at(index);
+    }
+
+    auto TOB::vert_to_track_muxs(std::usize index) const -> const std::Box<TOBMux>& {
+        if (index >= TOB::VERI_TO_TRACK_MUX_COUNT) {
+            std::size_t count = TOB::VERI_TO_TRACK_MUX_COUNT;
+            throw std::runtime_error(std::format("TOB::vert_to_track_muxs(): vert to track mux index should be in the range of [0, {})", count));
+        }
+
+        return this->_vert_to_track_muxs.at(index);
+    }
+
+    auto TOB::bump_dir_register(std::usize bump_index) -> TOBBumpDirRegister* {
+        TOB::check_index(bump_index);
+        return this->_bump_dir_registers.at(bump_index).get();
+    }
+
+    auto TOB::track_dir_register(std::usize track_index) -> TOBTrackDirRegister* {
+        TOB::check_index(track_index);
+        return this->_track_dir_registers.at(track_index).get();
     }
 }

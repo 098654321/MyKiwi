@@ -52,6 +52,8 @@ namespace kiwi::hardware {
         auto get_sw_resgiter_value(COBDirection from_dir, std::usize from_cob_index, COBDirection to_dir) const -> COBSwState;
         auto get_sel_resgiter_value(COBDirection dir, std::usize cob_index) const -> COBSignalDirection;
 
+        auto get_cob_connector(COBDirection form_dir, std::size_t from_track_index, COBDirection to_dir, std::size_t to_track_index, COBCoord coord) -> COBConnector;
+
     public:
         auto to_dir_track_coord(COBDirection dir, std::usize index) -> TrackCoord;
         auto cobunit_by_cob_index(std::usize cob_index) -> COBUnit&;
