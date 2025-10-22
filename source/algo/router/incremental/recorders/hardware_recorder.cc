@@ -64,50 +64,25 @@ catch (std::exception& e) {
 
 auto HardwareRecorder::update_recorders_current(const circuit::PathPackage& package, bool reuse_type) -> void  {
     debug::info("Update recorders current");
-    std::Vector<hardware::Track*> tracks {};
-    std::Vector<hardware::COBConnector> cobconnectors {};
-    for (auto& [track, connector]: package._regular_path) {
-        tracks.emplace_back(track);
-        if (connector.has_value()) {
-            cobconnectors.emplace_back(*connector);
-        }
-    }
+    auto [tracks, cobconnectors] = this->collect_track_cobconnector(package);
     this->update_track_recorders_current(tracks, reuse_type);
     this->update_cob_recorders_current(cobconnectors, reuse_type);
 
-    std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
-    for (auto& [bump, connector, track]: package._tob_to_track) {
-        tobconnectors.emplace(bump->tob()->coord(), connector);
-    }
-    for (auto& [bump, connector, track]: package._track_to_tob) {
-        tobconnectors.emplace(bump->tob()->coord(), connector);
-    }
+    auto tobconnectors = this->collect_tobconnector(package);
     this->update_tob_recorders_current(tobconnectors, reuse_type);
 }
 
 auto HardwareRecorder::update_recorders_history(const circuit::PathPackage& package, bool reuse_type) -> void {
     debug::info("Update recorders history");
-    std::Vector<hardware::Track*> tracks {};
-    std::Vector<hardware::COBConnector> cobconnectors {};
-    for (auto& [track, connector]: package._regular_path) {
-        tracks.emplace_back(track);
-        if (connector.has_value()) {
-            cobconnectors.emplace_back(*connector);
-        }
-    }
+    auto [tracks, cobconnectors] = this->collect_track_cobconnector(package);
     this->update_track_recorders_history(tracks, reuse_type);
     this->update_cob_recorders_history(cobconnectors, reuse_type);
 
-    std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
-    for (auto& [bump, connector, track]: package._tob_to_track) {
-        tobconnectors.emplace(bump->tob()->coord(), connector);
-    }
-    for (auto& [bump, connector, track]: package._track_to_tob) {
-        tobconnectors.emplace(bump->tob()->coord(), connector);
-    }
+    auto tobconnectors = this->collect_tobconnector(package);
     this->update_tob_recorders_history(tobconnectors, reuse_type);
 
-    // 打印从给 bump -> track -> cob -> ..... -> track -> bump 的路径中，每一个布线资源所属的寄存器组的资源使用情况。
+// for debug
+this->show_path_recorder_status(package);
 }
 
 auto HardwareRecorder::update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
@@ -290,6 +265,68 @@ auto HardwareRecorder::re_initialize() -> void {
 
 auto HardwareRecorder::set_use_cost(bool use_cost) -> void {
     this->_use_cost = use_cost;
+}
+
+auto HardwareRecorder::collect_track_cobconnector(const circuit::PathPackage& package) const -> std::Tuple<std::Vector<hardware::Track*>, std::Vector<hardware::COBConnector>> {
+    std::Vector<hardware::Track*> tracks {};
+    std::Vector<hardware::COBConnector> cobconnectors {};
+    for (auto& [track, connector]: package._regular_path) {
+        tracks.emplace_back(track);
+        if (connector.has_value()) {
+            cobconnectors.emplace_back(*connector);
+        }
+    }
+    return {tracks, cobconnectors};
+}
+
+auto HardwareRecorder::collect_tobconnector(const circuit::PathPackage& package) const -> std::HashMap<hardware::TOBCoord, hardware::TOBConnector> {
+    std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
+    for (auto& [bump, connector, track]: package._tob_to_track) {
+        tobconnectors.emplace(bump->tob()->coord(), connector);
+    }
+    for (auto& [bump, connector, track]: package._track_to_tob) {
+        tobconnectors.emplace(bump->tob()->coord(), connector);
+    }
+    return tobconnectors;
+}
+
+auto HardwareRecorder::show_path_recorder_status(const circuit::PathPackage& package) const -> void {
+    auto [tracks, cobconnectors] = this->collect_track_cobconnector(package);
+    auto tobconnectors = this->collect_tobconnector(package);
+    std::String msg = "HardwareRecorder Status: ----------\n";
+
+    for (auto& track: tracks) {
+        auto track_coord = track->coord();
+        int group_index = track_coord.index / TRACKGROUPSIZE;
+
+        for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
+            auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
+            auto t = this->_interposer->get_track(coord);
+
+            if(t.has_value() && this->_track_recorders.contains(t.value())) {
+                auto track_recorder = this->_track_recorders.at(t.value());
+                msg += track_recorder.show_data(false);
+            }
+        }
+    }
+
+    for (auto& connector: cobconnectors) {
+        auto coord = connector.coord();
+        if (this->_cob_recorders.contains(coord)) {
+            auto cob_recorder = this->_cob_recorders.at(coord);
+            msg += cob_recorder.show_data(connector.from_track_index(), false);
+        }
+    }
+
+    for (auto& [coord, connector]: tobconnectors) {
+        if (this->_tob_recorders.contains(coord)) {
+            auto tob_recorder = this->_tob_recorders.at(coord);
+            msg += tob_recorder.show_data(connector.bump_index(), connector.hori_index(), connector.vert_index(), false);
+        }
+    }
+    msg += "END HaardwareRecorder Status --------\n";
+
+    debug::debug(msg);
 }
 
 }

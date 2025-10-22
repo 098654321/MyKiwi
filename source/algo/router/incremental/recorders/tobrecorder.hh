@@ -25,6 +25,7 @@ public:
     auto update_cost() -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;
+    auto show_data(bool print = false) const -> std::String;
 
 private:
     std::usize _size;
@@ -39,8 +40,11 @@ public:
 
 public:
     auto bump_to_hori_recorder(std::usize index) -> TOBMuxRecorder&;
+    auto bump_to_hori_recorder(std::usize index) const -> const TOBMuxRecorder&;
     auto hori_to_vert_recorder(std::usize index) -> TOBMuxRecorder&;
+    auto hori_to_vert_recorder(std::usize index) const -> const TOBMuxRecorder&;
     auto vert_to_track_recorder(std::usize index) -> TOBMuxRecorder&;
+    auto vert_to_track_recorder(std::usize index) const -> const TOBMuxRecorder&;
 
     auto mux_chain_index(std::usize bump_index, std::usize track_index) const -> std::Tuple<std::usize, std::usize, std::usize, std::usize, std::usize, std::usize>;
     auto tob_cost(std::usize bump_index, std::usize track_index, bool reuse_type) const -> float;
@@ -50,6 +54,7 @@ public:
     auto update_cost(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void;
+    auto show_data(std::size_t bump_index, std::size_t hori_index, std::size_t vert_index, bool print = false) const -> std::String;
 
 private:
     auto bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize>;

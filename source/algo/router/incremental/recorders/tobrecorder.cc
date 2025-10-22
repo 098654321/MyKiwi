@@ -72,6 +72,19 @@ auto TOBMuxRecorder::clear_history_record(std::usize index) -> void {
     this->_mux_type_recorder.at(index).update_cost(0, 0);
 }
 
+auto TOBMuxRecorder::show_data(bool print) const -> std::String {
+    std::String msg = "TOBMuxRecorder data: ----\n";
+    for (std::usize i = 0; i < this->_size; ++i) {
+        msg += std::format("  Mux {}: {}\n", i, this->_mux_type_recorder.at(i).show_data(print));
+    }
+    msg += "----\n";
+
+    if (print) {
+        debug::info(msg);
+    }
+    return msg;
+}
+
 TOBRecorder::TOBRecorder(bool use_cost) {
     this->_bump_to_hori_recorder.reserve(hardware::TOB::BUMP_TO_HORI_MUX_COUNT);
     for (auto i: std::views::iota(0, (int)hardware::TOB::BUMP_TO_HORI_MUX_COUNT)) {
@@ -96,6 +109,10 @@ auto TOBRecorder::bump_to_hori_recorder(std::usize index) -> TOBMuxRecorder& {
     return this->_bump_to_hori_recorder.at(index);
 }
 
+auto TOBRecorder::bump_to_hori_recorder(std::usize index) const -> const TOBMuxRecorder& {
+    return const_cast<TOBRecorder*>(this)->bump_to_hori_recorder(index);
+}
+
 auto TOBRecorder::hori_to_vert_recorder(std::usize index) -> TOBMuxRecorder& {
     if (index >= hardware::TOB::HORI_TO_VERI_MUX_COUNT) {
         throw std::out_of_range("TOBRecorder::hori_to_vert_recorder(): index out of range");
@@ -103,11 +120,19 @@ auto TOBRecorder::hori_to_vert_recorder(std::usize index) -> TOBMuxRecorder& {
     return this->_hori_to_vert_recorder.at(index);
 }
 
+auto TOBRecorder::hori_to_vert_recorder(std::usize index) const -> const TOBMuxRecorder& {
+    return const_cast<TOBRecorder*>(this)->hori_to_vert_recorder(index);
+}
+
 auto TOBRecorder::vert_to_track_recorder(std::usize index) -> TOBMuxRecorder& {
     if (index >= hardware::TOB::VERI_TO_TRACK_MUX_COUNT) {
         throw std::out_of_range("TOBRecorder::vert_to_track_recorder(): index out of range");
     }
     return this->_vert_to_track_recorder.at(index);
+}
+
+auto TOBRecorder::vert_to_track_recorder(std::usize index) const -> const TOBMuxRecorder& {
+    return const_cast<TOBRecorder*>(this)->vert_to_track_recorder(index);
 }
 
 auto TOBRecorder::mux_chain_index(
@@ -239,6 +264,21 @@ auto TOBRecorder::clear_history_record(std::usize bump_index, std::usize hori_in
     this->_vert_to_track_recorder.at(vert_group).clear_history_record(vert_group_index);
 }
 
+auto TOBRecorder::show_data(std::size_t bump_index, std::size_t hori_index, std::size_t vert_index, bool print) const -> std::String {
+    std::String msg = "TOBRecorder data: --------\n";
+    auto bump_mux = bump_index / hardware::TOB::BUMP_TO_HORI_MUX_SIZE;
+    msg += this->bump_to_hori_recorder(bump_index).show_data(print);
+    auto hori_mux = hori_index / hardware::TOB::HORI_TO_VERI_MUX_SIZE;
+    msg += this->hori_to_vert_recorder(hori_index).show_data(print);
+    auto vert_mux = vert_index % hardware::TOB::VERI_TO_TRACK_MUX_COUNT;
+    msg += this->vert_to_track_recorder(vert_index).show_data(print);
+    msg += "--------\n";
+    
+    if (print) {
+        debug::info(msg);
+    }
+    return msg;
 }
 
+}
 

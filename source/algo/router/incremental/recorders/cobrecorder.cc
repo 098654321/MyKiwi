@@ -56,6 +56,19 @@ auto COBUnitRecorder::clear_history_record(std::usize index) -> void {
     this->_cobunit_recorder.at(index).update_cost(0, 0);
 }
 
+auto COBUnitRecorder::show_data(bool print) const -> std::String {
+    std::String msg = "COBUnitRecorder data: ----\n";
+    for (std::usize i = 0; i < this->_size; ++i) {
+        msg += std::format("  Unit {}: {}\n", i, this->_cobunit_recorder.at(i).show_data(print));
+    }
+    msg += "----\n";
+
+    if (print) {
+        debug::info(msg);
+    }
+    return msg;
+}
+
 COBRecorder::COBRecorder(bool use_cost) {
     this->_cob_recorder.reserve(hardware::COB::UNIT_SIZE);
     for (auto i: std::views::iota(0, (int)hardware::COB::UNIT_SIZE)) {
@@ -68,6 +81,10 @@ auto COBRecorder::unit_recorder(std::usize index) -> COBUnitRecorder& {
         throw std::out_of_range("COBRecorder::unit_recorder(): index out of range");
     }
     return this->_cob_recorder.at(index);
+}
+
+auto COBRecorder::unit_recorder(std::usize index) const -> const COBUnitRecorder& {
+    return const_cast<COBRecorder*>(this)->unit_recorder(index);
 }
 
 auto COBRecorder::cob_cost(std::usize index, bool reuse_type) const -> float {
@@ -153,6 +170,23 @@ auto COBRecorder::re_initialize() -> void {
 auto COBRecorder::clear_history_record(std::usize index) -> void {
     auto [unit, index_in_unit] = this->parse_index(index);
     this->_cob_recorder.at(unit).clear_history_record(index_in_unit);
+}
+
+auto COBRecorder::show_data(std::size_t track_index, bool print) const -> std::String {
+    std::String msg = "COBRecorder data: --------\n";
+    std::usize group_index = track_index / TRACKGROUPSIZE;
+    for (auto i: std::views::iota(0, 4)) {
+        const auto& unit_recorder = this->_cob_recorder.at(group_index * 4 + i);
+        msg += unit_recorder.show_data(print);
+    }
+    msg += this->unit_recorder(track_index).show_data(print);
+    msg += "--------\n";
+
+    if (print) {
+        debug::info(msg);
+    }
+    return msg;
+
 }
 
 }

@@ -5,6 +5,7 @@
 #include <global/std/integer.hh>
 #include <stdexcept>
 #include <algorithm>
+#include <format>
 
 
 namespace kiwi::algo {
@@ -58,15 +59,7 @@ public:
 
         this->_cost_reuse = BASICCOST * (1-GROUPCOEF*group_ratio-HISTORYCOEF*history_ratio);
         this->_cost_nonreuse = BASICCOST * (1+GROUPCOEF*group_ratio+HISTORYCOEF*history_ratio);
-
-        // auto group_ratio = 1 + (this->_reuse_type ? nonre_num : reuse_num);
-        // this->_cost = BASICCOST * (1-history_ratio) * group_ratio;
     }
-
-    // auto update(bool reuse_type) -> void {
-    //     this->set_type(reuse_type);
-    //     this->update_history(reuse_type);
-    // }
 
     auto cost(bool reuse_type) const -> float {return this->_use_cost ? (reuse_type ? this->_cost_reuse : this->_cost_nonreuse) : BASICCOST;}
 
@@ -81,8 +74,29 @@ public:
         this->_cost_nonreuse = BASICCOST;
     }
 
+    auto show_data(bool print = false) const -> std::String {
+        std::String msg = "TypeRecorder Data --\n";
+        if (this->_reuse_type.has_value()) {
+            msg += "Current type: " + std::to_string(this->_reuse_type.value()) + ", ";
+        }
+        else {
+            msg += "Current type: None, ";
+        }
+        msg += "History reusable times: " + std::to_string(this->_history.first) + ", ";
+        msg += "History non-reusable times: " + std::to_string(this->_history.second) + ", ";
+        msg += "Cost reuse: " + std::to_string(this->_cost_reuse) + ", ";
+        msg += "Cost non-reuse: " + std::to_string(this->_cost_nonreuse) + "\n";
+        msg += "--\n";
+        
+        if (print) {
+            debug::info(msg);
+        }
+        return msg;
+
+    }
+
 private:
-    std::Option<bool> _reuse_type;                           // true if reusable
+    std::Option<bool> _reuse_type;       // true if reusable
     std::Pair<float, float> _history;   // <reusable_times, non_reusable_times>
     float _cost_reuse;                  // if called by reuse net
     float _cost_nonreuse;               // if called by non-reuse net

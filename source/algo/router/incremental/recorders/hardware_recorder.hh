@@ -46,9 +46,15 @@ public:
     auto clear_cob_history_records(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
     auto clear_tob_history_records(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
 
+    auto show_path_recorder_status(const circuit::PathPackage& package) const -> void;
+
     auto re_initialize() -> void;
     auto set_use_cost(bool use_cost) -> void;
-    
+
+private:
+    auto collect_track_cobconnector(const circuit::PathPackage& package) const -> std::Tuple<std::Vector<hardware::Track*>, std::Vector<hardware::COBConnector>>;
+    auto collect_tobconnector(const circuit::PathPackage& package) const -> std::HashMap<hardware::TOBCoord, hardware::TOBConnector>;
+
 private:
     std::HashMap<hardware::Track*, TypeRecorder> _track_recorders;
     std::HashMap<hardware::TOBCoord, TOBRecorder> _tob_recorders;

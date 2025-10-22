@@ -19,6 +19,7 @@ public:
     auto unit_info() const -> std::Pair<float, float>;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;
+    auto show_data(bool print = false) const -> std::String;
 
 private:
     std::usize _size;
@@ -32,6 +33,7 @@ public:
 
 public:
     auto unit_recorder(std::usize index) -> COBUnitRecorder&;
+    auto unit_recorder(std::usize index) const -> const COBUnitRecorder&;
     auto cob_cost(std::usize index, bool reuse_type) const -> float;
     auto parse_index(std::usize index) const -> std::Tuple<std::usize, std::usize>;
     auto group_info(std::usize index) const -> std::Tuple<std::usize, std::usize>;
@@ -40,6 +42,7 @@ public:
     auto update_cost(std::usize index) -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;
+    auto show_data(std::size_t track_index, bool print = false) const -> std::String;
 
 private:
     std::Vector<COBUnitRecorder> _cob_recorder;
