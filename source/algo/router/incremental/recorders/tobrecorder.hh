@@ -25,7 +25,7 @@ public:
     auto update_cost() -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;
-    auto show_data(bool print = false) const -> std::String;
+    auto show_data(std::tuple<std::size_t, std::size_t> mux_info, bool show_all, bool print = false) const -> std::string;
 
 private:
     std::usize _size;
@@ -54,7 +54,7 @@ public:
     auto update_cost(std::usize bump_index, std::usize hori_index, std::usize vert_index, bool reuse_type) -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize bump_index, std::usize hori_index, std::usize vert_index) -> void;
-    auto show_data(std::size_t bump_index, std::size_t hori_index, std::size_t vert_index, bool print = false) const -> std::String;
+    auto show_data(std::size_t bump_index, std::size_t hori_index, std::size_t vert_index, bool show_all, bool print = false) const -> std::string;
 
 private:
     auto bump_group_info(std::usize bump_index) const -> std::tuple<std::usize, std::usize>;

@@ -47,6 +47,7 @@ namespace kiwi::circuit {
         virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&, bool) -> bool = 0;
         virtual auto update_priority(float bias) -> void = 0;
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;
+        virtual auto path_in_order() const -> std::Vector<PathInOrder> = 0;
 
         // update accessable_cobunit for each bump in this net
         virtual auto check_accessable_cobunit() -> void = 0;
@@ -64,7 +65,6 @@ namespace kiwi::circuit {
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> = 0;
         // return all track port or track connected with bump; return false if there is bump not owns a track
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> = 0;
-
         // return: (bumps_routable, bumps_unroutable, tracks_unroutable)
         virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> = 0;
         
@@ -75,7 +75,7 @@ namespace kiwi::circuit {
         virtual auto length() const -> std::usize;
         virtual auto set_pathpackage(const PathPackage& path_package) -> void;
         virtual auto move_history_to_current(hardware::Interposer*) -> void;
-
+        
         // reset all package elements in iterate routing for incremental routing
         virtual auto reset_pathpackage() -> void {this->_path_package.reset_all();}
 

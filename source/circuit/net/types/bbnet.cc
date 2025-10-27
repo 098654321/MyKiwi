@@ -159,4 +159,29 @@ namespace kiwi::circuit {
             throw std::logic_error("BumpToBumpNet::track_ports(): collected tracks.size() > port_number()");
         }
     }
+
+    auto BumpToBumpNet::path_in_order() const -> std::Vector<PathInOrder> {
+    try{
+        const auto& package = this->pathpackage();
+        if (package._tob_to_track.size() > 0) {
+            // should has path
+            const auto& head_tobconnector = std::get<1>(*package._tob_to_track.begin());
+            const auto& tail_tobconnector = std::get<1>(*package._tob_to_track.rbegin());
+            const auto& regular_path = package._regular_path;
+            return std::Vector<PathInOrder>{
+                PathInOrder(
+                    std::make_optional(this->_begin_bump), 
+                    std::make_optional(head_tobconnector),
+                    std::make_optional(this->_end_bump),
+                    std::make_optional(tail_tobconnector),
+                    regular_path
+                )
+            };
+        }
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error("BumpToBumpNet::path_in_order(): " + std::string(e.what()));
+    }
+    }
+
 }

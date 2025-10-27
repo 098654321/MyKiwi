@@ -19,7 +19,7 @@ public:
     auto unit_info() const -> std::Pair<float, float>;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;
-    auto show_data(bool print = false) const -> std::String;
+    auto show_data(std::tuple<std::size_t, std::size_t> unit_info, bool show_all, bool print = false) const -> std::string;
 
 private:
     std::usize _size;
@@ -42,7 +42,7 @@ public:
     auto update_cost(std::usize index) -> void;
     auto re_initialize() -> void;
     auto clear_history_record(std::usize index) -> void;
-    auto show_data(std::size_t track_index, bool print = false) const -> std::String;
+    auto show_data(std::size_t track_index, bool show_all, bool print = false) const -> std::string;
 
 private:
     std::Vector<COBUnitRecorder> _cob_recorder;

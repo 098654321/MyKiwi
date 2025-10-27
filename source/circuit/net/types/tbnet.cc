@@ -159,4 +159,27 @@ namespace kiwi::circuit {
     auto TrackToBumpNet::name() const -> const std::String& {
         return this->_name;
     }
+
+    auto TrackToBumpNet::path_in_order() const -> std::Vector<PathInOrder> {
+    try{
+        const auto& package = this->pathpackage();
+        if (package._track_to_tob.size() > 0) {
+            // should has path
+            const auto& tail_tobconnector = std::get<1>(*package._tob_to_track.rbegin());
+            const auto& regular_path = package._regular_path;
+            return std::Vector<PathInOrder>{
+                PathInOrder(
+                    std::nullopt,
+                    std::nullopt,
+                    std::make_optional(this->_end_bump),
+                    std::make_optional(tail_tobconnector),
+                    regular_path
+                )
+            };
+        }
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error("TrackToBumpNet::path_in_order(): " + std::string(e.what()));
+    }
+    }
 }

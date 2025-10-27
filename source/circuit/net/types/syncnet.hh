@@ -63,6 +63,7 @@ namespace kiwi::circuit {
         virtual auto set_reuse_type(bool reuse_type) -> void override;
         virtual auto clear_path() -> void override;
         virtual auto name() const -> const std::String& override;
+        virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
 
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         

@@ -199,4 +199,7 @@ namespace kiwi::circuit {
         return this->_name;
     }
 
+    auto BumpToBumpsNet::path_in_order() const -> std::Vector<PathInOrder> {
+        return std::Vector<PathInOrder>{};
+    }
 }

@@ -338,5 +338,19 @@ for (auto& preg: pregs) {
         return tobconnector;
     }
 
+
+    PathInOrder::PathInOrder(
+        std::optional<hardware::Bump*> head_bump, 
+        std::optional<hardware::TOBConnector> head_connector, 
+        std::optional<hardware::Bump*> tail_bump, 
+        std::optional<hardware::TOBConnector> tail_connector, 
+        const std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>>& regular_path
+    ) :
+        _head_bump(head_bump),
+        _head_connector(head_connector),
+        _tail_bump(tail_bump),
+        _tail_connector(tail_connector),
+        _regular_path(regular_path)
+    {}
 }
 

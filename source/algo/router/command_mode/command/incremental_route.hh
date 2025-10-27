@@ -19,6 +19,7 @@ private:
     auto reset(RouteEngine&, std::Vector<circuit::Net*>&) const -> void;
     auto set_history_as_current(std::Vector<circuit::Net*>&, hardware::Interposer*) const -> void;
     auto sort_incre(std::Vector<circuit::Net*>&) const -> std::Vector<circuit::Net*>;
+    auto show_path_recorder_status(const std::Vector<circuit::Net*>&, const HardwareRecorder&, bool show_all = false) const -> void;
 };
 
 }

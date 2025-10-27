@@ -2,6 +2,8 @@
 #include <debug/debug.hh>
 #include <ranges>
 #include <algo/router/routeerror.hh>
+#include <format>
+#include <functional>
 
 
 namespace kiwi::algo{
@@ -80,9 +82,6 @@ auto HardwareRecorder::update_recorders_history(const circuit::PathPackage& pack
 
     auto tobconnectors = this->collect_tobconnector(package);
     this->update_tob_recorders_history(tobconnectors, reuse_type);
-
-// for debug
-this->show_path_recorder_status(package);
 }
 
 auto HardwareRecorder::update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
@@ -290,43 +289,121 @@ auto HardwareRecorder::collect_tobconnector(const circuit::PathPackage& package)
     return tobconnectors;
 }
 
-auto HardwareRecorder::show_path_recorder_status(const circuit::PathPackage& package) const -> void {
-    auto [tracks, cobconnectors] = this->collect_track_cobconnector(package);
-    auto tobconnectors = this->collect_tobconnector(package);
-    std::String msg = "HardwareRecorder Status: ----------\n";
+auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::string, std::vector<circuit::PathInOrder>>& paths, bool show_all) const -> void {
+    std::string msg = "HardwareRecorder Status: ----------\n";
 
-    for (auto& track: tracks) {
-        auto track_coord = track->coord();
-        int group_index = track_coord.index / TRACKGROUPSIZE;
+    auto show_bump_in_path = [&](std::optional<hardware::Bump*> bump, std::optional<hardware::TOBConnector> tobconnector, bool show_all) {
+        if (bump.has_value()) {
+            auto connector = tobconnector.value();
+            auto tobcoord = bump.value()->tob()->coord();
+            msg += std::string(std::format("TOB_reg at {}, {} ----\n", tobcoord.row, tobcoord.col));
 
-        for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE-1))) {
-            auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
-            auto t = this->_interposer->get_track(coord);
+            if (this->_tob_recorders.contains(tobcoord)) {
+                auto tob_recorder = this->_tob_recorders.at(tobcoord);
+                msg += tob_recorder.show_data(connector.bump_index(), connector.hori_index(), connector.vert_index(), show_all, false);
+            }
+            msg += "----\n";
+        }
+    };
 
-            if(t.has_value() && this->_track_recorders.contains(t.value())) {
-                auto track_recorder = this->_track_recorders.at(t.value());
-                msg += track_recorder.show_data(false);
+    auto show_cob_in_path = [&](std::optional<hardware::COBConnector> cobconnector, auto get_dir, auto get_track_index, bool show_all) {
+        if (cobconnector.has_value()) {
+            auto coord = cobconnector.value().coord();
+            auto cob_direction = [](hardware::COBDirection dir) {
+                switch (dir) {
+                    case hardware::COBDirection::Left: return "L";
+                    case hardware::COBDirection::Right: return "R";
+                    case hardware::COBDirection::Up: return "U";
+                    case hardware::COBDirection::Down: return "D";
+                    default: return "UNKNOWN";
+                }
+            };
+
+            msg += std::string(std::format(
+                "COB_reg at {}, {}, {} ----\n", coord.row, coord.col, cob_direction(get_dir(cobconnector.value()))
+            ));
+            if (this->_cob_recorders.contains(coord)) {
+                auto cob_recorder = this->_cob_recorders.at(coord);
+                msg += cob_recorder.show_data(get_track_index(cobconnector.value()), show_all, false);
+            }
+            else {
+                msg += "COB_recorder not found.\n";
+            }
+            msg += "----\n";
+        }
+    };
+
+    auto show_track_in_path = [&](hardware::Track* track, bool show_all) {
+         auto track_coord = track->coord();
+        msg += std::string(std::format("Track_reg at {}, {}, {} ----\n", track_coord.row, track_coord.col, track_coord.dir));
+
+        if (show_all) {
+            int group_index = track_coord.index / TRACKGROUPSIZE;
+            for (auto i: std::views::iota((int)(TRACKGROUPSIZE*group_index), (int)(TRACKGROUPSIZE*group_index+TRACKGROUPSIZE))) {
+                auto coord = hardware::TrackCoord(track_coord.row, track_coord.col, track_coord.dir, i);
+                auto t = this->_interposer->get_track(coord);
+
+                if(t.has_value() && this->_track_recorders.contains(t.value())) {
+                    auto track_recorder = this->_track_recorders.at(t.value());
+                    msg += std::to_string(i)+ ": " + track_recorder.show_data(false);
+                }
             }
         }
-    }
-
-    for (auto& connector: cobconnectors) {
-        auto coord = connector.coord();
-        if (this->_cob_recorders.contains(coord)) {
-            auto cob_recorder = this->_cob_recorders.at(coord);
-            msg += cob_recorder.show_data(connector.from_track_index(), false);
+        else {
+            msg += std::to_string(track_coord.index)+ ": " + this->_track_recorders.at(track).show_data(false);
         }
-    }
+        
+        msg += "----\n";
+    };
 
-    for (auto& [coord, connector]: tobconnectors) {
-        if (this->_tob_recorders.contains(coord)) {
-            auto tob_recorder = this->_tob_recorders.at(coord);
-            msg += tob_recorder.show_data(connector.bump_index(), connector.hori_index(), connector.vert_index(), false);
+    auto show_regular_path = [&](const auto& regular_path, bool show_all) {
+        if (!show_all && regular_path.size() == 0) {
+            return;
         }
-    }
-    msg += "END HaardwareRecorder Status --------\n";
+        for (auto& [track, cobconnector]: regular_path) {
+            // show totally 32 cobconnector in a reg
+            show_cob_in_path(
+                cobconnector,
+                [](const hardware::COBConnector& cobconnector) -> hardware::COBDirection {
+                    return cobconnector.from_dir();
+                },
+                [](const hardware::COBConnector& cobconnector) -> std::usize {
+                    return cobconnector.from_track_index();
+                },
+                show_all
+            );
+            show_cob_in_path(
+                cobconnector,
+                [](const hardware::COBConnector& cobconnector) -> hardware::COBDirection {
+                    return cobconnector.to_dir();
+                },
+                [](const hardware::COBConnector& cobconnector) -> std::usize {
+                    return cobconnector.to_track_index();
+                },
+                show_all
+            );
 
-    debug::debug(msg);
+            // show totally 32 track in a reg
+           show_track_in_path(track, show_all);
+        }
+    };
+
+    auto show_path_in_order = [&](const std::vector<circuit::PathInOrder>& path_in_order, bool show_all) {
+        for (auto& path: path_in_order) {
+            show_bump_in_path(path._head_bump, path._head_connector, show_all);
+            show_regular_path(path._regular_path, show_all);
+            show_bump_in_path(path._tail_bump, path._tail_connector, show_all);
+        }
+    };
+
+    for (auto& [net_name, path_in_order]: paths) {
+        msg += "Net Name: " + net_name + "\n";
+        show_path_in_order(path_in_order, show_all);
+    }
+
+    msg += "END HardwareRecorder Status --------\n";
+
+    debug::info(msg);
 }
 
 }

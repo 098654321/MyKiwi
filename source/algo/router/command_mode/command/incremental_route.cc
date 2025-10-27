@@ -108,14 +108,13 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{30};
+    std::usize cycle{0}, min_cycle{20};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
         // init for cycle
         for (auto net: nets) {
             recorder.clear_history_records(net->pathpackage(), net->reuse_type().value());
-            // net->pathpackage().reset_all();
             net->reset_pathpackage();
         }
         engine.reset_position();
@@ -141,6 +140,9 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
         for (auto net:nets) {
             recorder.update_recorders_history(net->pathpackage(), net->reuse_type().value());   
         }
+
+        // show path recorder status
+        show_path_recorder_status(nets, recorder);
 
         debug::info_fmt("cycle {} done", cycle);
         engine.show_net_and_path();
@@ -185,5 +187,12 @@ auto Incre_route::to_string() const -> const std::String {
     return "Incremental routing";
 }
 
+auto Incre_route::show_path_recorder_status(const std::Vector<circuit::Net*>& nets, const HardwareRecorder& recorder, bool show_all) const -> void {
+    std::unordered_map<std::string, std::vector<circuit::PathInOrder>> paths;
+    for (auto& net: nets) {
+        paths.emplace(net->name(), net->path_in_order());
+    }
+    recorder.show_path_recorder_status(paths, show_all);
 }
 
+}

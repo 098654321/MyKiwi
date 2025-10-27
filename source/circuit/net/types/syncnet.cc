@@ -486,6 +486,24 @@ namespace kiwi::circuit
         }
     }
 
+    auto SyncNet::path_in_order() const -> std::Vector<PathInOrder> {
+        std::Vector<PathInOrder> paths {};
+        for (auto& net: this->_btbnets) {
+            auto path_in_order = net->path_in_order();
+            paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
+        }
+        for (auto& net: this->_bttnets) {
+            auto path_in_order = net->path_in_order();
+            paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
+        }
+        for (auto& net: this->_ttbnets) {
+            auto path_in_order = net->path_in_order();
+            paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
+        }
+        
+        return paths;
+    }
+
 }
 
 

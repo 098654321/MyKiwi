@@ -56,12 +56,19 @@ auto COBUnitRecorder::clear_history_record(std::usize index) -> void {
     this->_cobunit_recorder.at(index).update_cost(0, 0);
 }
 
-auto COBUnitRecorder::show_data(bool print) const -> std::String {
-    std::String msg = "COBUnitRecorder data: ----\n";
-    for (std::usize i = 0; i < this->_size; ++i) {
-        msg += std::format("  Unit {}: {}\n", i, this->_cobunit_recorder.at(i).show_data(print));
+auto COBUnitRecorder::show_data(std::tuple<std::size_t, std::size_t> unit_info, bool show_all, bool print) const -> std::string {
+    std::string msg = "";
+
+    if (show_all) {
+        auto [unit, _] = unit_info;
+        for (std::usize i = 0; i < this->_size; ++i) {
+            msg += std::format("{}: {}", unit * hardware::COBUnit::WILTON_SIZE + i, this->_cobunit_recorder.at(i).show_data(print));
+        }
     }
-    msg += "----\n";
+    else {
+        auto [unit, index_in_unit] = unit_info;
+        msg += std::format("{}: {}", unit * hardware::COBUnit::WILTON_SIZE + index_in_unit, this->_cobunit_recorder.at(index_in_unit).show_data(print));
+    }
 
     if (print) {
         debug::info(msg);
@@ -172,15 +179,23 @@ auto COBRecorder::clear_history_record(std::usize index) -> void {
     this->_cob_recorder.at(unit).clear_history_record(index_in_unit);
 }
 
-auto COBRecorder::show_data(std::size_t track_index, bool print) const -> std::String {
-    std::String msg = "COBRecorder data: --------\n";
-    std::usize group_index = track_index / TRACKGROUPSIZE;
-    for (auto i: std::views::iota(0, 4)) {
-        const auto& unit_recorder = this->_cob_recorder.at(group_index * 4 + i);
-        msg += unit_recorder.show_data(print);
+auto COBRecorder::show_data(std::size_t track_index, bool show_all, bool print) const -> std::string {
+    std::string msg = "";
+    auto [cobunit, index_in_unit] = this->parse_index(track_index);
+
+    if (show_all) {
+        auto group_index = cobunit / 4;
+        for (auto i: std::views::iota(0, 4)) {
+            auto unit_index = group_index * 4 + i;
+            const auto& unit_recorder = this->_cob_recorder.at(unit_index);
+            msg += unit_recorder.show_data(std::make_tuple(unit_index, index_in_unit), show_all, print);
+        }
     }
-    msg += this->unit_recorder(track_index).show_data(print);
-    msg += "--------\n";
+    else{
+        const auto& unit_recorder = this->_cob_recorder.at(cobunit);
+        msg += unit_recorder.show_data(std::make_tuple(cobunit, index_in_unit), show_all, print);
+    }
+    
 
     if (print) {
         debug::info(msg);

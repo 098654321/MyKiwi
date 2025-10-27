@@ -212,6 +212,10 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, total_begin_tracks, end_tracks_set, std::HashSet<hardware::Track*>{}
             );
+            // remove repeated tracks
+            // regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            //     return std::get<0>(a) == std::get<0>(b);
+            // }), regular_path.end());
             total_regular_path.insert(total_regular_path.begin(), regular_path.begin(), regular_path.end());
 
             // Get begin and end track in path
@@ -292,6 +296,10 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, begin_tracks_vec, end_tracks_set, std::HashSet<hardware::Track*>{}
             );
+            // remove repeated tracks
+            // regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            //     return std::get<0>(a) == std::get<0>(b);
+            // }), regular_path.end());
             total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
             // Get begin and end track in path
@@ -360,6 +368,10 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, total_begin_tracks, end_tracks_set, std::HashSet<hardware::Track*>{}
             );
+            // remove repeated tracks
+            // regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            //     return std::get<0>(a) == std::get<0>(b);
+            // }), regular_path.end());
             total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
             // Get begin and end track in path
@@ -417,6 +429,10 @@ namespace kiwi::algo {
             auto regular_path = this->route_path(
                 interposer, begin_tracks_vec, track_map_to_track_set(end_tracks), std::HashSet<hardware::Track*>{}
             );
+            // remove repeated tracks
+            // regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            //     return std::get<0>(a) == std::get<0>(b);
+            // }), regular_path.end());
             total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
             
             auto path = std::Vector<hardware::Track*> {};

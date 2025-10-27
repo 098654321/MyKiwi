@@ -153,6 +153,10 @@ try {
             interposer, current_begin_tracks, current_end_tracks, std::HashSet<hardware::Track*>{},
             engine.recorder(), net->reuse_type().value()
         );
+        // remove repeated tracks
+        regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            return std::get<0>(a) == std::get<0>(b);
+        }), regular_path.end());
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto head = std::get<0>(regular_path.front());
@@ -199,6 +203,10 @@ try {
             interposer, current_begin_tracks, current_end_tracks, std::HashSet<hardware::Track*>{},
             engine.recorder(), net->reuse_type().value()
         );
+        // remove repeated tracks
+        regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            return std::get<0>(a) == std::get<0>(b);
+        }), regular_path.end());
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto tail = std::get<0>(regular_path.back());
@@ -243,6 +251,10 @@ try {
             interposer, current_begin_tracks, current_end_tracks, std::HashSet<hardware::Track*>{},
             engine.recorder(), net->reuse_type().value()
         );
+        // remove repeated tracks
+        regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            return std::get<0>(a) == std::get<0>(b);
+        }), regular_path.end());
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto head = std::get<0>(regular_path.front());
@@ -284,6 +296,10 @@ try {
             interposer, begin_tracks, map_to_set(ends_map), std::HashSet<hardware::Track*>{},
             engine.recorder(), net->reuse_type().value()
         );
+        // remove repeated tracks
+        regular_path.erase(std::unique(regular_path.begin(), regular_path.end(), [](const auto& a, const auto& b) {
+            return std::get<0>(a) == std::get<0>(b);
+        }), regular_path.end());
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto tail = std::get<0>(regular_path.back());
@@ -687,7 +703,6 @@ auto IncreRouting::maze_search(
         auto [track, current_cost] = queue.top();
         queue.pop();
 
-        // if (end_tracks.find(track) != end_tracks.end()) {    
         if (check_found(end_tracks, track)) {
             auto path = std::Vector<std::Tuple<Track*, std::Option<COBConnector>>>{};
             auto cur_track = track;

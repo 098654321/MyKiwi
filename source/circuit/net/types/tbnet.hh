@@ -36,6 +36,7 @@ namespace kiwi::circuit {
         virtual auto nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> override;
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
         virtual auto name() const -> const std::String& override;
+        virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
     
     public:
         virtual auto operator == (const Net& net) const -> bool override;

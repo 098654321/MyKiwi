@@ -46,7 +46,7 @@ public:
     auto clear_cob_history_records(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
     auto clear_tob_history_records(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
 
-    auto show_path_recorder_status(const circuit::PathPackage& package) const -> void;
+    auto show_path_recorder_status(const std::unordered_map<std::string, std::vector<circuit::PathInOrder>>& paths, bool show_all) const -> void;
 
     auto re_initialize() -> void;
     auto set_use_cost(bool use_cost) -> void;

@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include <format>
+#include <string>
+#include <debug/debug.hh>
 
 
 namespace kiwi::algo {
@@ -74,8 +76,8 @@ public:
         this->_cost_nonreuse = BASICCOST;
     }
 
-    auto show_data(bool print = false) const -> std::String {
-        std::String msg = "TypeRecorder Data --\n";
+    auto show_data(bool print = false) const -> std::string {
+        std::string msg = "";
         if (this->_reuse_type.has_value()) {
             msg += "Current type: " + std::to_string(this->_reuse_type.value()) + ", ";
         }
@@ -86,7 +88,6 @@ public:
         msg += "History non-reusable times: " + std::to_string(this->_history.second) + ", ";
         msg += "Cost reuse: " + std::to_string(this->_cost_reuse) + ", ";
         msg += "Cost non-reuse: " + std::to_string(this->_cost_nonreuse) + "\n";
-        msg += "--\n";
         
         if (print) {
             debug::info(msg);

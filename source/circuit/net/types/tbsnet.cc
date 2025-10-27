@@ -195,4 +195,8 @@ namespace kiwi::circuit {
     auto TrackToBumpsNet::name() const -> const std::String& {
         return this->_name;
     }
+
+    auto TrackToBumpsNet::path_in_order() const -> std::Vector<PathInOrder> {
+        return std::Vector<PathInOrder>{};
+    }
 }

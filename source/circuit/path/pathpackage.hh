@@ -11,6 +11,7 @@
 #include <global/std/utility.hh>
 #include <global/debug/debug.hh>
 #include <algorithm>
+#include <optional>
 
 
 namespace kiwi::hardware {
@@ -37,6 +38,7 @@ class hardware::TOBConnector;
 struct COBConnectorInfo;
 struct TOBConnectorInfo;
 struct HistoryPathPackage;
+struct PathInOrder;
 
 
 struct PathPackage {
@@ -92,6 +94,22 @@ struct TOBConnectorInfo {
     std::usize track_index;
     hardware::TOBSignalDirection signal_dir;
     hardware::TOBCoord tob_coord;
+};
+
+struct PathInOrder {
+    PathInOrder(
+        std::optional<hardware::Bump*> head_bump, 
+        std::optional<hardware::TOBConnector> head_connector, 
+        std::optional<hardware::Bump*> tail_bump, 
+        std::optional<hardware::TOBConnector> tail_connector, 
+        const std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>>& regular_path
+    );
+
+    std::optional<hardware::Bump*> _head_bump;
+    std::optional<hardware::TOBConnector> _head_connector;
+    std::optional<hardware::Bump*> _tail_bump;
+    std::optional<hardware::TOBConnector> _tail_connector;
+    std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>> _regular_path;
 };
 
 
