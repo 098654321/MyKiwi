@@ -487,6 +487,7 @@ namespace kiwi::circuit
     }
 
     auto SyncNet::path_in_order() const -> std::Vector<PathInOrder> {
+    try{
         std::Vector<PathInOrder> paths {};
         for (auto& net: this->_btbnets) {
             auto path_in_order = net->path_in_order();
@@ -500,8 +501,13 @@ namespace kiwi::circuit
             auto path_in_order = net->path_in_order();
             paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
         }
-        
+        debug::info_fmt("SyncNet paths size() = {}", paths.size());
+
         return paths;
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error(std::format("SyncNet::path_in_order(): {}", e.what()));
+    }
     }
 
 }

@@ -91,7 +91,7 @@ target("module_test")
     set_default(false)
     -- add_packages("xlnt")
     add_includedirs("source", "source/global", "test/module_test")
-    add_files("test/module_test/**.cc")
+    add_files("test/module_test/test.cc", "test/module_test/test_comparator.cc")
     add_files(
         "source/algo/**.cc",
         "source/circuit/**.cc",

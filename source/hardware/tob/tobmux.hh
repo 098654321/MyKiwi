@@ -40,6 +40,7 @@ namespace kiwi::hardware {
 
     public:
         auto randomly_map_remain_indexes() -> void;
+        auto reset_regs() -> void;
     
     public:
         auto index_map(std::usize input_index) const -> std::Option<std::usize>;

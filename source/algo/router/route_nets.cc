@@ -19,6 +19,7 @@ namespace kiwi::algo {
         const AllocateStrategy& allocator,
         int m,
         bool incremental,
+        bool try_all_modes, 
         bool path_exists
     ) -> DataPerCycle {
         debug::info(
@@ -29,7 +30,7 @@ namespace kiwi::algo {
             "
         );
         auto invoker = Invoker{};
-        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, path_exists, interposer};
+        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, try_all_modes, path_exists, interposer};
         invoker.set_route_commands(incremental, path_exists);
         
         while (!invoker.check_command())
@@ -55,7 +56,7 @@ namespace kiwi::algo {
             throw std::runtime_error("route_nets() >> " + std::String(err.what()));
         }
 
-        auto route_data = analyze_results(interposer, engine, incremental);
+        auto route_data = analyze_results(interposer, engine, incremental, try_all_modes);
         return route_data;
     }
 
@@ -63,7 +64,8 @@ namespace kiwi::algo {
     auto analyze_results(
         hardware::Interposer* interposer,
         RouteEngine& engine,
-        bool incremental
+        bool incremental,
+        bool try_all_modes
     ) -> DataPerCycle {
         // record length info
         debug::info(
@@ -83,10 +85,17 @@ namespace kiwi::algo {
             **********************************************************************************\
             "
         );
-        const auto& nets = engine.nets(engine.mode());
-        auto data = engine.show_final_data(nets, incremental);
 
-        return data;
+        if (try_all_modes) {
+            const auto& nets = engine.nets();
+            auto data = engine.show_final_data(nets, incremental);
+            return data;
+        }
+        else {
+            const auto& nets = engine.nets(engine.mode());
+            auto data = engine.show_final_data(nets, incremental);
+            return data;
+        }
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {

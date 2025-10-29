@@ -70,8 +70,8 @@ auto HardwareRecorder::update_recorders_current(const circuit::PathPackage& pack
     this->update_track_recorders_current(tracks, reuse_type);
     this->update_cob_recorders_current(cobconnectors, reuse_type);
 
-    auto tobconnectors = this->collect_tobconnector(package);
-    this->update_tob_recorders_current(tobconnectors, reuse_type);
+    auto tobconnectors = this->collect_tobconnector(package);           
+    this->update_tob_recorders_current(tobconnectors, reuse_type);      
 }
 
 auto HardwareRecorder::update_recorders_history(const circuit::PathPackage& package, bool reuse_type) -> void {
@@ -197,27 +197,24 @@ auto HardwareRecorder::update_track_recorders_history(const std::Vector<hardware
     this->update_track_recorders_cost(tracks, reuse_type);
 }
 
-auto HardwareRecorder::update_tob_recorders_current(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
-    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
-        auto& [coord, connector] = *iter;
+auto HardwareRecorder::update_tob_recorders_current(const std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>>& connectors, bool reuse_type) -> void {
+    for (auto& [coord, tobconnector]: connectors) {
         auto& recorder = this->get_tob_recorder(coord);
-        recorder.update_type(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
+        recorder.update_type(tobconnector.bump_index(), tobconnector.hori_index(), tobconnector.vert_index(), reuse_type);
     }
-    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
-        auto& [coord, connector] = *iter;
+        
+    for (auto& [coord, connector]: connectors) {
         auto& recorder = this->get_tob_recorder(coord);
         recorder.update_cost(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
     }
 }
 
-auto HardwareRecorder::update_tob_recorders_history(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void {
-    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
-        auto& [coord, connector] = *iter;
+auto HardwareRecorder::update_tob_recorders_history(const std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>>& connectors, bool reuse_type) -> void {
+    for (auto& [coord, connector]: connectors) {
         auto& recorder = this->get_tob_recorder(coord);
         recorder.update_history(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
     }
-    for (auto iter = connectors.begin(); iter != connectors.end(); ++iter) {
-        auto& [coord, connector] = *iter;
+    for (auto& [coord, connector]: connectors) {
         auto& recorder = this->get_tob_recorder(coord);
         recorder.update_cost(connector.bump_index(), connector.hori_index(), connector.vert_index(), reuse_type);
     }
@@ -296,13 +293,13 @@ auto HardwareRecorder::collect_track_cobconnector(const circuit::PathPackage& pa
     return {tracks, cobconnectors};
 }
 
-auto HardwareRecorder::collect_tobconnector(const circuit::PathPackage& package) const -> std::HashMap<hardware::TOBCoord, hardware::TOBConnector> {
-    std::HashMap<hardware::TOBCoord, hardware::TOBConnector> tobconnectors {};
+auto HardwareRecorder::collect_tobconnector(const circuit::PathPackage& package) const -> std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>> {
+    std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>> tobconnectors {};
     for (auto& [bump, connector, track]: package._tob_to_track) {
-        tobconnectors.emplace(bump->tob()->coord(), connector);
+        tobconnectors.emplace_back(bump->tob()->coord(), connector);        
     }
     for (auto& [bump, connector, track]: package._track_to_tob) {
-        tobconnectors.emplace(bump->tob()->coord(), connector);
+        tobconnectors.emplace_back(bump->tob()->coord(), connector);        
     }
     return tobconnectors;
 }
@@ -311,20 +308,30 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
     std::string msg = "HardwareRecorder Status: ----------\n";
 
     auto show_bump_in_path = [&](std::optional<hardware::Bump*> bump, std::optional<hardware::TOBConnector> tobconnector, bool show_all) {
+    try{
         if (bump.has_value()) {
             auto connector = tobconnector.value();
-            auto tobcoord = bump.value()->tob()->coord();
+            auto pbump = bump.value();
+            if (pbump == nullptr) {
+                debug::info("bump is nullptr");
+            }
+            auto tobcoord = pbump->tob()->coord();
             msg += std::string(std::format("TOB_reg at {}, {} ----\n", tobcoord.row, tobcoord.col));
-
+            
             if (this->_tob_recorders.contains(tobcoord)) {
                 auto tob_recorder = this->_tob_recorders.at(tobcoord);
                 msg += tob_recorder.show_data(connector.bump_index(), connector.hori_index(), connector.vert_index(), show_all, false);
             }
             msg += "----\n";
         }
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error(std::string(std::format("show_bump_in_path(): {}", e.what())));
+    }
     };
 
     auto show_cob_in_path = [&](std::optional<hardware::COBConnector> cobconnector, auto get_dir, auto get_track_index, bool show_all) {
+    try{
         if (cobconnector.has_value()) {
             auto coord = cobconnector.value().coord();
             auto cob_direction = [](hardware::COBDirection dir) {
@@ -349,10 +356,15 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
             }
             msg += "----\n";
         }
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error(std::string(std::format("show_cob_in_path(): {}", e.what())));
+    }
     };
 
     auto show_track_in_path = [&](hardware::Track* track, bool show_all) {
-         auto track_coord = track->coord();
+    try{
+        auto track_coord = track->coord();
         msg += std::string(std::format("Track_reg at {}, {}, {} ----\n", track_coord.row, track_coord.col, track_coord.dir));
 
         if (show_all) {
@@ -372,6 +384,10 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
         }
         
         msg += "----\n";
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error(std::string(std::format("show_track_in_path(): {}", e.what())));
+    }
     };
 
     auto show_regular_path = [&](const auto& regular_path, bool show_all) {

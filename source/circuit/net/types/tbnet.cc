@@ -165,7 +165,7 @@ namespace kiwi::circuit {
         const auto& package = this->pathpackage();
         if (package._track_to_tob.size() > 0) {
             // should has path
-            const auto& tail_tobconnector = std::get<1>(*package._tob_to_track.rbegin());
+            const auto& tail_tobconnector = std::get<1>(*package._track_to_tob.begin());
             const auto& regular_path = package._regular_path;
             return std::Vector<PathInOrder>{
                 PathInOrder(
@@ -176,6 +176,9 @@ namespace kiwi::circuit {
                     regular_path
                 )
             };
+        }
+        else {
+            return std::vector<PathInOrder>{};
         }
     }
     catch(const std::exception& e) {

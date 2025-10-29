@@ -118,6 +118,14 @@ namespace kiwi::circuit {
             }
         }
 
+        auto nets_to_vector() -> std::Vector<std::Rc<Net>> {
+            std::Set<std::Rc<Net>> nets {};
+            for (auto& [m, ns]: this->_nets) {
+                nets.insert(ns.begin(), ns.end());
+            }
+            return std::Vector<std::Rc<Net>>(nets.begin(), nets.end());
+        }
+
     private:
         std::HashMap<std::StringView, std::Box<TopDie>> _topdies {};
         std::HashMap<std::StringView, std::Box<TopDieInstance>> _topdie_insts {};

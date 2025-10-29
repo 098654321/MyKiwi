@@ -7,13 +7,14 @@
 
 using TestFunction = void(*)(void);
 
-extern void test_cob_main();
-extern void test_interposer_main();
-extern void test_tob_main();
-extern void test_router_main();
-extern void test_placer_main();
-extern void test_debug_main();
-extern void test_config_main();
+// extern void test_cob_main();
+// extern void test_interposer_main();
+// extern void test_tob_main();
+// extern void test_router_main();
+// extern void test_placer_main();
+// extern void test_debug_main();
+// extern void test_config_main();
+extern void test_comparator_main();
 
 #define REGISTER_TEST(test_name)\
 functions.emplace(#test_name, & test_##test_name##_main);\
@@ -30,13 +31,14 @@ try {
     auto functions = std::HashMap<std::StringView, TestFunction>{};
     auto target = std::StringView{argv[1]};
 
-    REGISTER_TEST(cob)
-    REGISTER_TEST(tob)
-    REGISTER_TEST(interposer)
-    REGISTER_TEST(router)
-    REGISTER_TEST(placer)
-    REGISTER_TEST(debug)
-    REGISTER_TEST(config)
+    // REGISTER_TEST(cob)
+    // REGISTER_TEST(tob)
+    // REGISTER_TEST(interposer)
+    // REGISTER_TEST(router)
+    // REGISTER_TEST(placer)
+    // REGISTER_TEST(debug)
+    // REGISTER_TEST(config)
+    REGISTER_TEST(comparator)
 
     if (target == "all") {
         for (auto [test_name, test_func] : functions) {

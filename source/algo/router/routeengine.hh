@@ -30,7 +30,7 @@ class RouteEngine {
 public:
     RouteEngine(
         const std::HashMap<int, std::Vector<std::Rc<circuit::Net>>>& nets, const RouteStrategy& str, const AllocateStrategy& as, int m,
-        bool incremental, bool path_exists, hardware::Interposer* interposer
+        bool incremental, bool try_all_modes, bool path_exists, hardware::Interposer* interposer
     );
     ~RouteEngine() = default;
 
@@ -45,9 +45,6 @@ public:
 public:
     auto nets() const -> std::Vector<circuit::Net*>;
     auto nets(int mode) const -> std::Vector<circuit::Net*>;
-    auto all_nets() const -> std::Vector<circuit::Net*>;
-    auto reusable_nets() const -> std::Set<circuit::Net*>;
-    auto non_reusable_nets() const -> std::Set<circuit::Net*>;
 
     auto mode() const -> int {return this->_mode;}
     auto incremental() const -> bool {return this->_incremental;}   
@@ -76,6 +73,7 @@ private:
     HardwareRecorder _recorder;
     RouteData _route_data;
     bool _incremental;
+    bool _try_all_modes;
     bool _path_exists;
 };
 

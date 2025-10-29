@@ -48,13 +48,18 @@ namespace kiwi::hardware {
 
         auto available_connectors(std::usize bump_index, TOBSignalDirection dir, bool shared = false) -> std::Vector<TOBConnector>;
         auto bump_track_connectors_chain(std::usize bump_index, std::usize track_index, hardware::TOBBumpDirection direc) -> TOBConnector;
+        auto reset_regs() -> void;
 
     public:
         auto bump_index_map_track_index(std::usize bump_index) const -> std::Option<std::usize>;
-
         auto bump_index_map_hori_index(std::usize bump_index) const -> std::Option<std::usize>;
         auto hori_index_map_vert_index(std::usize hori_index) const -> std::Option<std::usize>;
         auto vert_index_map_track_index(std::usize vert_index) const -> std::Option<std::usize>;
+        auto reset_bump_to_hori_mux() -> void;
+        auto reset_hori_to_vert_mux() -> void;
+        auto reset_veri_to_track_mux() -> void;
+        auto reset_track_dir_registers() -> void;
+        auto reset_bump_dir_registers() -> void;
 
     public:
         auto bump_to_hori_register_nth(std::usize mux_index, std::usize mux_inner_index) -> TOBMuxRegister*;

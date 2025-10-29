@@ -7,7 +7,7 @@
 #include "hardware/track/track.hh"
 #include "hardware/tob/tobsigdir.hh"
 #include "./utilty.hh"
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <hardware/interposer.hh>
 #include <circuit/net/nets.hh>
 

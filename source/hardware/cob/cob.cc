@@ -199,4 +199,10 @@ namespace kiwi::hardware {
         );
     }
 
+    auto COB::reset_regs() -> void {
+        for (auto& cob_unit: this->_cobunits) {
+            cob_unit->reset_regs();
+        }
+    }
+
 }

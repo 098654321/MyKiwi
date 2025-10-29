@@ -26,14 +26,12 @@ auto Invoker::set_route_commands(bool incremental, bool path_exists) -> void {
         this->_commands.emplace_back(this->create_command(CommandType::Sort));
         this->_commands.emplace_back(this->create_command(CommandType::Resources));
         this->_commands.emplace_back(this->create_command(CommandType::Incre_route));
-        this->_commands.emplace_back(this->create_command(CommandType::Connect));
     }
     else {
         this->_commands.emplace_back(this->create_command(CommandType::Sort));
         this->_commands.emplace_back(this->create_command(CommandType::Resources));
         // this->_commands.emplace_back(this->create_command(CommandType::Allocate));
         this->_commands.emplace_back(this->create_command(CommandType::Route));
-        this->_commands.emplace_back(this->create_command(CommandType::Connect));
     }
 }
 
@@ -58,8 +56,6 @@ auto Invoker::create_command(CommandType type) -> std::Rc<Command>  {
     switch (type) {
         case CommandType::Clear:
             return std::make_shared<Clear>();
-        case CommandType::Connect:
-            return std::make_shared<Connect>();
         case CommandType::Reroute:
             return std::make_shared<Reroute>();
         case CommandType::Resources:

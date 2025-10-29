@@ -178,5 +178,11 @@ namespace kiwi::hardware {
     auto TOBMux::registerr(std::usize input_index) const -> const TOBMuxRegister* {
         return &this->_registers.at(input_index);
     }
+
+    auto TOBMux::reset_regs() -> void {
+        for (auto& reg : this->_registers) {
+            reg.reset();
+        }
+    }
     
 }

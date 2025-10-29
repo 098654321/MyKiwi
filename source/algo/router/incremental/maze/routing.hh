@@ -110,7 +110,7 @@ public:
 
     auto set_tobconnector(
         std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>>& map, hardware::Track* track,
-        hardware::Bump* bump, circuit::PathPackage&
+        hardware::Bump* bump, circuit::PathPackage&, bool head
     ) const -> void;
 
     template <class Node>

@@ -55,6 +55,25 @@ namespace kiwi::hardware {
         };
     }
 
+    auto COBUnit::reset_regs() -> void {
+        auto reset_reg = [](auto& reg) {
+            for (auto& r: reg) {
+                r.reset();
+            }
+        };
+
+        reset_reg(this->_switch_ld);
+        reset_reg(this->_switch_lr);
+        reset_reg(this->_switch_ru);
+        reset_reg(this->_switch_ld);
+        reset_reg(this->_switch_rd);
+        reset_reg(this->_switch_ud);
+        reset_reg(this->_up_sel);
+        reset_reg(this->_down_sel);
+        reset_reg(this->_left_sel);
+        reset_reg(this->_right_sel);
+    }
+
     auto COBUnit::sw_register(COBDirection from_dir, std::usize from_index, COBDirection to_dir) -> COBSwRegister* {
         return const_cast<COBSwRegister*>(const_cast<const COBUnit*>(this)->sw_register(from_dir, from_index, to_dir));
     }

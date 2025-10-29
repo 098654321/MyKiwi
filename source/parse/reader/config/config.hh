@@ -20,6 +20,6 @@ namespace kiwi::parse {
         std::HashMap<std::String, std::HashMap<std::String, hardware::TrackCoord>> ports_01;
     };
 
-    auto load_config(const std::FilePath& config_folder, int mode) -> Config;
+    auto load_config(const std::FilePath& config_folder, int mode, bool try_all_modes) -> Config;
 
 }

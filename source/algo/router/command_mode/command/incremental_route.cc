@@ -10,7 +10,6 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
     debug::info("routing in incremental mode ...");
     auto nets = engine.nets();              
     auto& recorder = engine.recorder();
-
     recorder.set_use_cost(true);
 
     nets = sort_incre(nets);
@@ -108,7 +107,7 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{20};
+    std::usize cycle{0}, min_cycle{5};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
@@ -133,7 +132,7 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
             engine.move_on();
             
             // update current cost
-            recorder.update_recorders_current(net->pathpackage(), net->reuse_type().value());   
+            recorder.update_recorders_current(net->pathpackage(), net->reuse_type().value());       
         }
 
         // update history cost 
@@ -188,11 +187,17 @@ auto Incre_route::to_string() const -> const std::String {
 }
 
 auto Incre_route::show_path_recorder_status(const std::Vector<circuit::Net*>& nets, const HardwareRecorder& recorder, bool show_all) const -> void {
+try{
     std::unordered_map<std::string, std::vector<circuit::PathInOrder>> paths;
     for (auto& net: nets) {
-        paths.emplace(net->name(), net->path_in_order());
+        debug::info_fmt("net {} path_in_order", net->name());
+        paths.insert({net->name(), net->path_in_order()});
     }
     recorder.show_path_recorder_status(paths, show_all);
+}
+catch(const std::exception& e) {
+    debug::info_fmt("show_path_recorder_status(): {}", e.what());
+}
 }
 
 }

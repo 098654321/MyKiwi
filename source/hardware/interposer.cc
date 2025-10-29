@@ -239,4 +239,21 @@ namespace kiwi::hardware {
         }
     }
 
+    auto Interposer::reset_tob_regs() -> void {
+        for (auto& [_, tob] : this->_tobs) {
+            tob->reset_regs();
+        }
+    }
+
+    auto Interposer::reset_cob_regs() -> void {
+        for (auto& [_, cob] : this->_cobs) {
+            cob->reset_regs();
+        }
+    }
+
+    auto Interposer::reset_regs() -> void {
+        this->reset_tob_regs();
+        this->reset_cob_regs();
+    }
+
 }

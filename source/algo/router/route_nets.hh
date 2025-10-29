@@ -29,13 +29,15 @@ namespace kiwi::algo {
         const AllocateStrategy& allocator,
         int m,
         bool incremental,
+        bool try_all_modes, 
         bool path_exists = false
     ) -> DataPerCycle;
 
     auto analyze_results(
         hardware::Interposer* interposer,
         RouteEngine& engine,
-        bool incremental
+        bool incremental,
+        bool try_all_modes
     ) -> DataPerCycle;
 
 

@@ -238,7 +238,7 @@ namespace kiwi::widget {
                 this->_basedie->clear();
             }
 
-            parse::read_config(configPath, this->_interposer.get(), this->_basedie.get(), 0);
+            parse::read_config(configPath, this->_interposer.get(), this->_basedie.get(), 0, false);
 
             this->_schematicWidget->reload();
             this->_layoutWidget->reload();
@@ -319,7 +319,7 @@ namespace kiwi::widget {
             return;
         }
 
-        parse::write_control_bits(this->_interposer.get(), filePath.toStdString());
+        parse::write_control_bits(this->_interposer.get(), filePath.toStdString(), 0);
     }
     QMESSAGEBOX_REPORT_EXCEPTION("Generate control bit file")
 

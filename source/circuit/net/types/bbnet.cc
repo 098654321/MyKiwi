@@ -163,21 +163,31 @@ namespace kiwi::circuit {
     auto BumpToBumpNet::path_in_order() const -> std::Vector<PathInOrder> {
     try{
         const auto& package = this->pathpackage();
+        std::optional<hardware::TOBConnector> head_tobconnector {std::nullopt}, tail_tobconnector {std::nullopt};
+        std::optional<hardware::Bump*> head_bump {std::nullopt}, tail_bump {std::nullopt};
+        auto regular_path = package._regular_path;
+
         if (package._tob_to_track.size() > 0) {
-            // should has path
-            const auto& head_tobconnector = std::get<1>(*package._tob_to_track.begin());
-            const auto& tail_tobconnector = std::get<1>(*package._tob_to_track.rbegin());
-            const auto& regular_path = package._regular_path;
-            return std::Vector<PathInOrder>{
-                PathInOrder(
-                    std::make_optional(this->_begin_bump), 
-                    std::make_optional(head_tobconnector),
-                    std::make_optional(this->_end_bump),
-                    std::make_optional(tail_tobconnector),
-                    regular_path
-                )
-            };
+            const auto& head_connector = std::get<1>(*package._tob_to_track.begin());
+            head_tobconnector.emplace(head_connector);
+            head_bump.emplace(this->_begin_bump);
         }
+        else {
+            debug::info("empty head tobconnector");
+        }
+
+        if (package._track_to_tob.size() > 0) {
+            const auto& tail_connector = std::get<1>(*package._track_to_tob.begin());
+            tail_tobconnector.emplace(tail_connector);
+            tail_bump.emplace(this->_end_bump);
+        }
+        else {
+            debug::info("empty tail tobconnector");
+        }
+
+        return std::Vector<PathInOrder> {
+            PathInOrder{head_bump, head_tobconnector, tail_bump, tail_tobconnector, regular_path}
+        };
     }
     catch(const std::exception& e) {
         throw std::runtime_error("BumpToBumpNet::path_in_order(): " + std::string(e.what()));

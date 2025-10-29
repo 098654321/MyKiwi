@@ -40,8 +40,8 @@ try {
     // set
     auto head = std::get<0>(path_package._regular_path.front());
     auto tail = std::get<0>(path_package._regular_path.back());
-    set_tobconnector(begins_map, head, begin_bump, path_package);
-    set_tobconnector(ends_map, tail, end_bump, path_package);
+    set_tobconnector(begins_map, head, begin_bump, path_package, true);
+    set_tobconnector(ends_map, tail, end_bump, path_package, false);
     path_package._length += path_length(path_package._regular_path);
     net->set_pathpackage(path_package);
 
@@ -78,7 +78,7 @@ try {
     );
 
     auto tail = std::get<0>(path_package._regular_path.back());
-    set_tobconnector(ends_map, tail, end_bump, path_package);
+    set_tobconnector(ends_map, tail, end_bump, path_package, false);
     path_package._length += path_length(path_package._regular_path);
     net->set_pathpackage(path_package);
 
@@ -115,7 +115,7 @@ try {
     );
 
     auto head = std::get<0>(path_package._regular_path.front());
-    set_tobconnector(begins_map, head, begin_bump, path_package);
+    set_tobconnector(begins_map, head, begin_bump, path_package, true);
     path_package._length += path_length(path_package._regular_path);
     net->set_pathpackage(path_package);
 
@@ -161,8 +161,8 @@ try {
 
         auto head = std::get<0>(regular_path.front());
         auto tail = std::get<0>(regular_path.back());
-        set_tobconnector(current_begin_map, head, begin_bump, path_package);
-        set_tobconnector(ends_map, tail, end_bump, path_package);
+        set_tobconnector(current_begin_map, head, begin_bump, path_package, true);
+        set_tobconnector(ends_map, tail, end_bump, path_package, false);
         path_package._length += path_length(regular_path) - 1;
     }
     path_package._regular_path = total_regular_path;
@@ -210,7 +210,7 @@ try {
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto tail = std::get<0>(regular_path.back());
-        set_tobconnector(end_map, tail, end_bump, path_package);
+        set_tobconnector(end_map, tail, end_bump, path_package, false);
         path_package._length += path_length(regular_path) - 1;
     }
     path_package._regular_path = total_regular_path;
@@ -258,7 +258,7 @@ try {
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto head = std::get<0>(regular_path.front());
-        set_tobconnector(current_begin_map, head, begin_bump, path_package);
+        set_tobconnector(current_begin_map, head, begin_bump, path_package, true);
         path_package._length += path_length(regular_path) - 1;
     }
 
@@ -303,7 +303,7 @@ try {
         total_regular_path.insert(total_regular_path.end(), regular_path.begin(), regular_path.end());
 
         auto tail = std::get<0>(regular_path.back());
-        set_tobconnector(ends_map, tail, end_bump, path_package);
+        set_tobconnector(ends_map, tail, end_bump, path_package, false);
         path_package._length += path_length(regular_path);
 
         for (auto& [t, connector]: regular_path) {
@@ -773,7 +773,7 @@ auto IncreRouting::searching_points(
 
 auto IncreRouting::set_tobconnector(
     std::HashMap<hardware::Track*, std::Option<hardware::TOBConnector>>& map, hardware::Track* track,
-    hardware::Bump* bump, circuit::PathPackage& path_package
+    hardware::Bump* bump, circuit::PathPackage& path_package, bool head
 ) const -> void {
     auto iter = map.find(track);
     if (iter == map.end()) {
@@ -782,9 +782,17 @@ auto IncreRouting::set_tobconnector(
 
     if (iter->second.has_value()) {
         iter->second.value().give_out();
-        path_package._tob_to_track.emplace_back(
-            std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(bump, iter->second.value(), track)
-        );
+        if (head) {
+            path_package._tob_to_track.emplace_back(
+                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(bump, iter->second.value(), track)
+            );
+        }
+        else {
+            path_package._track_to_tob.emplace_back(
+                std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(bump, iter->second.value(), track)
+            );
+        }
+        
         path_package._length += 1;
     }
     else {

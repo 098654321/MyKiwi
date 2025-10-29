@@ -428,4 +428,40 @@ namespace kiwi::hardware {
         TOB::check_index(track_index);
         return this->_track_dir_registers.at(track_index).get();
     }
+
+    auto TOB::reset_bump_to_hori_mux() -> void {
+        for (auto& mux: this->_bump_to_hori_muxs) {
+            mux->reset_regs();
+        }
+    }
+    auto TOB::reset_hori_to_vert_mux() -> void {
+        for (auto& mux: this->_hori_to_vert_muxs) {
+            mux->reset_regs();
+        }
+    }
+    auto TOB::reset_veri_to_track_mux() -> void {
+        for (auto& mux: this->_vert_to_track_muxs) {
+            mux->reset_regs();
+        }
+    }
+
+    auto TOB::reset_track_dir_registers() -> void {
+        for (auto& reg: this->_track_dir_registers) {
+            reg->reset();
+        }
+    }
+
+    auto TOB::reset_bump_dir_registers() -> void {
+        for (auto& reg: this->_bump_dir_registers) {
+            reg->reset();
+        }
+    }
+
+    auto TOB::reset_regs() -> void {
+        this->reset_bump_to_hori_mux();
+        this->reset_hori_to_vert_mux();
+        this->reset_veri_to_track_mux();
+        this->reset_track_dir_registers();
+        this->reset_bump_dir_registers();
+    }
 }

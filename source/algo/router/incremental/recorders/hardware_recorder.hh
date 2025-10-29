@@ -39,8 +39,8 @@ public:
     auto update_track_recorders_cost(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
     auto update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
     auto update_cob_recorders_history(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void;
-    auto update_tob_recorders_current(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
-    auto update_tob_recorders_history(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
+    auto update_tob_recorders_current(const std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>>& connectors, bool reuse_type) -> void;
+    auto update_tob_recorders_history(const std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>>& connectors, bool reuse_type) -> void;
 
     auto clear_history_records(const circuit::PathPackage& package, bool reuse_type) -> void;
     auto clear_track_history_records(const std::Vector<hardware::Track*>& tracks, bool reuse_type) -> void;
@@ -54,7 +54,7 @@ public:
 
 private:
     auto collect_track_cobconnector(const circuit::PathPackage& package) const -> std::Tuple<std::Vector<hardware::Track*>, std::Vector<hardware::COBConnector>>;
-    auto collect_tobconnector(const circuit::PathPackage& package) const -> std::HashMap<hardware::TOBCoord, hardware::TOBConnector>;
+    auto collect_tobconnector(const circuit::PathPackage& package) const -> std::Vector<std::Tuple<hardware::TOBCoord, hardware::TOBConnector>>;
 
 private:
     std::HashMap<hardware::Track*, TypeRecorder> _track_recorders;

@@ -27,7 +27,6 @@ struct RouteStrategy;
 
 enum class CommandType {
     Clear,
-    Connect,
     Reroute,
     Resources,
     Allocate,

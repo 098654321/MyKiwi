@@ -20,36 +20,30 @@
 
 namespace kiwi {
 
-    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode, std::optional<int> compare) -> int {
+    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode, std::optional<int> compare, bool try_all_modes) -> int {
     try {
         debug::initial_log("./debug.log");
-        std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".") / ("controlbits_" + std::to_string(mode) + ".txt");
+        std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".");
 
-        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode); 
-
+        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, try_all_modes); 
         algo::build_nets(basedie.get(), interposer.get());
         
-        if (mode == 0) {
-            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{false}, algo::HK{}, mode, false);
-            parse::write_control_bits(
-                interposer.get(),
-                output_file
-            );
+        if (!try_all_modes && mode == 0) {  // not incremental routing 
+            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{false}, algo::HK{}, mode, false, try_all_modes);
+            parse::output_from_routing_results(interposer.get(), output_file, basedie.get(), mode, try_all_modes);
         }
-        else {
+        else {  // incremental routing with two situations: route all modes (try_all_modes == true) or route single mode (try_all_modes == false && mode > 0)
             basedie->merge_same_mode_nets();
-            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode);
+            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode, try_all_modes);
             if (!has_bits) {
-                algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
-                parse::write_control_bits(
-                    interposer.get(),
-                    output_file
-                );
+                algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, try_all_modes, has_other_bits);
+                parse::output_from_routing_results(interposer.get(), output_file, basedie.get(), mode, try_all_modes);
             }
             else {
                 debug::info("Already has control bits, skip the routing process");
             }
-            if (compare.has_value()) {
+
+            if (!try_all_modes && compare.has_value()) {
                 std::string current_file {"controlbits_" + std::to_string(mode) + ".txt"};
                 std::string target_file {"controlbits_" + std::to_string(compare.value()) + ".txt"};
                 parse::compare(current_file, target_file);

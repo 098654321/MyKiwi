@@ -127,11 +127,12 @@ namespace kiwi {
             auto incre_opt = argument_index("-i", "--incremental");
             auto comp_opt = argument_index("-c", "--compare");
             int incre_mode = 0;
+            bool try_all_modes = false;
             std::optional<int> compare = std::nullopt;
             if (incre_opt.has_value()) {
                 auto index = incre_opt.value();
                 if (index >= (arguments.size() - 1) || arguments[index + 1].at(0) == '-') {
-                    debug::fatal("Use '-i/--incremental' but not indicate the mode!");
+                    try_all_modes = true;
                 } 
                 else {
                     incre_mode = std::stoi(arguments[index + 1]);
@@ -155,7 +156,7 @@ namespace kiwi {
                 }
             }
 
-            return cli_main(arguments[0], std::move(output_path), incre_mode, compare);
+            return cli_main(arguments[0], std::move(output_path), incre_mode, compare, try_all_modes);
         }
 
         return 0;

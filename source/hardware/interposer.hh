@@ -73,6 +73,9 @@ namespace kiwi::hardware {
     public:
         auto randomly_map_remain_indexes() -> void;                                                         
         auto manage_cobunit_resources() -> void;
+        auto reset_tob_regs() -> void;
+        auto reset_cob_regs() -> void;
+        auto reset_regs() -> void;
 
     private:
         void build();

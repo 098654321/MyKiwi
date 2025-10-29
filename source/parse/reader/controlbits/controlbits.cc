@@ -55,7 +55,13 @@ namespace kiwi::parse {
     try {
         auto controlbits_path = path / ("controlbits_" + std::to_string(mode) + ".txt");
         std::ifstream file(controlbits_path);
-        if (!file.is_open()) return std::nullopt;
+        if (!file.is_open()) {
+            debug::info_fmt("Controlbits file {} not found", controlbits_path.string());
+            return std::nullopt;
+        }
+        else {
+            debug::info_fmt("Load controlbits from {}", controlbits_path.string());
+        }
     
         Controlbits controlbits;
         std::unordered_map<hardware::TOBCoord, std::bitset<128>> tob2bump_sig, bump2tob_sig, tob2track_sig, track2tob_sig;
