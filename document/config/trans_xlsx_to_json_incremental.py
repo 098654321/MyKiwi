@@ -3,7 +3,7 @@ import json
 import re
 
 def parse_excel_simple(file_path):
-    mode_col, input_col, output_col, tag_col = 0, 1, 2, 3
+    mode_col, input_col, output_col, tag_col = 5, 6, 7, 8
     
     try:
         df = pd.read_excel(file_path, header=None)
