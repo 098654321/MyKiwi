@@ -92,12 +92,5 @@ auto GlobalCOBGroups::info() const -> std::Tuple<std::usize, std::usize> {
 
 }
 
-namespace std {
 
-    std::size_t hash<kiwi::hardware::COBDirection>::operator() (const kiwi::hardware::COBDirection& dir) const noexcept {
-        // Use underlying integer value of the enum for hashing
-        return static_cast<std::size_t>(dir);
-    }
-
-}
 

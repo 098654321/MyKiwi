@@ -3,6 +3,7 @@
 #include "./tobrecorder.hh"
 #include "./cobrecorder.hh"
 #include <hardware/interposer.hh>
+#include <hardware/cob/cobdirection.hh>
 #include <circuit/path/pathpackage.hh>
 
 
@@ -24,10 +25,10 @@ public:
     auto get_track_recorder(hardware::Track* track, bool reuse_type) const -> const TypeRecorder&;
     auto get_tob_recorder(hardware::TOBCoord coord) -> TOBRecorder&;
     auto get_cob_recorder(hardware::COBCoord coord) -> COBRecorder&;
-    auto get_cob_type_recorder(hardware::COBCoord, std::usize, std::usize) -> TypeRecorder&;
+    auto get_cob_type_recorder(hardware::COBCoord, std::usize, hardware::COBDirection, std::usize) -> TypeRecorder&;
 
     auto bump_to_track_cost(hardware::TOBCoord, std::usize, hardware::Track*, bool) -> float;
-    auto cob_cost(hardware::COBCoord, std::usize, bool) -> float;
+    auto cob_cost(hardware::COBCoord, hardware::COBDirection, std::usize, bool) -> float;
     auto track_cost(hardware::Track*, bool) -> float;
     auto expand_cost(hardware::Track*, hardware::COBConnector&, bool) -> float;
     

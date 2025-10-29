@@ -2,17 +2,11 @@
 
 #include <std/collection.hh>
 #include <hardware/cob/cob.hh>
+#include <hardware/cob/cobdirection.hh>
 #include "./bits_group.hh"
 
 
-namespace std {
 
-    template <>
-    struct std::hash<kiwi::hardware::COBDirection> {
-        std::size_t operator() (const kiwi::hardware::COBDirection& dir) const noexcept;
-    };
-
-}
 
 
 namespace kiwi::algo {

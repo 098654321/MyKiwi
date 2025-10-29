@@ -28,10 +28,42 @@
 
     * 之前的算法在更新 track 的时候是以 reg 的 bit 为单位，根据当前占用数量和历史使用情况来分析每个 bit 应该分配给那种类型的 net 。但是最终考虑的是整个寄存器的情况，所以在更新当前使用情况的时候应该要考虑整个寄存器的情况，一个寄存器里面的 bit 一起更新代价。在更新历史信息的时候还是以 bit 为单位记录每个 bit 被两种不同类型 net 使用的情况，否则可能会损失细节的信息(这个还是拿不准)。
 
-    * 为什么布线长度会随着迭代轮数缓慢增加？
+    * 布线路径会受到附近其它同类型线网的路径的影响，在迭代的后期被这些路径拉过去，导致走的不一定是最短的路径。
 
     * 当前版本的代码里面布通率和 version_before_commands 比有下降，为什么？
 
     * 这个算法的目的使让非共用的线网占据的资源尽可能合并到相同的寄存器里面，所以需要通过可视化检测有没有达到合并的效果
+
+    ```c++
+    cycle = 0
+    load nets, sort nets by reuse frequency（用 reuse frequency 排序）
+    while (true) {
+        for net in nets {
+            path = route net with maze(using the new cost function)
+        }
+        
+        if fail {
+            if (cycle == 0) {
+                remove nets in other modes
+                reroute
+            }
+            else {
+                return success with path from last cycle
+            }
+        }
+            
+        update recorder        
+
+        if (cycle >= MIN_CYCLE_NUMBER) {
+            return success with path
+        }
+
+        cycle++
+    }
+    ```
+
+- 上面的那个算法有个问题，就是在当前 mode 就加载了所有 mode 的 net 并布线，这样会相互挤占布线资源，导致布线质量下降，例如路径相互阻碍导致需要绕路使长度变长。原来是希望一次把两个 mode 的 net 布完，这样在给当前 mode 布线的时候就不会导致当前 mode 布线的时候不考虑后面的情况，让后面一个 mode 的 net 布线失败。同时两个 mode 的需要切换的 net 的路径可以提前凑到一起，减少需要切换的 net 使用的寄存器总数。
+
+    还可以再加一个策略，当前 mode 布线之前把已有的 mode 的布线结果加载进来（前提是已有的 mode 有布线结果了），然后共用的线直接用已有的路径，不重新布线，并利用已有的路径更新代价值。
 
     

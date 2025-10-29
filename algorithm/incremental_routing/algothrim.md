@@ -73,7 +73,13 @@
     第二个版本：不考虑共享
    ```c++
     cycle = 0
-    load nets, sort nets by reuse frequency（用 reuse frequency 排序）
+    if (load_all_nets) {
+      load nets from all modes
+    }
+    else {
+      load nets in this mode
+    }
+    sort nets by reuse frequency（用 reuse frequency 排序）
     while (true) {
         for net in nets {
             path = route net with maze(using the new cost function)
@@ -96,6 +102,12 @@
         }
 
         cycle++
+    }
+    if (load_all_nets) {
+      output controlbits in all modes
+    }
+    else {
+      output controlbits in this modes
     }
     ```
 

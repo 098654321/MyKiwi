@@ -197,7 +197,7 @@ auto TOBRecorder::update_type(std::usize bump_index, std::usize hori_index, std:
 
     auto [hori_group, hori_group_index] = this->hori_group_info(hori_index);
     this->_hori_to_vert_recorder.at(hori_group).update_type(hori_group_index, reuse_type);
-
+    
     auto [vert_group, vert_group_index] = this->vert_group_info(vert_index);
     this->_vert_to_track_recorder.at(vert_group).update_type(vert_group_index, reuse_type);
 }
@@ -286,20 +286,14 @@ auto TOBRecorder::show_data(std::size_t bump_index, std::size_t hori_index, std:
     std::string msg = "";
 
     msg += "Bump_reg:\n";
-    // auto bump_mux = bump_index / hardware::TOB::BUMP_TO_HORI_MUX_SIZE;
-    // auto bump_in_mux = bump_index % hardware::TOB::BUMP_TO_HORI_MUX_SIZE;
     auto bump_group_info = this->bump_group_info(bump_index);
-    msg += this->bump_to_hori_recorder(std::get<0>(bump_group_info)).show_data(bump_group_info, show_all, print);
+    msg += this->_bump_to_hori_recorder.at(std::get<0>(bump_group_info)).show_data(bump_group_info, show_all, print);
 
     msg += "Hori_reg:\n";
-    // auto hori_mux = hori_index / hardware::TOB::HORI_TO_VERI_MUX_SIZE;
-    // auto hori_in_mux = bump_index % hardware::TOB::HORI_TO_VERI_MUX_SIZE;
     auto hori_group_info = this->hori_group_info(hori_index);
     msg += this->hori_to_vert_recorder(std::get<0>(hori_group_info)).show_data(hori_group_info, show_all, print);
 
     msg += "Vert_reg:\n";
-    // auto vert_mux = vert_index % hardware::TOB::VERI_TO_TRACK_MUX_COUNT;
-    // auto vert_in_mux = vert_index / hardware::TOB::VERI_TO_TRACK_MUX_COUNT;
     auto vert_group_info = this->vert_group_info(vert_index);
     msg += this->vert_to_track_recorder(std::get<0>(vert_group_info)).show_data(vert_group_info, show_all, print);
     

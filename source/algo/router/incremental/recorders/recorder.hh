@@ -49,11 +49,7 @@ public:
         reuse_type ? this->_history.first++ : this->_history.second++;
     }
 
-    auto update_cost(float reuse_num, float nonre_num) -> float {
-        if (!this->_reuse_type.has_value()) {
-            return BASICCOST;
-        }
-
+    auto update_cost(float reuse_num, float nonre_num) -> void {
         auto h_reuse_n = std::get<0>(this->_history);
         auto h_nonre_n = std::get<1>(this->_history);
         auto history_ratio = (h_reuse_n-h_nonre_n) / (h_reuse_n+h_nonre_n+EPSILON);

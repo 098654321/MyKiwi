@@ -28,10 +28,10 @@ auto HardwareRecorder::get_cob_recorder(hardware::COBCoord coord) -> COBRecorder
 }
 
 auto HardwareRecorder::get_cob_type_recorder(
-    hardware::COBCoord coord, std::usize unit_i, std::usize reg_i
+    hardware::COBCoord coord, std::usize unit_i, hardware::COBDirection dir, std::usize reg_i
 ) -> TypeRecorder& {
     auto unit_recorder = this->get_cob_recorder(coord).unit_recorder(unit_i);
-    return unit_recorder.recorder(reg_i);
+    return unit_recorder.recorder(dir, reg_i);
 }
 
 auto HardwareRecorder::bump_to_track_cost(hardware::TOBCoord coord, std::usize bump_index, hardware::Track* track, bool reuse_type) -> float {
@@ -39,9 +39,9 @@ auto HardwareRecorder::bump_to_track_cost(hardware::TOBCoord coord, std::usize b
     return this->get_tob_recorder(coord).tob_cost(bump_index, track_index, reuse_type) + this->track_cost(track,reuse_type);
 }
 
-auto HardwareRecorder::cob_cost(hardware::COBCoord coord, std::usize index, bool reuse_type) -> float {
+auto HardwareRecorder::cob_cost(hardware::COBCoord coord, hardware::COBDirection dir, std::usize index, bool reuse_type) -> float {
 try {
-    return this->get_cob_recorder(coord).cob_cost(index, reuse_type);
+    return this->get_cob_recorder(coord).cob_cost(dir, index, reuse_type);
 }
 catch(std::exception& e) {
     throw FinalError(std::format("cob_cost(): {}", e.what()));
@@ -55,7 +55,7 @@ auto HardwareRecorder::track_cost(hardware::Track* track, bool reuse_type) -> fl
 
 auto HardwareRecorder::expand_cost(hardware::Track* track, hardware::COBConnector& connector, bool reuse_type) -> float {
 try {
-    auto cob_cost = this->cob_cost(connector.coord(), connector.from_track_index(), reuse_type);
+    auto cob_cost = this->cob_cost(connector.coord(), connector.from_dir(), connector.from_track_index(), reuse_type);
     auto track_cost = this->track_cost(track, reuse_type);
     return cob_cost + track_cost;
 }
@@ -87,22 +87,40 @@ auto HardwareRecorder::update_recorders_history(const circuit::PathPackage& pack
 auto HardwareRecorder::update_cob_recorders_current(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
-        this->get_cob_recorder(coord).update_type(connector.from_track_index(), reuse_type);
+        this->get_cob_recorder(coord).update_type(connector.from_dir(), connector.from_track_index(), reuse_type);
     }
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
-        this->get_cob_recorder(coord).update_cost(connector.from_track_index());
+        this->get_cob_recorder(coord).update_type(connector.to_dir(), connector.to_track_index(), reuse_type);
+    }
+
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_cost(connector.from_dir(), connector.from_track_index());
+    }
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_cost(connector.to_dir(), connector.to_track_index());
     }
 }
 
 auto HardwareRecorder::update_cob_recorders_history(const std::Vector<hardware::COBConnector>& cob_connectors, bool reuse_type) -> void {
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
-        this->get_cob_recorder(coord).update_history(connector.from_track_index(), reuse_type);
+        this->get_cob_recorder(coord).update_history(connector.from_dir(), connector.from_track_index(), reuse_type);
     }
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
-        this->get_cob_recorder(coord).update_cost(connector.from_track_index());
+        this->get_cob_recorder(coord).update_history(connector.to_dir(), connector.to_track_index(), reuse_type);
+    }
+
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_cost(connector.from_dir(), connector.from_track_index());
+    }
+    for (auto& connector: cob_connectors) {
+        auto coord = connector.coord();
+        this->get_cob_recorder(coord).update_cost(connector.to_dir(), connector.to_track_index());
     }
 }
 
@@ -239,7 +257,7 @@ auto HardwareRecorder::clear_cob_history_records(const std::Vector<hardware::COB
     for (auto& connector: cob_connectors) {
         auto coord = connector.coord();
         auto& recorder = this->get_cob_recorder(coord);
-        recorder.clear_history_record(connector.from_track_index());
+        recorder.clear_history_record(connector.from_dir(), connector.from_track_index());
     }
 }
 
@@ -324,7 +342,7 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
             ));
             if (this->_cob_recorders.contains(coord)) {
                 auto cob_recorder = this->_cob_recorders.at(coord);
-                msg += cob_recorder.show_data(get_track_index(cobconnector.value()), show_all, false);
+                msg += cob_recorder.show_data(get_dir(cobconnector.value()), get_track_index(cobconnector.value()), show_all, false);
             }
             else {
                 msg += "COB_recorder not found.\n";
