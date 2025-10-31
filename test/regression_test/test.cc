@@ -21,9 +21,9 @@ namespace kiwi::test{
             std::FilePath config_path{"../test/config/case" + std::to_string(id)};
             debug::initial_log("debug.log");
 
-            auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0);
+            auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0, false);
             algo::build_nets(basedie.get(), interposer.get());
-            auto data = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, 0, false);
+            auto data = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, 0, false, false);
             THEN("The total length should be within a limit"){
                 std::ifstream golden_file(config_path / "golden.txt");
                 if (!golden_file.is_open()){

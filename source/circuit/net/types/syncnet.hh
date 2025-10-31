@@ -64,6 +64,7 @@ namespace kiwi::circuit {
         virtual auto clear_path() -> void override;
         virtual auto name() const -> const std::String& override;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
+        virtual auto clear_current_package() -> void override;
 
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         
@@ -71,6 +72,7 @@ namespace kiwi::circuit {
         auto length() const -> std::usize override;
         auto sync_length() const -> std::Tuple<std::usize, std::usize> override;
         auto set_pathpackage(const circuit::PathPackage&) -> void override;
+        auto set_history_pathpackage() -> void override;
         auto reset_pathpackage() -> void override;
         auto move_history_to_current(hardware::Interposer*) -> void override;
 

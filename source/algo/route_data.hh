@@ -10,9 +10,10 @@
 namespace kiwi::algo {
 
     struct DataPerCycle {
-        DataPerCycle(float total_length, float ave_sync_length, std::Tuple<double, double> reg_data, std::usize sync_net_number, std::usize failed_net) :
+        DataPerCycle(float total_length, float ave_sync_length, std::usize max_length, std::Tuple<double, double> reg_data, std::usize sync_net_number, std::usize failed_net) :
             _total_length(total_length),
             _ave_sync_length(ave_sync_length),
+            _max_length(max_length),
             _reg_data(reg_data),
             _sync_net_number(sync_net_number),
             _failed_net(failed_net)
@@ -21,6 +22,7 @@ namespace kiwi::algo {
 
         float _total_length;
         float _ave_sync_length;
+        std::usize _max_length;
         std::usize _sync_net_number;
         std::usize _failed_net;
         std::Tuple<double, double> _reg_data;
@@ -33,8 +35,8 @@ namespace kiwi::algo {
         ~RouteData() noexcept = default;
         
     public:
-        // get tuple<total_length, sync_net_number, sync_net_length, failed_net>
-        auto collect_net_length(const std::Vector<circuit::Net*>& nets) const -> std::Tuple<float, std::usize, float, std::usize>;
+        // get tuple<total_length, sync_net_number, sync_net_length, max_length, failed_net>
+        auto collect_net_length(const std::Vector<circuit::Net*>& nets) const -> std::Tuple<float, std::usize, float, std::usize, std::usize>;
         // collect global bits info
         auto collect_global_bits(const std::Vector<circuit::Net*>& nets) const -> GlobalBoundBits;
         auto collect_data(const std::Vector<circuit::Net*>& nets, bool incre) -> DataPerCycle;

@@ -86,16 +86,9 @@ namespace kiwi::algo {
             "
         );
 
-        if (try_all_modes) {
-            const auto& nets = engine.nets();
-            auto data = engine.show_final_data(nets, incremental);
-            return data;
-        }
-        else {
-            const auto& nets = engine.nets(engine.mode());
-            auto data = engine.show_final_data(nets, incremental);
-            return data;
-        }
+        const auto& nets = engine.nets(engine.mode());
+        auto data = engine.show_final_data(nets, incremental);
+        return data;
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {

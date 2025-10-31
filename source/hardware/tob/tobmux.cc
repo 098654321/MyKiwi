@@ -150,7 +150,15 @@ namespace kiwi::hardware {
         for (auto& reg : this->_registers) {
             if (!reg.get().has_value()) {
                 if (reg.is_given_out()) {
-                    throw std::runtime_error("randomly_map(): reg is given out without a value");
+                    const auto& index = reg.given_out_index();
+                    if (!index.has_value()) {
+                        throw std::runtime_error("randomly_map(): reg is given out with empty indexbefore randomly mapping");
+                    }
+                    else {
+                        throw std::runtime_error(
+                            std::format("randomly_map(): reg is given out with index = {} before randomly mapping", index.value())
+                        );
+                    }
                 }
                 reg.set(unused_indexes.at(index));
                 index += 1;

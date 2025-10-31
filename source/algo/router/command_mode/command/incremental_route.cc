@@ -6,6 +6,9 @@
 
 namespace kiwi::algo {
 
+void check_tobconnector_consistency(std::Vector<circuit::Net*>& nets);
+void check_address(std::Vector<circuit::Net*> nets);
+
 auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine) const -> void {
     debug::info("routing in incremental mode ...");
     auto nets = engine.nets();              
@@ -20,6 +23,7 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     auto res = iterate_routing(interposer, engine, nets, recorder);
     if (!res) {                 // fail in the first iteration
+        debug::info("fail in the first iteration, try to reset and reroute");
         reset(engine, nets);
         res = iterate_routing(interposer, engine, nets, recorder);
         if (!res) {
@@ -107,12 +111,13 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{5};
+    std::usize cycle{0}, min_cycle{25};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
         // init for cycle
         for (auto net: nets) {
+            net->set_history_pathpackage();
             recorder.clear_history_records(net->pathpackage(), net->reuse_type().value());
             net->reset_pathpackage();
         }
@@ -177,6 +182,9 @@ auto Incre_route::reset(RouteEngine& engine, std::Vector<circuit::Net*>& nets) c
 }
 
 auto Incre_route::set_history_as_current(std::Vector<circuit::Net*>& nets, hardware::Interposer* interposer) const -> void {
+    for (auto n: nets) {
+        n->clear_current_package();
+    }
     for (auto n: nets) {
         n->move_history_to_current(interposer);
     }

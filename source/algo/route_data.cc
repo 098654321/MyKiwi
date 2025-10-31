@@ -1,15 +1,17 @@
 #include <debug/debug.hh>
 #include "route_data.hh"
 #include <exception>
+#include <algorithm>
 
 
 namespace kiwi::algo {
 
-auto RouteData::collect_net_length(const std::Vector<circuit::Net*>& nets) const -> std::Tuple<float, std::usize, float, std::usize> {
+auto RouteData::collect_net_length(const std::Vector<circuit::Net*>& nets) const -> std::Tuple<float, std::usize, float, std::usize, std::usize> {
     float total_length {0};
     std::usize sync_net_number {0};
     float sync_length {0};
     std::usize failed_net {0};
+    std::usize max_length {0};
     
     for (const auto& net: nets) {
         auto l = net->length();
@@ -17,16 +19,23 @@ auto RouteData::collect_net_length(const std::Vector<circuit::Net*>& nets) const
 
         if (l > 0) {
             total_length += l;
-            auto [n, l] = net->sync_length();
+            auto [n, l] = net->sync_length();       // non_sync_net: return [0, 0]
             sync_net_number += n;
             sync_length += l;
+
+            if (n == 0) {                           // non_sync_net
+                max_length = std::max(max_length, l);
+            }
+            else {                                  // sync_net
+                max_length = std::max(max_length, l/n);
+            }
         }
         else {
             failed_net++;
         }
     }   
 
-    return std::Tuple<float, std::usize, float, std::usize>{total_length, sync_net_number, sync_length, failed_net};
+    return std::Tuple<float, std::usize, float, std::usize, std::usize>{total_length, sync_net_number, sync_length, max_length, failed_net};
 }
 
 
@@ -65,10 +74,10 @@ auto RouteData::collect_data(const std::Vector<circuit::Net*>& nets, bool incre)
         std::tie(monopolized_by_reuse, has_nonreuse) = reg_rate;
     }
 
-    auto [total_length, sync_net_number, sync_length, failed_net] = this->collect_net_length(nets);
+    auto [total_length, sync_net_number, sync_length, max_length, failed_net] = this->collect_net_length(nets);
     auto ave_sync_length = sync_length / sync_net_number;
 
-    return DataPerCycle(total_length, ave_sync_length, std::make_tuple(monopolized_by_reuse, has_nonreuse), sync_net_number, failed_net);
+    return DataPerCycle(total_length, ave_sync_length, max_length, std::make_tuple(monopolized_by_reuse, has_nonreuse), sync_net_number, failed_net);
 }
 
 
@@ -95,11 +104,12 @@ try {
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
+        Max Length: {}\n\
         Monopolized by Reuse: {}({}%)\n\
         Has Nonreuse: {}({}%)\n\
         Failed routing nubmer: {}\n\
         ------------------------------------------------------------------------\
-        ", cycle, data._total_length, data._sync_net_number, data._ave_sync_length, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
+        ", cycle, data._total_length, data._sync_net_number, data._ave_sync_length, data._max_length, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
         );
     }
     else {
@@ -108,9 +118,10 @@ try {
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
+        Max Length: {}\n\
         Failed routing nubmer: {}\n\
         ------------------------------------------------------------------------\
-        ", data._total_length, data._sync_net_number, data._ave_sync_length, data._failed_net
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, data._max_length, data._failed_net
         );
     }
 }

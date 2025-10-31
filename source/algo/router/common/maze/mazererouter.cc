@@ -356,7 +356,7 @@ namespace kiwi::algo{
             }
 
             // check
-            if (tree._max_level + path_ptr->_length > 1.5*max_length) {
+            if (tree._max_level + path_ptr->_length > 2*max_length) {
                 throw RetryExpt("MazeRerouter::refind_path: tree._max_level > 2*max_length");
             }
         }

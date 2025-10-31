@@ -71,9 +71,11 @@ namespace kiwi::circuit {
     public:
         virtual auto clear_related_nets() -> void;
         virtual auto clear_path() -> void;
+        virtual auto clear_current_package() -> void;
         virtual auto show_path() const -> void;
         virtual auto length() const -> std::usize;
         virtual auto set_pathpackage(const PathPackage& path_package) -> void;
+        virtual auto set_history_pathpackage() -> void;
         virtual auto move_history_to_current(hardware::Interposer*) -> void;
         
         // reset all package elements in iterate routing for incremental routing

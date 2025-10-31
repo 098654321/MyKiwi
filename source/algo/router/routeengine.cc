@@ -61,10 +61,11 @@ auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool i
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
+        Max Length: {}\n\
         Monopolized by Reuse: {}({}%)\n\
         Has Nonreuse: {}({}%)\n\
         Failed routing nubmer: {}\n\
-        ", data._total_length, data._sync_net_number, data._ave_sync_length, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, data._max_length, monopolized_by_reuse, 100*monopolized_by_reuse/sum, has_nonreuse, 100*has_nonreuse/sum, data._failed_net
         );
     }
     else {
@@ -72,8 +73,9 @@ auto RouteEngine::show_final_data(const std::Vector<circuit::Net*>& nets, bool i
         Total Length: {}\n\
         Sync Net Number: {}\n\
         Average Sync Length: {}\n\
+        Max Length: {}\n\
         Failed routing nubmer: {}\n\
-        ", data._total_length, data._sync_net_number, data._ave_sync_length, data._failed_net
+        ", data._total_length, data._sync_net_number, data._ave_sync_length, data._max_length, data._failed_net
         );
     }
 

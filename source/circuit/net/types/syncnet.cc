@@ -510,6 +510,38 @@ namespace kiwi::circuit
     }
     }
 
+    auto SyncNet::set_history_pathpackage() -> void {
+        this->_history_path_package.emplace(HistoryPathPackage(this->_path_package));
+        debug::info_fmt(
+            "set history path package with length {} from current path package with length {}", 
+            this->_history_path_package.value()._length, this->_path_package._length
+        );
+
+        for (auto& net: this->_btbnets) {
+            net->set_history_pathpackage();
+        }
+        for (auto& net: this->_bttnets) {
+            net->set_history_pathpackage();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->set_history_pathpackage();
+        }
+    }
+
+    auto SyncNet::clear_current_package() -> void {
+        this->_path_package.clear_all();
+
+        for (auto& net: this->_btbnets) {
+            net->clear_current_package();
+        }
+        for (auto& net: this->_bttnets) {
+            net->clear_current_package();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->clear_current_package();
+        }
+    }
+
 }
 
 
