@@ -454,10 +454,10 @@ namespace kiwi::circuit {
                         break;
                     }
                 }
-                if (flag == nullptr) {
+                if (flag == nullptr) {      // no same net in set
                     set.insert(net);
                 }
-                else {
+                else {                      // flag is the same net in set with the most updated mode record
                     flag->add_mode(mode);
                     net = flag;
                 }

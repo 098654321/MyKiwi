@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <circuit/net/nets.hh>
 #include <ranges>
+#include <algo/router/common/maze/path_length.hh>
 
 
 namespace kiwi::parse {
@@ -102,11 +103,13 @@ namespace kiwi::parse {
             if (sync_net != nullptr) {
                 load_tobconnector_sync(interposer, controlbits, sync_net);
                 load_path_with_maze_sync(sync_net, interposer, controlbits);
+                load_length_sync(sync_net);
             }
             else {
                 auto bumps = net->nodes_direction();
                 load_tobconnector(interposer, controlbits, bumps, net.get());
                 load_path_with_maze(net.get(), interposer, controlbits);
+                load_length(net.get());
             }
         }
     }
@@ -485,6 +488,29 @@ namespace kiwi::parse {
         for (auto& n: net->ttbnets()) {
             load(n.get());
         }
+
+        auto& sync_package = net->pathpackage();
+        auto collect = [&](circuit::Net* base_net) {
+            sync_package._tob_to_track.insert(
+                sync_package._tob_to_track.end(),
+                base_net->pathpackage()._tob_to_track.begin(),
+                base_net->pathpackage()._tob_to_track.end()
+            );
+            sync_package._track_to_tob.insert(
+                sync_package._track_to_tob.end(),
+                base_net->pathpackage()._track_to_tob.begin(),
+                base_net->pathpackage()._track_to_tob.end()
+            );
+        };
+        for (auto& n: net->btbnets()) {
+            collect(n.get());
+        }
+        for (auto& n: net->bttnets()) {
+            collect(n.get());
+        }
+        for (auto& n: net->ttbnets()) {
+            collect(n.get());
+        }
     }
 
     auto load_path_with_maze_sync(circuit::SyncNet* net, hardware::Interposer* interposer, const Controlbits& controlbits) -> void {
@@ -499,6 +525,59 @@ namespace kiwi::parse {
         for (auto& n: net->ttbnets()) {
             circuit::Net* base_net = n.get();
             load_path_with_maze(base_net, interposer, controlbits);
+        }
+
+        auto& sync_package = net->pathpackage();
+        auto collect = [&](circuit::Net* base_net) {
+            sync_package._regular_path.insert(
+                sync_package._regular_path.end(),
+                base_net->pathpackage()._regular_path.begin(),
+                base_net->pathpackage()._regular_path.end()
+            );
+        };
+        for (auto& n: net->btbnets()) {
+            collect(n.get());
+        }
+        for (auto& n: net->bttnets()) {
+            collect(n.get());
+        }
+        for (auto& n: net->ttbnets()) {
+            collect(n.get());
+        }
+    }
+
+    auto load_length(circuit::Net* net) -> void {
+        std::usize length{0};
+        length += algo::path_length(net->pathpackage()._regular_path);
+        length += net->pathpackage()._tob_to_track.size();
+        length += net->pathpackage()._track_to_tob.size();
+
+        net->pathpackage()._length = length;
+    }
+
+    auto load_length_sync(circuit::SyncNet* net) -> void {
+        for (auto& n: net->btbnets()) {
+            load_length(n.get());
+        }
+        for (auto& n: net->bttnets()) {
+            load_length(n.get());
+        }
+        for (auto& n: net->ttbnets()) {
+            load_length(n.get());
+        }
+
+        auto& sync_package = net->pathpackage();
+        auto collect = [&](circuit::Net* base_net) {
+            sync_package._length += base_net->pathpackage()._length;
+        };
+        for (auto& n: net->btbnets()) {
+            collect(n.get());
+        }
+        for (auto& n: net->bttnets()) {
+            collect(n.get());
+        }
+        for (auto& n: net->ttbnets()) {
+            collect(n.get());
         }
     }
 

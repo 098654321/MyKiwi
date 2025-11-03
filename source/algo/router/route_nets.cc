@@ -31,7 +31,7 @@ namespace kiwi::algo {
         );
         auto invoker = Invoker{};
         auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, try_all_modes, path_exists, interposer};
-        invoker.set_route_commands(incremental, path_exists);
+        invoker.set_route_commands(incremental, try_all_modes, path_exists);
         
         while (!invoker.check_command())
         try {
@@ -86,7 +86,7 @@ namespace kiwi::algo {
             "
         );
 
-        const auto& nets = engine.nets(engine.mode());
+        const auto& nets = engine.all_nets_in_modes(engine.mode());
         auto data = engine.show_final_data(nets, incremental);
         return data;
     }

@@ -45,6 +45,9 @@ public:
 public:
     auto nets() const -> std::Vector<circuit::Net*>;
     auto nets(int mode) const -> std::Vector<circuit::Net*>;
+    auto all_nets_in_modes(int mode) const -> std::Vector<circuit::Net*>;
+    auto nets_loaded_with_path() const -> std::Vector<circuit::Net*>;
+    auto all_nets() -> std::Vector<circuit::Net*>;
 
     auto mode() const -> int {return this->_mode;}
     auto incremental() const -> bool {return this->_incremental;}   
@@ -61,6 +64,8 @@ public:
     auto nets_with_mode() -> std::HashMap<int, std::Vector<circuit::Net*>>& {
         return this->_nets;
     }
+    auto try_all_modes() const -> bool {return this->_try_all_modes;}
+    auto path_exists_in_other_modes() const -> bool {return this->_path_exists;}
 
 private:
     std::HashMap<int, std::Vector<circuit::Net*>> _nets;

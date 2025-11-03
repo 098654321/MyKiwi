@@ -131,12 +131,17 @@ auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
             return all_nets;
         }
         else {
-            // return nets without existing path
-            auto iter = std::remove_if(all_nets.begin(), all_nets.end(), [](auto& net) {
-                return net->pathpackage()._regular_path.size() != 0;
-            });
-            all_nets.erase(iter, all_nets.end());
-            return all_nets;
+            if (this->_try_all_modes) {
+                return all_nets;
+            }
+            else {
+                // return nets not shared between modes
+                auto iter = std::remove_if(all_nets.begin(), all_nets.end(), [&](auto& net) {
+                    return net->modes().contains(this->_mode) && net->modes().size() > 1;
+                });
+                all_nets.erase(iter, all_nets.end());
+                return all_nets;
+            }
         }
     }
     else {
@@ -153,17 +158,53 @@ auto RouteEngine::nets(int mode) const -> std::Vector<circuit::Net*> {
             return net_in_mode;
         }
         else {
-            auto iter = std::remove_if(net_in_mode.begin(), net_in_mode.end(), [](auto& net) {
-                return net->pathpackage()._regular_path.size() != 0;
-            });
-            net_in_mode.erase(iter, net_in_mode.end());
-            return net_in_mode;
+            if (this->_try_all_modes) {
+                return net_in_mode;
+            }
+            else {
+                auto iter = std::remove_if(net_in_mode.begin(), net_in_mode.end(), [&](auto& net) {
+                    return net->modes().contains(this->_mode) && net->modes().size() > 1;
+                });
+                net_in_mode.erase(iter, net_in_mode.end());
+                return net_in_mode;
+            }
         }
     }
     else {
         return this->_nets.at(this->_mode);
     }
 }
+
+auto RouteEngine::all_nets_in_modes(int mode) const -> std::Vector<circuit::Net*> {
+    return this->_nets.at(mode);
+}
+
+auto RouteEngine::nets_loaded_with_path() const -> std::Vector<circuit::Net*> {
+    for (auto& [m, net_v]: this->_nets) {
+        for (auto& net: net_v) {
+            if (net->pathpackage()._length > 0) {
+                debug::info_fmt("Net int mode {} is loaded with path", m);
+                return this->all_nets_in_modes(m);
+            }
+        }
+    }
+
+    debug::info_fmt("No net is loaded with path");
+    return std::Vector<circuit::Net*> {};
+}
+
+auto RouteEngine::all_nets() -> std::Vector<circuit::Net*> {
+    auto all_nets = std::Set<circuit::Net*> {};
+    for (auto& [m, net_v]: this->_nets) {
+        for (auto& net: net_v) {
+            if (!all_nets.contains(net)) {
+                all_nets.emplace(net);
+            }
+        }
+    }
+    return std::Vector<circuit::Net*>(all_nets.begin(), all_nets.end());
+}
+
 
 }
 

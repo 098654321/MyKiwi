@@ -21,17 +21,19 @@ auto Invoker::invoke(
     }
 }
 
-auto Invoker::set_route_commands(bool incremental, bool path_exists) -> void {
+auto Invoker::set_route_commands(bool incremental, bool try_all_modes, bool path_exists) -> void {
     if (incremental) {
-        this->_commands.emplace_back(this->create_command(CommandType::Sort));
-        this->_commands.emplace_back(this->create_command(CommandType::Resources));
-        this->_commands.emplace_back(this->create_command(CommandType::Incre_route));
+        this->_commands.emplace_back(this->create_command(CommandType::Set_reuse_type, try_all_modes, path_exists));
+        this->_commands.emplace_back(this->create_command(CommandType::Sort, try_all_modes, path_exists));
+        this->_commands.emplace_back(this->create_command(CommandType::Resources, try_all_modes, path_exists));
+        this->_commands.emplace_back(this->create_command(CommandType::Init_recorder, try_all_modes, path_exists));
+        this->_commands.emplace_back(this->create_command(CommandType::Incre_route, try_all_modes, path_exists));
     }
     else {
-        this->_commands.emplace_back(this->create_command(CommandType::Sort));
-        this->_commands.emplace_back(this->create_command(CommandType::Resources));
-        // this->_commands.emplace_back(this->create_command(CommandType::Allocate));
-        this->_commands.emplace_back(this->create_command(CommandType::Route));
+        this->_commands.emplace_back(this->create_command(CommandType::Sort, try_all_modes, path_exists));
+        this->_commands.emplace_back(this->create_command(CommandType::Resources, try_all_modes, path_exists));
+        // this->_commands.emplace_back(this->create_command(CommandType::Allocate, try_all_modes, path_exists));
+        this->_commands.emplace_back(this->create_command(CommandType::Route, try_all_modes, path_exists));
     }
 }
 
@@ -52,7 +54,7 @@ auto Invoker::check_command() -> bool {
     return this->_commands.empty();
 }
 
-auto Invoker::create_command(CommandType type) -> std::Rc<Command>  {
+auto Invoker::create_command(CommandType type, bool try_all_modes, bool path_exists) -> std::Rc<Command>  {
     switch (type) {
         case CommandType::Clear:
             return std::make_shared<Clear>();
@@ -68,6 +70,10 @@ auto Invoker::create_command(CommandType type) -> std::Rc<Command>  {
             return std::make_shared<Sort>();
         case CommandType::Allocate:
             return std::make_shared<Allocate>();
+        case CommandType::Init_recorder:
+            return std::make_shared<Init_recorder>(try_all_modes, path_exists);
+        case CommandType::Set_reuse_type:
+            return std::make_shared<Set_reuse_type>();
         default:
             throw FinalError("Invalid command type");
     }
