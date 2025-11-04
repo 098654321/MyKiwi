@@ -17,18 +17,25 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
 
     nets = sort_incre(nets);
 
-    // for (auto& net: nets) {
-    //     net->modes().size() > 1 ? net->set_reuse_type(true) : net->set_reuse_type(false);
-    // }
-
     auto res = iterate_routing(interposer, engine, nets, recorder);
     if (!res) {                 // fail in the first iteration
-        debug::info("fail in the first iteration, try to reset and reroute");
-        reset(engine, nets);
-        res = iterate_routing(interposer, engine, nets, recorder);
-        if (!res) {
+        if (!engine.path_exists_in_other_modes()) {
             engine.collect_data_when_fail(nets, true);
             throw FinalError("Incremental Routing failed");
+        }
+        else {
+            debug::info("incremental routing failed when path exists in other modes, reinitialize and reroute");
+            for (auto& net: nets) {
+                net->clear_current_package();
+            }
+            engine.set_path_exists(false);
+            nets = engine.nets();
+            nets = sort_incre(nets);
+            auto res = iterate_routing(interposer, engine, nets, recorder);
+            if (!res) {
+                engine.collect_data_when_fail(nets, true);
+                throw FinalError("Incremental Routing failed");
+            }
         }
     }
 
@@ -38,6 +45,7 @@ auto Incre_route::execute(hardware::Interposer* interposer, RouteEngine& engine)
         set_history_as_current(nets, interposer);
     }
 }
+
 
 auto Incre_route::sort_incre(std::Vector<circuit::Net*>& nets) const -> std::Vector<circuit::Net*> {
     auto compare = [] (circuit::Net* n1, circuit::Net* n2) -> bool {

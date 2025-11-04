@@ -99,6 +99,7 @@ namespace kiwi::parse {
     auto bits_to_paths(hardware::Interposer* interposer, circuit::BaseDie* basedie, const Controlbits& controlbits, int mode) -> void {
     try {
         for (auto& net: basedie->nets(mode)) {
+            debug::info_fmt("bits_to_paths: process net {}", net->name());
             auto sync_net = dynamic_cast<circuit::SyncNet*>(net.get());
             if (sync_net != nullptr) {
                 load_tobconnector_sync(interposer, controlbits, sync_net);

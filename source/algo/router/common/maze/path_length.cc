@@ -7,7 +7,8 @@ namespace kiwi::algo {
 
     auto path_length(const routed_path& path, bool switch_length) -> std::usize {
         if (path.size() == 0){
-            throw FinalError("path_length: path is empty");
+            debug::info("path_length: path is empty");
+            return 0;
         }
 
         // path length = number of tracks
@@ -70,7 +71,8 @@ namespace kiwi::algo {
 
     auto path_length(const std::Vector<hardware::Track*>& path, bool switch_length) -> std::usize {
         if (path.size() == 0) {
-            throw FinalError("path_length: path is empty");
+            debug::info("path_length: path is empty");
+            return 0;
         }
 
         // path length = number of tracks

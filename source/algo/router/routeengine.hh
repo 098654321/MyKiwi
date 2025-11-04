@@ -66,6 +66,7 @@ public:
     }
     auto try_all_modes() const -> bool {return this->_try_all_modes;}
     auto path_exists_in_other_modes() const -> bool {return this->_path_exists;}
+    auto set_path_exists(bool path_exists) -> void {this->_path_exists = path_exists;}
 
 private:
     std::HashMap<int, std::Vector<circuit::Net*>> _nets;
