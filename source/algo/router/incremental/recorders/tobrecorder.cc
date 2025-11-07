@@ -103,6 +103,15 @@ auto TOBMuxRecorder::show_data(std::tuple<std::size_t, std::size_t> mux_info, bo
     return msg;
 }
 
+auto TOBMuxRecorder::self_cost() const -> std::tuple<float, float> {
+    auto total_cost = std::tuple<float, float>(0.0, 0.0);
+    for (auto& recorder: this->_mux_type_recorder) {
+        auto [cost_reuse, cost_nonreuse] = recorder.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    return total_cost;
+}
+
 TOBRecorder::TOBRecorder(bool use_cost) {
     this->_bump_to_hori_recorder.reserve(hardware::TOB::BUMP_TO_HORI_MUX_COUNT);
     for (auto i: std::views::iota(0, (int)hardware::TOB::BUMP_TO_HORI_MUX_COUNT)) {
@@ -301,6 +310,25 @@ auto TOBRecorder::show_data(std::size_t bump_index, std::size_t hori_index, std:
         debug::info(msg);
     }
     return msg;
+}
+
+auto TOBRecorder::self_cost() const -> std::tuple<float, float> {
+    auto total_cost = std::tuple<float, float>(0.0, 0.0);
+    
+    for (auto& recorder: this->_bump_to_hori_recorder) {
+        auto [cost_reuse, cost_nonreuse] = recorder.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    for (auto& recorder: this->_hori_to_vert_recorder) {
+        auto [cost_reuse, cost_nonreuse] = recorder.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    for (auto& recorder: this->_vert_to_track_recorder) {
+        auto [cost_reuse, cost_nonreuse] = recorder.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+
+    return total_cost;
 }
 
 }

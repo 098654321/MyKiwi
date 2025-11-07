@@ -88,6 +88,18 @@ auto COBUnitRecorder::show_data(hardware::COBDirection dir, std::tuple<std::size
     return msg;
 }
 
+auto COBUnitRecorder::self_cost() const -> std::tuple<float, float> {
+    auto total_cost = std::tuple<float, float>(0.0, 0.0);
+    for (auto& [dir, recorders]: this->_cobunit_recorder) {
+        for (auto& recorder: recorders) {
+            auto [cost_reuse, cost_nonreuse] = recorder.self_cost();
+            total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+        }
+    }
+
+    return total_cost;
+}
+
 COBRecorder::COBRecorder(bool use_cost) {
     this->_cob_recorder.reserve(hardware::COB::UNIT_SIZE);
     for (auto i: std::views::iota(0, (int)hardware::COB::UNIT_SIZE)) {
@@ -217,7 +229,15 @@ auto COBRecorder::show_data(hardware::COBDirection dir, std::size_t track_index,
         debug::info(msg);
     }
     return msg;
+}
 
+auto COBRecorder::self_cost() const -> std::tuple<float, float> {
+    auto total_cost = std::tuple<float, float>(0.0, 0.0);
+    for (auto& recorder: this->_cob_recorder) {
+        auto [cost_reuse, cost_nonreuse] = recorder.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    return total_cost;
 }
 
 }

@@ -13,9 +13,9 @@
 namespace kiwi::algo {
 
 const float BASICCOST = 5;
-const float EPSILON = 5;
-const float GROUPCOEF = 0.5;
-const float HISTORYCOEF = 0.5;
+const float EPSILON = 1;
+const float GROUPCOEF = 0.1;
+const float HISTORYCOEF = 0.9;
 const float TOBMUXGROUPSIZE = 8;
 const float TRACKGROUPSIZE = 32;
 
@@ -60,6 +60,13 @@ public:
     }
 
     auto cost(bool reuse_type) const -> float {return this->_use_cost ? (reuse_type ? this->_cost_reuse : this->_cost_nonreuse) : BASICCOST;}
+
+    // return: <cost_reuse, cost_nonreuse>
+    auto self_cost() const -> std::tuple<float, float> {
+        return !this->_use_cost ? std::tuple<float, float>(BASICCOST, BASICCOST) :\
+            !this->_reuse_type.has_value() ? std::tuple<float, float>(0.0, 0.0) :\
+            this->_reuse_type.value() ? std::tuple<float, float>(this->_cost_reuse, 0.0) : std::tuple<float, float>(0.0, this->_cost_nonreuse);
+    }
 
     auto reset_type() -> void {
         this->_reuse_type.reset();

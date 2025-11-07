@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algo/router/command_mode/command.hh>
+#include <tuple>
 
 
 namespace kiwi::algo {

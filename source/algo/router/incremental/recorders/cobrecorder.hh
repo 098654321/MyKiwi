@@ -22,6 +22,9 @@ public:
     auto re_initialize() -> void;
     auto clear_history_record(hardware::COBDirection dir, std::usize index) -> void;
     auto show_data(hardware::COBDirection dir, std::tuple<std::size_t, std::size_t> unit_info, bool show_all, bool print = false) const -> std::string;
+    
+    // return: <cost_reuse, cost_nonreuse>
+    auto self_cost() const -> std::tuple<float, float>;
 
 private:
     std::usize _size;
@@ -45,6 +48,8 @@ public:
     auto re_initialize() -> void;
     auto clear_history_record(hardware::COBDirection dir, std::usize index) -> void;
     auto show_data(hardware::COBDirection dir, std::size_t track_index, bool show_all, bool print = false) const -> std::string;
+    // return: <cost_reuse, cost_nonreuse>
+    auto self_cost() const -> std::tuple<float, float>;
 
 private:
     std::Vector<COBUnitRecorder> _cob_recorder;

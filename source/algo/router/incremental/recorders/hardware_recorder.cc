@@ -440,5 +440,23 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
     debug::info(msg);
 }
 
+auto HardwareRecorder::show_cost() const -> std::tuple<float, float> {
+    auto total_cost = std::tuple<float, float>(0.0, 0.0);
+    for (auto& recorder: this->_track_recorders) {
+        auto [cost_reuse, cost_nonreuse] = recorder.second.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    for (auto& recorder: this->_cob_recorders) {
+        auto [cost_reuse, cost_nonreuse] = recorder.second.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    for (auto& recorder: this->_tob_recorders) {
+        auto [cost_reuse, cost_nonreuse] = recorder.second.self_cost();
+        total_cost = std::tuple<float, float>(std::get<0>(total_cost) + cost_reuse, std::get<1>(total_cost) + cost_nonreuse);
+    }
+    
+    return total_cost;
+}
+
 }
 

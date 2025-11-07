@@ -48,6 +48,8 @@ public:
     auto clear_tob_history_records(const std::HashMap<hardware::TOBCoord, hardware::TOBConnector>& connectors, bool reuse_type) -> void;
 
     auto show_path_recorder_status(const std::unordered_map<std::string, std::vector<circuit::PathInOrder>>& paths, bool show_all) const -> void;
+    // return: <cost_reuse, cost_nonreuse>
+    auto show_cost() const -> std::tuple<float, float>;
 
     auto re_initialize() -> void;
     auto set_use_cost(bool use_cost) -> void;

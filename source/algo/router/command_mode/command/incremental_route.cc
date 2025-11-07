@@ -119,7 +119,7 @@ void check_address(std::Vector<circuit::Net*> nets) {
 }
 
 auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine& engine, std::Vector<circuit::Net*>& nets, HardwareRecorder& recorder) const -> bool {
-    std::usize cycle{0}, min_cycle{10};
+    std::usize cycle{0}, min_cycle{50};
     while(cycle < min_cycle) {
         debug::info_fmt("cycle {} start", cycle);
 
@@ -155,6 +155,9 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
 
         // show path recorder status
         show_path_recorder_status(nets, recorder);
+
+        auto [cost_reuse, cost_nonreuse] = recorder.show_cost();
+        debug::info_fmt("cost_reuse: {}, cost_nonreuse: {}", cost_reuse, cost_nonreuse);
 
         debug::info_fmt("cycle {} done", cycle);
         engine.show_net_and_path();
