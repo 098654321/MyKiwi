@@ -18,8 +18,6 @@ namespace kiwi::algo {
         circuit::BaseDie* basedie,
         const PlaceStrategy& strategy
     )-> void {
-        debug::info("Start Layout");
-        
         if (!interposer) {
             debug::error("Interposer pointer is empty");
             return;

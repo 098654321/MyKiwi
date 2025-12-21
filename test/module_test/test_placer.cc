@@ -15,6 +15,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <time.h>
 
 using namespace kiwi::algo;
 using namespace kiwi::hardware;
@@ -23,7 +24,7 @@ using namespace kiwi::parse;
 using namespace kiwi;
 
 static void test_basic_placement() {
-    debug::debug("Test layout function"); 
+    debug::debug("Test Basic layout function"); 
     auto interposer = Interposer{};
     auto basedie = BaseDie{};
 
@@ -80,14 +81,22 @@ static void test_basic_placement() {
 // test case
 static void test_placement_from_config(const std::String& case_path) {
     debug::debug_fmt("Configuration file test layout: {}", case_path);
+    auto start_time = clock();
     try {
         auto [interposer, basedie] = read_config(case_path);
+
+        auto total_connections{0};
+        for (const auto& [sync, connection]: basedie->connections()) {
+            total_connections += connection.size();
+        }
+        debug::info_fmt("Totally {} connections", total_connections);
         
         if (!interposer || !basedie) {
             debug::error("Failed to load configuration file");
             return;
         }
         build_nets(basedie.get(), interposer.get());
+        debug::info_fmt("Totally {} nets", basedie->nets().size());
 
         std::Vector<TopDieInstance*> topdies;
         for (auto& [name, topdie_inst] : basedie->topdie_insts()) {
@@ -118,6 +127,8 @@ static void test_placement_from_config(const std::String& case_path) {
     } catch (const std::exception& e) {
         debug::error_fmt("Test exception: {}", e.what());
     }
+    auto end_time = clock();
+    debug::info_fmt("Test time: {} ms\n", (end_time - start_time) / (double)CLOCKS_PER_SEC * 1000);
 }
 
 static void test_sa_place_strategy_components() {
@@ -251,8 +262,8 @@ static void test_sa_place_strategy_components() {
 // main test
 static void test_sa_place_strategy() {
     debug::info("Start testing");   
-    test_basic_placement();
-    test_sa_place_strategy_components();
+    // test_basic_placement();
+    // test_sa_place_strategy_components();
 
     // case1-case6 test
     test_placement_from_config("../test/config/case1");

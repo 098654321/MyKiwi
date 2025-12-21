@@ -12,7 +12,7 @@
 #include <utility/string.hh>
 #include <serde/de.hh>
 #include <serde/json/json.hh>
-#include <xlnt/xlnt.hpp>
+// #include <xlnt/xlnt.hpp>
 
 namespace kiwi::parse {
 
@@ -155,28 +155,29 @@ namespace kiwi::parse {
         if (extension == ".json") {
             serde::deserialize(serde::Json::load_from(path), connections);
         } 
-        else if (extension == ".xlsx") {
-            auto workbook = xlnt::workbook();
-            workbook.load(path);
-            for (const auto& row : workbook.sheet_by_index(0).rows()) {
-                // | input  |  output  | syns |
-                if (row.length() != 3) {
-                    debug::exception_fmt("Except '3' columns but got '{}'", row.length());
-                }
+        // else if (extension == ".xlsx") {
+        //     auto workbook = xlnt::workbook();
+        //     workbook.load(path);
+        //     for (const auto& row : workbook.sheet_by_index(0).rows()) {
+        //         // | input  |  output  | syns |
+        //         if (row.length() != 3) {
+        //             debug::exception_fmt("Except '3' columns but got '{}'", row.length());
+        //         }
 
-                auto input = row[0].to_string();
-                if (input.empty()) {
-                    continue;
-                }
-                auto output = row[1].to_string();
-                auto sync = utility::string_to_i32(row[2].to_string());
+        //         auto input = row[0].to_string();
+        //         if (input.empty()) {
+        //             continue;
+        //         }
+        //         auto output = row[1].to_string();
+        //         auto sync = utility::string_to_i32(row[2].to_string());
 
-                auto result = connections.emplace(sync, std::Vector<ConnectionConfig>{});
-                auto& iter = result.first;
-                assert(iter->first == sync);
-                auto& v = iter->second.emplace_back(std::move(input), std::move(output));
-            }
-        } else {
+        //         auto result = connections.emplace(sync, std::Vector<ConnectionConfig>{});
+        //         auto& iter = result.first;
+        //         assert(iter->first == sync);
+        //         auto& v = iter->second.emplace_back(std::move(input), std::move(output));
+        //     }
+        // } 
+        else {
             debug::exception_fmt("Unspport extension '{}' for connections config", extension);
         }
     } 
