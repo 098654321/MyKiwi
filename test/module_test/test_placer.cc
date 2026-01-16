@@ -272,6 +272,8 @@ static void test_sa_place_strategy() {
     test_placement_from_config("../test/config/case4");
     test_placement_from_config("../test/config/case5");
     test_placement_from_config("../test/config/case6");
+    // case 10 test
+    // test_placement_from_config("../test/config/case10");
     // test_all_res_files();
     debug::info("Tests complete");
 }

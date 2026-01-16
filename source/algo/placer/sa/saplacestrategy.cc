@@ -36,6 +36,7 @@ namespace kiwi::algo {
             debug::warning("No top-level chip instance needs to be laid out");
             return;
         }
+        debug::info_fmt("Total {} top-level chip instance(s) need to be laid out", topdies.size());
         
         if (!interposer) {
             debug::error("Interposer pointer is empty");
@@ -62,11 +63,14 @@ namespace kiwi::algo {
                 int new_total_cost = total_cost;
 
                 if (this->decide_to_swap_topdie_inst(temperature)) {
+                    debug::debug("Swap two top-level chip instance");
                     auto [topdie_inst1, topdie_inst2] = this->randomly_choice_two_topdie_insts(topdies);
                     
                     if (!topdie_inst1 || !topdie_inst2) {
+                        debug::debug("topdie_inst is empty");
                         continue;
                     }
+                    debug::debug_fmt("get two topdie inst: {} and {}", topdie_inst1->name(), topdie_inst2->name());
 
                     std::HashSet<circuit::Net*> changed_nets;
                     for (auto net : topdie_inst1->nets()) {
@@ -87,10 +91,12 @@ namespace kiwi::algo {
                     auto tob2 = topdie_inst2->tob();
 
                     if (!this->is_changable(topdie_inst1, tob2) || !this->is_changable(topdie_inst2, tob1)) {
+                        debug::debug_fmt("TOB {} or {} is not changable for {} and {}", tob1->coord(), tob2->coord(), topdie_inst1->name(), topdie_inst2->name());
                         continue;
                     }
 
                     if (!tob1 || !tob2) {
+                        debug::debug_fmt("TOB {} or {} is empty", tob1->coord(), tob2->coord());
                         continue;
                     }
 
@@ -109,10 +115,11 @@ namespace kiwi::algo {
                     }
                     
                     if (tob1_occupied || tob2_occupied) {
-                        debug::warning("TOB is occupied");
+                        debug::debug_fmt("TOB {} or {} is occupied", tob1->coord(), tob2->coord());
                         continue;
                     }
                     
+                    debug::debug_fmt("Swap {} and {} from TOB {} to TOB {}", topdie_inst1->name(), topdie_inst2->name(), tob1->coord(), tob2->coord());
                     topdie_inst1->move_to_tob(tob2);
                     topdie_inst2->move_to_tob(tob1);
 
@@ -129,28 +136,35 @@ namespace kiwi::algo {
                     } else {
                         long double exp_x = -1.0 * (deltaCost) / temperature;
                         if (random_f64() <= std::exp(exp_x)) {
+                            debug::debug("Accept movement");
                             total_cost = new_total_cost;
                         } else {
+                            debug::debug("Reject movement");
                             topdie_inst1->move_to_tob(tob1);
                             topdie_inst2->move_to_tob(tob2);
                         }
                     }
                 } else {
+                    debug::debug("Move one top-level chip instance to another TOB");
                     auto topdie_inst = this->randomly_choice_one_topdie_insts(topdies);
                     
                     if (!topdie_inst) {
+                        debug::debug_fmt("Top-level chip instance is empty");
                         continue;
                     }
 
+                    debug::debug_fmt("Get Top-level chip instance {}", topdie_inst->name());
                     auto prev_tob = topdie_inst->tob();
-                    auto next_tob_option = interposer->get_a_idle_tob();
+                    auto next_tob_option = interposer->randomly_get_a_idle_tob();
                    
                     if (!next_tob_option.has_value()) {
+                        debug::debug_fmt("No idle TOB");
                         continue; 
                     }
                     auto next_tob = *next_tob_option; 
 
                     if (this->is_changable(topdie_inst, next_tob) == false) {
+                        debug::debug_fmt("TOB {} is not changable", next_tob->coord());
                         continue;
                     }
 
@@ -163,7 +177,7 @@ namespace kiwi::algo {
                     }
                     
                     if (next_tob_occupied) {
-                        debug::warning("TOB is occupied");
+                        debug::debug_fmt("TOB {} is occupied", next_tob->coord());
                         continue;
                     }
 
@@ -173,6 +187,7 @@ namespace kiwi::algo {
 
                     new_total_cost -= this->thermal_cost(topdies) * this->_thermal_weight;
                     topdie_inst->move_to_tob(next_tob);
+                    debug::debug_fmt("Move {} from TOB {} to TOB {}", topdie_inst->name(), prev_tob->coord(), next_tob->coord());
 
                     for (auto net : topdie_inst->nets()) {
                         new_total_cost += this->net_cost(net) * this->_wirelength_weight;
@@ -187,8 +202,10 @@ namespace kiwi::algo {
                     } else {
                         long double exp_x = -1.0 * (deltaCost) / temperature;
                         if (random_f64() <= std::exp(exp_x)) {
+                            debug::debug("Accept movement");
                             total_cost = new_total_cost;
                         } else {
+                            debug::debug("Reject movement");
                             topdie_inst->move_to_tob(prev_tob);
                         }
                     }
@@ -233,7 +250,7 @@ namespace kiwi::algo {
         auto power = this->power_cost(topdies, basedie);
         
         // auto total_cost = wirelength * this->_wirelength_weight + congestion * this->_congestion_weight + thermal * this->_thermal_weight + power * this->_power_weight;
-        auto total_cost = wirelength * this->_wirelength_weight + thermal * this->_thermal_weight + power * this->_power_weight;                    
+        auto total_cost = wirelength * this->_wirelength_weight + thermal * this->_thermal_weight;                    
         debug::info_fmt("Layout evaluation: Line length: {}, thermal distribution: {}, power consumption: {}, total cost: {}", wirelength, thermal, power, total_cost);     
         return total_cost;
     }
