@@ -18,12 +18,12 @@ namespace kiwi::algo {
 
     auto SAPlaceStrategy::place(
         hardware::Interposer* interposer,
-        std::Vector<circuit::TopDieInstance>& topdies
+        std::Vector<circuit::TopDieInstance*>& topdies
     ) const -> void {
 
         auto nets = std::HashSet<circuit::Net*>{};
         for (const auto& topdie_inst : topdies) {
-            for (auto net : topdie_inst.nets()) {
+            for (auto net : topdie_inst->nets()) {
                 nets.emplace(net);
             }
         }
@@ -79,7 +79,7 @@ namespace kiwi::algo {
 
                 } else {
                     // Move a dieinst to empty tob
-                    auto topdie_inst = this->randomly_choise_one_topdie_insts(topdies);
+                    auto topdie_inst = this->randomly_choise_one_topdie_inst(topdies);
                     auto prev_tob = topdie_inst->tob();
                     auto next_tob_option = interposer->get_a_idle_tob();
                     if (!next_tob_option.has_value()) {
@@ -136,20 +136,20 @@ namespace kiwi::algo {
         return (max_row - min_row) + (max_col - min_col);
     }
 
-    auto SAPlaceStrategy::randomly_choise_one_topdie_insts(
-        std::Vector<circuit::TopDieInstance>& topdies
+    auto SAPlaceStrategy::randomly_choise_one_topdie_inst(
+        std::Vector<circuit::TopDieInstance*>& topdies  
     ) const -> circuit::TopDieInstance* {
         auto index = random_i64(0, topdies.size());
-        return &topdies.at(index);
+        return topdies.at(index);
     }
 
     auto SAPlaceStrategy::randomly_choise_two_topdie_insts(
-        std::Vector<circuit::TopDieInstance>& topdies
+        std::Vector<circuit::TopDieInstance*>& topdies  
     ) const -> std::Tuple<circuit::TopDieInstance*, circuit::TopDieInstance*> {
-        auto topdie_inst1 = this->randomly_choise_one_topdie_insts(topdies);
+        auto topdie_inst1 = this->randomly_choise_one_topdie_inst(topdies);
         circuit::TopDieInstance* topdie_inst2 = nullptr;
         do {
-            topdie_inst2 = this->randomly_choise_one_topdie_insts(topdies);
+            topdie_inst2 = this->randomly_choise_one_topdie_inst(topdies);
         } while (topdie_inst2 == topdie_inst1);
 
         return { topdie_inst1, topdie_inst2 };

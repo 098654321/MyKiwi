@@ -15,13 +15,13 @@ namespace kiwi::algo {
     public:
         virtual auto place(
             hardware::Interposer* interposer,
-            std::Vector<circuit::TopDieInstance>& topdies
+            std::Vector<circuit::TopDieInstance*>& topdies
         ) const -> void override;
 
     private:
         auto net_cost(circuit::Net* net) const -> std::i64;
-        auto randomly_choise_one_topdie_insts(std::Vector<circuit::TopDieInstance>& topdies) const -> circuit::TopDieInstance*;
-        auto randomly_choise_two_topdie_insts(std::Vector<circuit::TopDieInstance>& topdies) const -> std::Tuple<circuit::TopDieInstance*, circuit::TopDieInstance*>;
+        auto randomly_choise_one_topdie_inst(std::Vector<circuit::TopDieInstance*>& topdies) const -> circuit::TopDieInstance*;
+        auto randomly_choise_two_topdie_insts(std::Vector<circuit::TopDieInstance*>& topdies) const -> std::Tuple<circuit::TopDieInstance*, circuit::TopDieInstance*>;
         auto decide_to_swap_topdie_inst() const -> bool;
 
     private:

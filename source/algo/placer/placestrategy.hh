@@ -17,7 +17,7 @@ namespace kiwi::algo {
     struct PlaceStrategy {
         virtual auto place(
             hardware::Interposer* interposer,
-            std::Vector<circuit::TopDieInstance>& topdies
+            std::Vector<circuit::TopDieInstance*>& topdies
         ) const -> void = 0;
     };
 
