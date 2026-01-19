@@ -208,10 +208,23 @@ namespace kiwi::hardware {
         return this->get_bump(TOBCoord{row, col}, index);
     }
 
+    auto Interposer::randomly_get_a_idle_tob() -> std::Option<TOB*> {
+        auto idle_tobs = std::Vector<TOB*>{};
+        for (auto& [coord, tob] : this->_tobs) {
+            if (tob->is_idle()) {
+                idle_tobs.emplace_back(tob.get());
+            }
+        }
+        if (idle_tobs.empty()) {
+            return std::nullopt;
+        }
+        return idle_tobs[random_i64(0, idle_tobs.size() - 1)];
+    }
+
     auto Interposer::get_a_idle_tob() -> std::Option<TOB*> {
         for (auto& [coord, tob] : this->_tobs) {
             if (tob->is_idle()) {
-                return {tob.get()};
+                return { tob.get() };
             }
         }
         return std::nullopt;
