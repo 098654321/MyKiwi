@@ -35,36 +35,61 @@ namespace kiwi {
         algo::build_nets(basedie.get(), interposer.get());
 
         if (placement) {
-            debug::debug("Start layout ...");
-            auto strategy = algo::SAPlaceStrategy();
-            place(interposer.get(), topdies, basedie.get(), strategy);
-            assert(strategy.is_valid_placement(interposer.get(), topdies));
-            auto end_time1 = std::chrono::high_resolution_clock::now();
+            std::Vector<circuit::TopDieInstance*> topdies;
+            for (auto& [name, topdie_inst] : basedie->topdie_insts()) {
+                topdies.push_back(topdie_inst.get());
+            }
+            if (topdies.empty()) {
+                debug::warning("No chip instances require layout");
+            }
+            
+            place(interposer.get(), basedie.get(), topdies);
+        }
+        
+        route(interposer.get(), basedie.get(), config_path, output_file, mode, compare, try_all_modes);
 
-            auto cost = evaluate_placement(interposer.get(), topdies, basedie.get(), strategy);
-            debug::info_fmt("Layout evaluation result: {}", cost);
-            debug::info("Layout result:");
-            for (const auto& topdie : topdies) {
-                if (topdie->tob()) {
-                    debug::info_fmt("Chip {} is located in {}", topdie->name(), topdie->tob()->coord());
-                } else {
-                    debug::warning_fmt("Chip {} has not been assigned a TOB", topdie->name());
-                }
+        return 0;
+    }
+    catch (const Exception& err){
+        debug::exception("Unexpected exception");
+    }
+    }
+
+    auto place(hardware::Interposer* interposer, circuit::BaseDie* basedie, std::vector<circuit::TopDieInstance*>& topdies) -> void {
+        debug::debug("Start layout ...");
+        auto strategy = algo::SAPlaceStrategy();
+        place(interposer, topdies, basedie, strategy);
+        assert(strategy.is_valid_placement(interposer, topdies));
+        auto end_time1 = std::chrono::high_resolution_clock::now();
+
+        auto cost = evaluate_placement(interposer, topdies, basedie, strategy);
+        debug::info_fmt("Layout evaluation result: {}", cost);
+        debug::info("Layout result:");
+        for (const auto& topdie : topdies) {
+            if (topdie->tob()) {
+                debug::info_fmt("Chip {} is located in {}", topdie->name(), topdie->tob()->coord());
+            } else {
+                debug::warning_fmt("Chip {} has not been assigned a TOB", topdie->name());
             }
         }
-       
+    }
 
+    auto route(
+        hardware::Interposer* interposer, circuit::BaseDie* basedie,
+        std::StringView config_path,  const std::FilePath& output_file,
+        int mode, std::optional<int> compare, bool try_all_modes
+    ) -> void {
         debug::debug("Start routing ...");
         if (!try_all_modes && mode == 0) {  // not incremental routing 
-            algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{false}, algo::HK{}, mode, false, try_all_modes);
-            parse::output_from_routing_results(interposer.get(), output_file, basedie.get(), mode, try_all_modes);
+            algo::route_nets(interposer, basedie, algo::MazeRouteStrategy{false}, algo::HK{}, mode, false, try_all_modes);
+            parse::output_from_routing_results(interposer, output_file, basedie, mode, try_all_modes);
         }
         else {  // incremental routing with two situations: route all modes (try_all_modes == true) or route single mode (try_all_modes == false && mode > 0)
             basedie->merge_same_mode_nets();
-            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode, try_all_modes);
+            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer, basedie, mode, try_all_modes);
             if (!has_bits) {
-                algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, try_all_modes, has_other_bits);
-                parse::output_from_routing_results(interposer.get(), output_file, basedie.get(), mode, try_all_modes);
+                algo::route_nets(interposer, basedie, algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, try_all_modes, has_other_bits);
+                parse::output_from_routing_results(interposer, output_file, basedie, mode, try_all_modes);
             }
             else {
                 debug::info("Already has control bits, skip the routing process");
@@ -76,12 +101,7 @@ namespace kiwi {
                 parse::compare(current_file, target_file);
             }
         }
-        
-        return 0;
     }
-    catch (const Exception& err){
-        debug::exception("Unexpected exception");
-    }
-    }
+    
 
 }

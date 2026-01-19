@@ -111,7 +111,7 @@ namespace kiwi {
             print_verion();
         }
         else {
-            // cli mode
+            // cli mode output path
             auto output_opt = argument_index("-o", "--output");
             auto output_path = std::Option<std::StringView>{std::nullopt};
             if (output_opt.has_value()) {
@@ -121,6 +121,12 @@ namespace kiwi {
                 } else {
                     output_path.emplace(arguments[index + 1]);
                 }
+            }
+
+            // placement
+            bool placement = false;
+            if (argument_index("-p", "--placement").has_value()) {
+                placement = true;
             }
 
             // command for incremental mode
@@ -156,7 +162,7 @@ namespace kiwi {
                 }
             }
 
-            return cli_main(arguments[0], std::move(output_path), incre_mode, compare, try_all_modes);
+            return cli_main(arguments[0], std::move(output_path), incre_mode, compare, try_all_modes, placement);
         }
 
         return 0;
