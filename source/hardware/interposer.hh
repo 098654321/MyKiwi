@@ -65,6 +65,7 @@ namespace kiwi::hardware {
         auto get_bump(std::i64 row, std::i64 col, std::usize index) -> std::Option<Bump*>;
 
         auto randomly_get_a_idle_tob() -> std::Option<TOB*>;
+        auto get_a_idle_tob() -> std::Option<TOB*>;
         
     public:
         auto randomly_map_remain_indexes() -> void;
