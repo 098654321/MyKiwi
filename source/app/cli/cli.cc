@@ -7,6 +7,9 @@
 #include <algo/router/route_nets.hh>
 #include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <algo/router/common/allocate/hopcroft_karp.hh>
+#include <algo/placer/place.hh>
+#include <algo/placer/placestrategy.hh>
+#include <algo/placer/sa/saplacestrategy.hh>
 
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>
@@ -20,14 +23,38 @@
 
 namespace kiwi {
 
-    auto cli_main(std::StringView config_path, std::Option<std::StringView> output_path, int mode, std::optional<int> compare, bool try_all_modes) -> int {
+    auto cli_main(
+        std::StringView config_path, std::Option<std::StringView> output_path, 
+        int mode, std::optional<int> compare, bool try_all_modes, bool placement
+    ) -> int {
     try {
         debug::initial_log("./debug.log");
         std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".");
 
         auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, try_all_modes); 
         algo::build_nets(basedie.get(), interposer.get());
-        
+
+        if (placement) {
+            debug::debug("Start layout ...");
+            auto strategy = algo::SAPlaceStrategy();
+            place(interposer.get(), topdies, basedie.get(), strategy);
+            assert(strategy.is_valid_placement(interposer.get(), topdies));
+            auto end_time1 = std::chrono::high_resolution_clock::now();
+
+            auto cost = evaluate_placement(interposer.get(), topdies, basedie.get(), strategy);
+            debug::info_fmt("Layout evaluation result: {}", cost);
+            debug::info("Layout result:");
+            for (const auto& topdie : topdies) {
+                if (topdie->tob()) {
+                    debug::info_fmt("Chip {} is located in {}", topdie->name(), topdie->tob()->coord());
+                } else {
+                    debug::warning_fmt("Chip {} has not been assigned a TOB", topdie->name());
+                }
+            }
+        }
+       
+
+        debug::debug("Start routing ...");
         if (!try_all_modes && mode == 0) {  // not incremental routing 
             algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{false}, algo::HK{}, mode, false, try_all_modes);
             parse::output_from_routing_results(interposer.get(), output_file, basedie.get(), mode, try_all_modes);
