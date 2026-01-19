@@ -4,6 +4,9 @@
 #include <std/integer.hh>
 #include <cassert>
 #include <std/range.hh>
+#include <stdexcept>
+#include <format>
+#include <debug/debug.hh>
 
 namespace kiwi::hardware {
 
@@ -36,33 +39,55 @@ namespace kiwi::hardware {
         this->_register->reset();
     }
 
+    auto TOBMuxConnector::check_consistency() const -> void {
+        this->_register->check_consistency(this->_output_index);
+    }
+
+    auto TOBMuxConnector::check_reg_address() const -> uintptr_t {
+        return reinterpret_cast<uintptr_t>(this->_register);
+    }
+
     ////////////////////////////////////////////////////////////////
 
     TOBMux::TOBMux(std::usize mux_size) :
         _mux_size{mux_size}
     {
         // avoid initializing _registers in initialization list for some unknown in-memory seizure
+        this->_registers.reserve(mux_size);
         for (std::size_t i = 0; i < mux_size; ++i) {
             this->_registers.emplace_back(TOBMuxRegister());
         }
     }
 
-    auto TOBMux::available_connectors(std::usize input_index) -> std::Vector<TOBMuxConnector> {
-        auto& reg = this->_registers.at(input_index);   // source
-        if (reg.get().has_value() || reg.is_given_out()) {
-            return {};
-        }
-    
-        auto connectors = std::Vector<TOBMuxConnector>{};
-        for (const auto output_index : this->available_output_indexes()) {
-            connectors.emplace_back(
-                input_index,    // source
-                output_index,   // target
-                &this->_registers.at(input_index)
-            );
-        }
+    auto TOBMux::available_connectors(std::usize input_index, bool shared) -> std::Vector<TOBMuxConnector> {
+        if (!shared) {
+            auto& reg = this->_registers.at(input_index);   // source
+            if (reg.get().has_value() || reg.is_given_out()) {
+                return {};
+            }
+        
+            auto connectors = std::Vector<TOBMuxConnector>{};
+            for (const auto output_index : this->available_output_indexes()) {
+                connectors.emplace_back(
+                    input_index,    // source, [0, 7]
+                    output_index,   // target, [0, 7]
+                    &this->_registers.at(input_index)
+                );
+            }
 
-        return connectors;
+            return connectors;
+        }
+        else {
+            auto connectors = std::Vector<TOBMuxConnector>{};
+            for (auto output_index: std::views::iota(0, (int)this->_mux_size)){
+                connectors.emplace_back(
+                    input_index,
+                    output_index,
+                    &this->_registers.at(input_index)
+                );
+            }
+            return connectors;
+        }
     }
 
     auto TOBMux::available_output_indexes() const -> std::Vector<std::usize> {
@@ -91,18 +116,61 @@ namespace kiwi::hardware {
         return indexes;
     }
 
+    auto TOBMux::connector(std::usize input_index, std::usize output_index, bool give_out) -> TOBMuxConnector {
+    try {
+        assert(this->_registers.size() > input_index);
+        assert(!this->_registers.at(input_index).is_given_out());
+
+        if (give_out) {
+            this->_registers.at(input_index).give_out(output_index);
+        }
+        
+        return TOBMuxConnector {
+            input_index, output_index, &this->_registers.at(input_index)
+        };
+    }
+    catch (const std::exception& e) {
+        throw std::runtime_error(std::format("TOBMux::connector(): {}", e.what()));
+    }
+    }
+
     auto TOBMux::randomly_map_remain_indexes() -> void {
         auto unused_indexes = this->available_output_indexes();
-        std::usize index = 0;
+
+        // show total unused indexes
+        std::String message{"["};
+        for (auto& index : unused_indexes) {
+            message += std::format("{}, ", index);
+        }
+        message += "]";
+        debug::debug_fmt("randomly_map(): Total unused indexes: {}", message);
+
+        // randomly map remain indexes
+        std::usize index = 0, reg_count = 0;
         for (auto& reg : this->_registers) {
             if (!reg.get().has_value()) {
-                assert(!reg.is_given_out());
+                if (reg.is_given_out()) {
+                    const auto& index = reg.given_out_index();
+                    if (!index.has_value()) {
+                        throw std::runtime_error("randomly_map(): reg is given out with empty indexbefore randomly mapping");
+                    }
+                    else {
+                        throw std::runtime_error(
+                            std::format("randomly_map(): reg is given out with index = {} before randomly mapping", index.value())
+                        );
+                    }
+                }
                 reg.set(unused_indexes.at(index));
                 index += 1;
+
+                debug::debug_fmt("randomly_map(): reg_{} is set to {}", reg_count, reg.get().value());
             }
             else{
                 assert(reg.is_given_out());
+                debug::debug_fmt("randomly_map(): reg_{} already has a value {}", reg_count, reg.get().value());
             }
+
+            reg_count += 1;
         }
         assert(index == unused_indexes.size());
     }
@@ -117,6 +185,12 @@ namespace kiwi::hardware {
 
     auto TOBMux::registerr(std::usize input_index) const -> const TOBMuxRegister* {
         return &this->_registers.at(input_index);
+    }
+
+    auto TOBMux::reset_regs() -> void {
+        for (auto& reg : this->_registers) {
+            reg.reset();
+        }
     }
     
 }

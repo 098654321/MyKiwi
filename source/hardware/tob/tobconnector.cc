@@ -82,4 +82,38 @@ namespace kiwi::hardware {
         this->_track_dir_register->reset();
     }
 
+    auto TOBConnector::check_consistency() const -> void {
+        std::String excep_mess {};
+        auto check_muxconnector = [&](const TOBMuxConnector& muxconnector, std::String name) {
+        try {
+            muxconnector.check_consistency();
+        }
+        catch (const std::exception& e) {
+            std::String message = name + " check_consistency failed. " + std::string(e.what());
+            excep_mess += message + "\n";
+        }
+        };
+
+        check_muxconnector(this->_bump_to_hori, "TOBConnector::_bump_to_hori");
+        check_muxconnector(this->_hori_to_vert, "TOBConnector::_hori_to_vert");
+        check_muxconnector(this->_vert_to_track, "TOBConnector::_vert_to_track");
+
+        if (excep_mess.size() > 0) {
+            throw std::runtime_error(excep_mess);
+        }
+    }
+
+    auto TOBConnector::check_vert_to_track_reg_address() const -> uintptr_t {
+        return this->_vert_to_track.check_reg_address();
+    }
+
+    auto TOBConnector::check_mux_pregister() const -> const std::unordered_set<const TOBMuxRegister*> {
+        auto preg_set = std::unordered_set<const TOBMuxRegister*>{};
+        preg_set.emplace(this->_bump_to_hori.check_pregister());
+        preg_set.emplace(this->_hori_to_vert.check_pregister());
+        preg_set.emplace(this->_vert_to_track.check_pregister());
+        
+        return preg_set;
+    }
+
 }

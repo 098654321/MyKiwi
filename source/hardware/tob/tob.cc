@@ -11,6 +11,9 @@
 #include <std/range.hh>
 #include <std/utility.hh>
 #include <cassert>
+#include <stdexcept>
+#include <format>
+
 
 namespace kiwi::hardware {
 
@@ -18,22 +21,27 @@ namespace kiwi::hardware {
         _coord{coord},
         _coord_in_interposer(coord_in_interposer)
     {
+        this->_bump_to_hori_muxs.reserve(TOB::BUMP_TO_HORI_MUX_COUNT);
         for (auto i : std::ranges::views::iota(0, (int)TOB::BUMP_TO_HORI_MUX_COUNT)) {
             this->_bump_to_hori_muxs.emplace_back(std::make_unique<TOBMux>(TOB::BUMP_TO_HORI_MUX_SIZE));
         }
 
+        this->_hori_to_vert_muxs.reserve(TOB::HORI_TO_VERI_MUX_COUNT);
         for (auto i : std::ranges::views::iota(0, (int)TOB::HORI_TO_VERI_MUX_COUNT)) {
             this->_hori_to_vert_muxs.emplace_back(std::make_unique<TOBMux>(TOB::HORI_TO_VERI_MUX_SIZE));
         }
 
+        this->_vert_to_track_muxs.reserve(TOB::VERI_TO_TRACK_MUX_COUNT);
         for (auto i : std::ranges::views::iota(0, (int)TOB::VERI_TO_TRACK_MUX_COUNT)) {
             this->_vert_to_track_muxs.emplace_back(std::make_unique<TOBMux>(TOB::VERI_TO_TRACK_MUX_SIZE));
         }
 
+        this->_bump_dir_registers.reserve(TOB::INDEX_SIZE);
         for (auto i : std::ranges::views::iota(0, (int)TOB::INDEX_SIZE)) {
             this->_bump_dir_registers.emplace_back(std::make_unique<TOBBumpDirRegister>());
         }
 
+        this->_track_dir_registers.reserve(TOB::INDEX_SIZE);
         for (auto i : std::ranges::views::iota(0, (int)TOB::INDEX_SIZE)) {
             this->_track_dir_registers.emplace_back(std::make_unique<TOBTrackDirRegister>());
         }
@@ -52,25 +60,25 @@ namespace kiwi::hardware {
         return this->available_connectors(bump_index, TOBSignalDirection::TrackToBump);
     }
 
-    auto TOB::available_connectors(std::usize bump_index, TOBSignalDirection signal_dir) -> std::Vector<TOBConnector> {
+    auto TOB::available_connectors(std::usize bump_index, TOBSignalDirection signal_dir, bool shared) -> std::Vector<TOBConnector> {
         assert(bump_index < TOB::INDEX_SIZE);
         assert(signal_dir != TOBSignalDirection::DisConnected);
 
         auto cs = std::Vector<TOBConnector>{};
 
-        auto bump_to_hori_info = TOB::bump_to_hori_mux_info(bump_index);
+        auto bump_to_hori_info = TOB::bump_to_hori_mux_info(bump_index);    // [mux, index_in_mux]
         
-        for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info))) {
+        for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info), shared)) {
 
-            auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());
-            auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);
+            auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());    // within range [0, 127]
+            auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);    // [vert_group, vert_index_in_group]
 
-            for (auto& hori_to_vert_cs : this->_hori_to_vert_muxs.at(std::get<0>(hori_to_vert_info))->available_connectors(std::get<1>(hori_to_vert_info))) {
+            for (auto& hori_to_vert_cs : this->_hori_to_vert_muxs.at(std::get<0>(hori_to_vert_info))->available_connectors(std::get<1>(hori_to_vert_info), shared)) {
                 
                 auto vert_index = TOB::hori_to_vert_mux_info_and_output_to_index(hori_to_vert_info, hori_to_vert_cs.output_index());
                 auto vert_to_track_info = TOB::vert_to_track_mux_info(vert_index);
 
-                for (auto& vert_to_track_cs : this->_vert_to_track_muxs.at(std::get<0>(vert_to_track_info))->available_connectors(std::get<1>(vert_to_track_info))) {
+                for (auto& vert_to_track_cs : this->_vert_to_track_muxs.at(std::get<0>(vert_to_track_info))->available_connectors(std::get<1>(vert_to_track_info), shared)) {
                         
                     auto track_index = TOB::vert_to_track_mux_info_and_output_to_index(vert_to_track_info, vert_to_track_cs.output_index());
                     assert(track_index < TOB::INDEX_SIZE);
@@ -95,6 +103,45 @@ namespace kiwi::hardware {
         }
     
         return cs;
+    }
+
+    auto TOB::bump_track_connectors_chain(std::usize bump_index, std::usize track_index, hardware::TOBBumpDirection direc) -> TOBConnector {
+    try {
+        auto bank = bump_index / (TOB::INDEX_SIZE/2);
+
+        auto vert_mux = track_index % (TOB::INDEX_SIZE/2);          // [0, 63]
+        auto vert_mux_output = track_index / (TOB::INDEX_SIZE/2);
+        auto vert_mux_input = bank;
+        auto vert_index = bank * 64 + vert_mux;
+        
+        auto hori_mux_input = vert_mux / TOB::HORI_TO_VERI_MUX_SIZE;
+        auto hori_mux = bump_index / TOB::BUMP_TO_HORI_MUX_SIZE;
+        auto hori_mux_output = vert_mux % TOB::VERI_TO_TRACK_MUX_SIZE;
+        auto hori_index = 8*hori_mux + hori_mux_input;
+        
+        auto bump_mux = bump_index / TOB::BUMP_TO_HORI_MUX_SIZE;
+        auto bump_mux_input = bump_index % TOB::BUMP_TO_HORI_MUX_SIZE;
+        auto bump_mux_output = hori_mux_input;
+
+        debug::debug_fmt("TOB::connector_chain(): bump->track: {}->{}->{}->{}", bump_index, hori_index, vert_index, track_index);
+
+        auto vt_mux_connector = this->_vert_to_track_muxs.at(vert_mux)->connector(vert_mux_input, vert_mux_output);
+        auto hv_mux_connector = this->_hori_to_vert_muxs.at(hori_mux)->connector(hori_mux_input, hori_mux_output);
+        auto bh_mux_connector = this->_bump_to_hori_muxs.at(bump_mux)->connector(bump_mux_input, bump_mux_output);
+
+        auto& bump_dir_reg = this->_bump_dir_registers.at(bump_index);
+        auto& track_dir_reg = this->_track_dir_registers.at(track_index);
+        auto signal_dir = direc == hardware::TOBBumpDirection::BumpToTOB ? hardware::TOBSignalDirection::BumpToTrack : hardware::TOBSignalDirection::TrackToBump;
+        
+        return TOBConnector {
+            bump_index, hori_index, vert_index, track_index, 
+            bh_mux_connector, hv_mux_connector, vt_mux_connector, 
+            bump_dir_reg.get(), track_dir_reg.get(), signal_dir
+        };
+    }
+    catch (std::exception& e) {
+        throw std::runtime_error(std::format("bump_track_connectors_chain() >> {}", e.what())); 
+    }
     }
 
     auto TOB::bump_index_map_track_index(std::usize bump_index) const -> std::Option<std::usize> {
@@ -202,15 +249,22 @@ namespace kiwi::hardware {
     }
 
     auto TOB::randomly_map_remain_indexes() -> void {
+        int count{0};
+
         for (auto& mux : this->_bump_to_hori_muxs) {
+            debug::debug_fmt("bump_to_hori_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
 
+        count = 0;
         for (auto& mux : this->_hori_to_vert_muxs) {
+            debug::debug_fmt("hori_to_vert_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
 
+        count = 0;
         for (auto& mux : this->_vert_to_track_muxs) {
+            debug::debug_fmt("vert_to_track_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
     }
@@ -310,7 +364,7 @@ namespace kiwi::hardware {
         else if (mux_register0.value() == 1 && mux_register1.value() == 0)
             return 1;
         else{
-            throw std::runtime_error(std::format("Unknown config on track mux, with register = [{}, {}]", mux_register0.value(), mux_register1.value()));
+            throw std::runtime_error(std::format("Unknown config on track mux, with TOB({}, {}), register_{} = [{}, {}]", this->coord().row, this->coord().col, index, mux_register0.value(), mux_register1.value()));
         }
     } 
     
@@ -333,7 +387,81 @@ namespace kiwi::hardware {
     }
 
     auto TOB::check_index(std::usize index) -> void {
-        if (index >= TOB::INDEX_SIZE)
-            debug::exception_fmt("horizontal mux index should be in the range of [0, {})", static_cast<int>(TOB::INDEX_SIZE));
+        if (index >= TOB::INDEX_SIZE) {
+            throw std::runtime_error(std::format("TOB::check_index(): index should be in the range of [0, {})", static_cast<int>(TOB::INDEX_SIZE)));
+        }
+    }
+
+    auto TOB::bump_to_hori_muxs(std::usize index) const -> const std::Box<TOBMux>& {
+        if (index >= TOB::BUMP_TO_HORI_MUX_COUNT) {
+            std::size_t count = TOB::BUMP_TO_HORI_MUX_COUNT;
+            throw std::runtime_error(std::format("TOB::bump_to_hori_muxs(): bump to hori mux index should be in the range of [0, {})", count));
+        }
+
+        return this->_bump_to_hori_muxs.at(index);
+    }
+
+    auto TOB::hori_to_vert_muxs(std::usize index) const -> const std::Box<TOBMux>& {
+        if (index >= TOB::HORI_TO_VERI_MUX_COUNT) {
+            std::size_t count = TOB::HORI_TO_VERI_MUX_COUNT;
+            throw std::runtime_error(std::format("TOB::hori_to_vert_muxs(): hori to vert mux index should be in the range of [0, {})", count));
+        }
+
+        return this->_hori_to_vert_muxs.at(index);
+    }
+
+    auto TOB::vert_to_track_muxs(std::usize index) const -> const std::Box<TOBMux>& {
+        if (index >= TOB::VERI_TO_TRACK_MUX_COUNT) {
+            std::size_t count = TOB::VERI_TO_TRACK_MUX_COUNT;
+            throw std::runtime_error(std::format("TOB::vert_to_track_muxs(): vert to track mux index should be in the range of [0, {})", count));
+        }
+
+        return this->_vert_to_track_muxs.at(index);
+    }
+
+    auto TOB::bump_dir_register(std::usize bump_index) -> TOBBumpDirRegister* {
+        TOB::check_index(bump_index);
+        return this->_bump_dir_registers.at(bump_index).get();
+    }
+
+    auto TOB::track_dir_register(std::usize track_index) -> TOBTrackDirRegister* {
+        TOB::check_index(track_index);
+        return this->_track_dir_registers.at(track_index).get();
+    }
+
+    auto TOB::reset_bump_to_hori_mux() -> void {
+        for (auto& mux: this->_bump_to_hori_muxs) {
+            mux->reset_regs();
+        }
+    }
+    auto TOB::reset_hori_to_vert_mux() -> void {
+        for (auto& mux: this->_hori_to_vert_muxs) {
+            mux->reset_regs();
+        }
+    }
+    auto TOB::reset_veri_to_track_mux() -> void {
+        for (auto& mux: this->_vert_to_track_muxs) {
+            mux->reset_regs();
+        }
+    }
+
+    auto TOB::reset_track_dir_registers() -> void {
+        for (auto& reg: this->_track_dir_registers) {
+            reg->reset();
+        }
+    }
+
+    auto TOB::reset_bump_dir_registers() -> void {
+        for (auto& reg: this->_bump_dir_registers) {
+            reg->reset();
+        }
+    }
+
+    auto TOB::reset_regs() -> void {
+        this->reset_bump_to_hori_mux();
+        this->reset_hori_to_vert_mux();
+        this->reset_veri_to_track_mux();
+        this->reset_track_dir_registers();
+        this->reset_bump_dir_registers();
     }
 }

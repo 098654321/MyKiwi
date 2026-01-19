@@ -1,1 +1,1 @@
-test repeated connections
+test bus routing only

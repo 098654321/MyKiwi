@@ -1,13 +1,15 @@
 #include "./btsnet.hh"
 #include <hardware/bump/bump.hh>
+#include <hardware/track/track.hh>
+#include <algo/router/incremental/maze/routing.hh>
 
 
 namespace kiwi::circuit {
 
-    BumpToTracksNet::BumpToTracksNet(hardware::Bump* begin_bump, std::Vector<hardware::Track*> end_tracks) :
+    BumpToTracksNet::BumpToTracksNet(hardware::Bump* begin_bump, std::Vector<hardware::Track*> end_tracks, const std::HashSet<int>& modes, std::String& name) :
         _begin_bump{begin_bump},
         _end_tracks{std::move(end_tracks)},
-        Net{Priority{1}}
+        Net{Priority{1}, modes, name}
     {
     }
 
@@ -21,6 +23,12 @@ namespace kiwi::circuit {
 
     auto BumpToTracksNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_bump_to_tracks_net(interposer, this);
+    }
+
+    auto BumpToTracksNet::incremental_route(
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine, bool shared
+    ) -> bool {
+        return strategy.route_bump_to_tracks_net(interposer, this, engine, shared);
     }
 
     auto BumpToTracksNet::update_priority(float bias) -> void {
@@ -50,9 +58,15 @@ namespace kiwi::circuit {
         _begin_bump->intersect_access_unit(accessable_cobunit);
     }
 
+    auto BumpToTracksNet::accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> {
+        std::HashMap<hardware::Bump*, std::HashSet<std::usize>> map {};
+        map.emplace(this->_begin_bump, this->_begin_bump->accessable_cobunit());
+        return map;
+    }
+
     auto BumpToTracksNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << std::format("BumpToTracksNet: Begin bump '{}' to End tracks '[", this->_begin_bump->coord());
+        ss << std::format("{}: Begin bump '{}' to End tracks '[", this->_name, this->_begin_bump->coord());
         for (int i = 0; i < this->_end_tracks.size(); ++i) {
             if (i != 0) {
                 ss << ", ";
@@ -87,6 +101,11 @@ namespace kiwi::circuit {
 
     auto BumpToTracksNet::search_related_nets(std::Vector<Net*>& nets) -> void {
         clear_related_nets();
+
+        auto iter = std::find(nets.begin(), nets.end(), this);
+        if (iter != nets.end()) {
+            nets.erase(iter);
+        }
         this->_related_nets_bump.emplace(this->_begin_bump, search_nets_node<hardware::Bump>(this->_begin_bump, nets));
         for (auto track : this->_end_tracks) {
             this->_related_nets_track.emplace(track, search_nets_node<hardware::Track>(track, nets));
@@ -110,5 +129,76 @@ namespace kiwi::circuit {
             routable_bumps, unroutable_bumps, unroutable_tracks
         };
     }
-    
+
+    auto BumpToTracksNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+        return std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {};
+    }
+
+    auto BumpToTracksNet::nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+        return std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+            {this->_begin_bump, hardware::TOBBumpDirection::BumpToTOB}
+        };
+    }
+
+    auto BumpToTracksNet::operator == (const Net& net) const -> bool {
+    try {
+        auto cast_net = dynamic_cast<const BumpToTracksNet&>(net);
+        if (this->_begin_bump->coord() == cast_net._begin_bump->coord() && this->_end_tracks.size() == cast_net._end_tracks.size()) {
+            std::HashSet<hardware::TrackCoord> coords {};
+            for (auto& track : this->_end_tracks) {
+                coords.emplace(track->coord());
+            }
+
+            for (auto& track : cast_net._end_tracks) {
+                if (!coords.contains(track->coord())) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+    catch (const std::bad_cast& e) {
+        return false;
+    }
+    }
+
+    auto BumpToTracksNet::track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> {
+        std::HashSet<hardware::Track*> tracks {};
+
+        for (auto& t: this->_end_tracks) {
+            tracks.emplace(t);
+        }
+
+        auto collect = [&](const auto& package_v) {
+            std::for_each(package_v.begin(), package_v.end(), [&](const auto& package) {
+                const auto& [_1, _2, t] = package;
+                tracks.emplace(t);
+            });
+        };
+        collect(this->_path_package._tob_to_track);
+        collect(this->_path_package._track_to_tob);     // should be empty
+
+        if (tracks.size() < this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, false};
+        }
+        else if (tracks.size() == this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, true};
+        }
+        else {
+            throw std::logic_error("BumpToTracksNet::track_ports(): collected tracks.size() > port_number()");
+        }
+    }
+
+    auto BumpToTracksNet::name() const -> const std::String& {
+        return this->_name;
+    }
+
+    auto BumpToTracksNet::path_in_order() const -> std::Vector<PathInOrder> {
+        return std::Vector<PathInOrder>{};
+    }
+
+    auto BumpToTracksNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        return this->_begin_bump->tob()->coord() == tob->coord();
+    }
 }

@@ -6,8 +6,14 @@ namespace kiwi::hardware {
     class Interposer;
 }
 
+namespace kiwi::circuit {
+    class BaseDie;
+}
+
 namespace kiwi::parse {
 
-    auto write_control_bits(hardware::Interposer* interposer, const std::FilePath& output_path) -> void;
+    auto output_from_routing_results(hardware::Interposer* interposer, const std::FilePath& output_path, circuit::BaseDie* basedie, int mode, bool try_all_modes) -> void;
+    auto write_control_bits(hardware::Interposer* interposer, const std::FilePath& output_path, int mode) -> void;
+    auto connect_registers(hardware::Interposer* interposer, circuit::BaseDie* basedie, int mode) -> void;
 
 }

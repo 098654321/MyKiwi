@@ -12,7 +12,7 @@
 #include <utility/string.hh>
 #include <serde/de.hh>
 #include <serde/json/json.hh>
-#include <xlnt/xlnt.hpp>
+// #include <xlnt/xlnt.hpp>
 
 namespace kiwi::parse {
 
@@ -37,7 +37,7 @@ DESERIALIZE_STRUCT(kiwi::parse::ConfigFilepaths,
 )
 
 template <class ConnectionConfig>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>>{
+struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>> {
     static void from(const Json& json, std::HashMap<int, std::Vector<ConnectionConfig>>& value){
         auto& map = json.as_object();
         for (auto& [key, j]: map){
@@ -55,19 +55,31 @@ struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector
     }
 };
 
+template <class ConnectionConfig>
+struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>> {
+    static void from(const Json& json, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& value){
+        auto& map = json.as_object();
+        for (auto& [key, j]: map){
+            std::HashMap<int, std::Vector<ConnectionConfig>> value_v {};
+            kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>>::from(j, value_v);
+            value.emplace(std::stoi(key), value_v);
+        }
+    }
+};
+
 namespace kiwi::parse {
 
     static auto load_interposer_config(const std::FilePath& path, InterposerConfig& config) -> void;
     static auto load_topdies_config(const std::FilePath& path, std::HashMap<std::String, TopDieConfig>& topdies) -> void;
     static auto load_topdie_insts_config(const std::FilePath& path, std::HashMap<std::String, TopdieInstConfig>& topdie_insts) -> void;
     static auto load_external_ports_config(const std::FilePath& path, std::HashMap<std::String, ExternalPortConfig>& exports) -> void;
-    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::Vector<ConnectionConfig>>& connections) -> void;
+    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode, bool try_all_modes) -> void;
     static auto load_ports_01_config(const std::FilePath& path, std::HashMap<std::String, std::HashMap<std::String, hardware::TrackCoord>>& ports_01) -> void;
 
-    static auto load_from_txt(const std::FilePath& path, Config& config) -> void;
-    static auto parse_txt_line(const std::String& topdie1, const std::String& topdie2, const std::Array<int, 11>& numbers, Config& config) -> void;
+    static auto load_from_txt(const std::FilePath& path, Config& config, int mode, bool try_all_modes) -> void;
+    static auto parse_txt_line(const std::String& topdie1, const std::String& topdie2, const std::Array<int, 11>& numbers, Config& config, int mode, bool try_all_modes) -> void;
 
-    auto load_config(const std::FilePath& config_folder) -> Config 
+    auto load_config(const std::FilePath& config_folder, int mode, bool try_all_modes) -> Config 
     try {
         debug::info_fmt("Load config from '{}'", config_folder.string());
     
@@ -82,10 +94,10 @@ namespace kiwi::parse {
             load_topdies_config(config_folder / config_paths.topdies, config.topdies);
             load_topdie_insts_config(config_folder / config_paths.topdie_insts, config.topdie_insts);
             load_external_ports_config(config_folder / config_paths.external_ports, config.external_ports);
-            load_connections_config(config_folder / config_paths.connections, config.connections);
+            load_connections_config(config_folder / config_paths.connections, config.connections, mode, try_all_modes);
         }
         else if(config_paths.connections.filename().extension().string() == ".txt"){
-            load_from_txt(config_folder / config_paths.connections, config);
+            load_from_txt(config_folder / config_paths.connections, config, mode, try_all_modes);
         }
         else{
             debug::exception_fmt("Unspport extension '{}' for connections config", config_paths.connections.filename().extension().string());
@@ -96,7 +108,7 @@ namespace kiwi::parse {
     THROW_UP_WITH("Load config")
 
     static auto load_interposer_config(const std::FilePath& path, InterposerConfig& config) -> void {
-        debug::debug("Load interposer config");
+        debug::info("Load interposer config");
 
         // Only support .json
         serde::deserialize(serde::Json::load_from(path), config);   
@@ -104,7 +116,7 @@ namespace kiwi::parse {
 
     static auto load_topdies_config(const std::FilePath& path, std::HashMap<std::String, TopDieConfig>& topdies) -> void 
     try {
-        debug::debug("Load topdies config");
+        debug::info("Load topdies config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -119,7 +131,7 @@ namespace kiwi::parse {
 
     static auto load_topdie_insts_config(const std::FilePath& path, std::HashMap<std::String, TopdieInstConfig>& topdie_insts) -> void 
     try {
-        debug::debug("Load topdir insts config");
+        debug::info("Load topdir insts config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -134,7 +146,7 @@ namespace kiwi::parse {
 
     static auto load_external_ports_config(const std::FilePath& path, std::HashMap<std::String, ExternalPortConfig>& exports) -> void 
     try {
-        debug::debug("Load external ports config");
+        debug::info("Load external ports config");
         
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
@@ -147,44 +159,67 @@ namespace kiwi::parse {
     }
     THROW_UP_WITH("Load external ports config")
 
-    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::Vector<ConnectionConfig>>& connections) -> void 
+    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode, bool try_all_modes) -> void 
     try {
-        debug::debug("Load connections config");
+        debug::info("Load connections config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
-            serde::deserialize(serde::Json::load_from(path), connections);
-        } 
-        else if (extension == ".xlsx") {
-            auto workbook = xlnt::workbook();
-            workbook.load(path);
-            for (const auto& row : workbook.sheet_by_index(0).rows()) {
-                // | input  |  output  | syns |
-                if (row.length() != 3) {
-                    debug::exception_fmt("Except '3' columns but got '{}'", row.length());
-                }
-
-                auto input = row[0].to_string();
-                if (input.empty()) {
-                    continue;
-                }
-                auto output = row[1].to_string();
-                auto sync = utility::string_to_i32(row[2].to_string());
-
-                auto result = connections.emplace(sync, std::Vector<ConnectionConfig>{});
-                auto& iter = result.first;
-                assert(iter->first == sync);
-                auto& v = iter->second.emplace_back(std::move(input), std::move(output));
+            if (mode == 0 && !try_all_modes) {
+                // simple routing config
+                std::HashMap<int, std::Vector<ConnectionConfig>> inner_connections {};
+                serde::deserialize(serde::Json::load_from(path), inner_connections);
+                connections.emplace(0, inner_connections);
             }
-        } else {
+            else {
+                // incremental routing config
+                serde::deserialize(serde::Json::load_from(path), connections);
+            }
+        } 
+        // else if (extension == ".xlsx") {
+        //     auto workbook = xlnt::workbook();
+        //     workbook.load(path);
+
+        //     if (mode == 0) {
+        //         std::HashMap<int, std::Vector<ConnectionConfig>> inner_connections {};
+        //         for (const auto& row : workbook.sheet_by_index(0).rows()) {
+        //             // | input  |  output  | syns |
+        //             if (row.length() != 3) {
+        //                 debug::exception_fmt("Except '3' columns but got '{}'", row.length());
+        //             }
+    
+        //             auto input = row[0].to_string();
+        //             if (input.empty()) {
+        //                 continue;
+        //             }
+        //             auto output = row[1].to_string();
+        //             auto sync = utility::string_to_i32(row[2].to_string());
+    
+        //             auto result = inner_connections.emplace(sync, std::Vector<ConnectionConfig>{});
+        //             auto& iter = result.first;
+        //             assert(iter->first == sync);
+        //             auto& v = iter->second.emplace_back(std::move(input), std::move(output));
+        //         }
+        //         connections.emplace(0, inner_connections);
+        //     }
+        //     else {
+        //         debug::unimplement("do not support the incremental mode config temperorily");
+        //     }
+        // } 
+        else {
             debug::exception_fmt("Unspport extension '{}' for connections config", extension);
         }
     } 
     THROW_UP_WITH("Load connections config")
 
-    static auto load_from_txt(const std::FilePath& path, Config& config) -> void 
+    static auto load_from_txt(const std::FilePath& path, Config& config, int mode, bool try_all_modes) -> void 
     try {
-        debug::debug("Load from txt");
+        if (try_all_modes) {
+            debug::unimplement("load from all modes is not supported when loading from .txt file");
+        }
+
+        debug::info_fmt("Load from txt with mode = {}", mode);
+        config.connections.emplace(mode, std::HashMap<int, std::Vector<ConnectionConfig>>{});
 
         std::ifstream file(path);
         if (!file.is_open()){
@@ -218,15 +253,19 @@ namespace kiwi::parse {
                 numbers[pos++] = num;
             }
             
-            parse_txt_line(topdie_name1, topdie_name2, numbers, config);
+            parse_txt_line(topdie_name1, topdie_name2, numbers, config, mode, try_all_modes);
         }
 
        file.close();
     }
     THROW_UP_WITH("Load from txt")
 
-    auto parse_txt_line(const std::String& topdie1, const std::String& topdie2, const std::Array<int, 11>& numbers, Config& config) -> void
+    auto parse_txt_line(const std::String& topdie1, const std::String& topdie2, const std::Array<int, 11>& numbers, Config& config, int mode, bool try_all_modes) -> void
     try{
+        if (try_all_modes) {
+            debug::unimplement("load from all modes is not supported when parsing from .txt file");
+        }
+
         const auto net_tag = numbers.back();
         std::String input{}, output{};
 
@@ -278,16 +317,18 @@ namespace kiwi::parse {
 
         parse_node({numbers[0], numbers[1], numbers[2], numbers[3], numbers[4]}, input, topdie1);
         parse_node({numbers[5], numbers[6], numbers[7], numbers[8], numbers[9]}, output, topdie2);
-        if (!config.connections.contains(net_tag)){
-            config.connections.emplace(net_tag, std::Vector<ConnectionConfig>{});
+
+        auto& inner_connection = config.connections.at(mode);
+        if (!inner_connection.contains(net_tag)){
+            inner_connection.emplace(net_tag, std::Vector<ConnectionConfig>{});
         }
-        config.connections.at(net_tag).emplace_back(ConnectionConfig{input, output});
+        inner_connection.at(net_tag).emplace_back(ConnectionConfig{input, output});
     }
     THROW_UP_WITH("Parse txt line")
 
     auto load_ports_01_config(const std::FilePath& path, std::HashMap<std::String, std::HashMap<std::String, hardware::TrackCoord>>& ports_01) -> void
     try {
-        debug::debug("Load 0/1 ports config");
+        debug::info("Load 0/1 ports config");
         
         auto extension = path.filename().extension().string();
         if (extension == ".json") {

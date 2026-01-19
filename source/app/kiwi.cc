@@ -35,7 +35,7 @@ namespace kiwi {
         console::println_with_color("Options: ", Color::Green);
 
         console::print_with_color("\t-o, --output <OUTPUT_PATH>  ", Color::Cyan);
-        console::println("Indicate output controlbit file path");
+        console::println("Indicate output directory for controlbit file");
 
         console::print_with_color("\t-g, --gui                   ", Color::Cyan);
         console::println("Work in gui");
@@ -48,6 +48,12 @@ namespace kiwi {
 
         console::print_with_color("\t-v, --verbose               ", Color::Cyan);
         console::println("Print lots of verbose information for users.");
+
+        console::print_with_color("\t-i, --incremental           ", Color::Cyan);
+        console::println("Work in incremental routing mode.");
+
+        console::print_with_color("\t-c, --compare               ", Color::Cyan);
+        console::println("Compare the controlbits between the current mode and the given mode.");
     }
 
     auto print_verion() -> void {
@@ -77,6 +83,7 @@ namespace kiwi {
             arguments.emplace_back(argv[i]);
         }
 
+        // return the position of the first argument that is arg1 or arg2. If not found, return std::nullopt
         auto argument_index = [&arguments](std::StringView arg1, std::StringView arg2) -> std::Option<std::usize> {
             for (std::usize i = 0; i < arguments.size(); ++i) {
                 if (arguments[i] == arg1 || arguments[i] == arg2) {
@@ -91,6 +98,7 @@ namespace kiwi {
         }
 
         if (argument_index("-g", "--gui").has_value()) {
+            // gui mode
             if (arguments[0] != "-g" && arguments[0] != "--gui") {
                 debug::warning_fmt("Use gui model but indicate input config '{}', it will be ignored", arguments[0]);
             }
@@ -103,18 +111,58 @@ namespace kiwi {
             print_verion();
         }
         else {
+            // cli mode output path
             auto output_opt = argument_index("-o", "--output");
             auto output_path = std::Option<std::StringView>{std::nullopt};
             if (output_opt.has_value()) {
                 auto index = *output_opt;
-                if (index >= (arguments.size() - 1)) {
+                if (index >= (arguments.size() - 1) || arguments[index + 1].at(0) == '-') {
                     debug::warning("Use '-o/--output' but not indicate the output path! Use default instead");
                 } else {
                     output_path.emplace(arguments[index + 1]);
                 }
             }
 
-            return cli_main(arguments[0], std::move(output_path));
+            // placement
+            bool placement = false;
+            if (argument_index("-p", "--placement").has_value()) {
+                placement = true;
+            }
+
+            // command for incremental mode
+            auto incre_opt = argument_index("-i", "--incremental");
+            auto comp_opt = argument_index("-c", "--compare");
+            int incre_mode = 0;
+            bool try_all_modes = false;
+            std::optional<int> compare = std::nullopt;
+            if (incre_opt.has_value()) {
+                auto index = incre_opt.value();
+                if (index >= (arguments.size() - 1) || arguments[index + 1].at(0) == '-') {
+                    try_all_modes = true;
+                } 
+                else {
+                    incre_mode = std::stoi(arguments[index + 1]);
+                    if (incre_mode <= 0) {
+                        debug::fatal("incremental mode should be a positive integer");
+                    }
+                }
+
+                // check if comparation is needed
+                if (comp_opt.has_value()) {
+                    auto index = comp_opt.value();
+                    if (index >= (arguments.size() - 1) || arguments[index + 1].at(0) == '-') {
+                        debug::fatal("Use '-c/--compare' but not indicate the compare target!");
+                    }
+                    else {
+                        compare = std::stoi(arguments[index + 1]);
+                        if (compare.value() <= 0) {
+                            debug::fatal("compare target should be a positive integer");
+                        }
+                    }
+                }
+            }
+
+            return cli_main(arguments[0], std::move(output_path), incre_mode, compare, try_all_modes, placement);
         }
 
         return 0;

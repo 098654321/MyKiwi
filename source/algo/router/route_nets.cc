@@ -1,6 +1,7 @@
 #include "./route_nets.hh"
-#include "./invoker.hh"
+#include "./command_mode/invoker.hh"
 #include "./routeengine.hh"
+#include "./incremental/bound_bits/global_bits.hh"
 #include <algo/router/routeerror.hh>
 #include "debug/debug.hh"
 #include <circuit/basedie.hh>
@@ -14,17 +15,27 @@ namespace kiwi::algo {
     auto route_nets(
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        const RouteStrategy& strateg
-    ) -> std::usize {
-        debug::info("Route nets");
+        const RouteStrategy& strateg,
+        const AllocateStrategy& allocator,
+        int m,
+        bool incremental,
+        bool try_all_modes, 
+        bool path_exists
+    ) -> DataPerCycle {
+        debug::info(
+            "\n\
+            **********************************************************************************\n\
+                                            Route nets\n\
+            **********************************************************************************\
+            "
+        );
         auto invoker = Invoker{};
-        auto engine = RouteEngine{basedie->nets()};
-        invoker.set_route_commands();
+        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, try_all_modes, path_exists, interposer};
+        invoker.set_route_commands(incremental, try_all_modes, path_exists);
         
-        // TODO: reroute_command
         while (!invoker.check_command())
         try {
-            invoker.invoke(interposer, engine, strateg);
+            invoker.invoke(interposer, engine);
         } 
         catch (const RetryExpt& err) {
             assert (err.net() != nullptr);
@@ -38,39 +49,50 @@ namespace kiwi::algo {
             // }
         }
         catch (const FinalError& err){
-            debug::exception_in("route_nets()", err.what());
+            debug::info_fmt("route_nets(): {}", err.what());
+            throw err;
         }
         catch (const std::exception& err){
             throw std::runtime_error("route_nets() >> " + std::String(err.what()));
         }
 
-        auto total_length = analyze_results(interposer, engine, strateg);
-        return total_length;
+        auto route_data = analyze_results(interposer, engine, incremental, try_all_modes);
+        return route_data;
     }
 
     // return total length of all nets
     auto analyze_results(
         hardware::Interposer* interposer,
         RouteEngine& engine,
-        const RouteStrategy& strategy
-    ) -> std::usize {
-        std::usize total_length {0};
-        const auto& nets = engine.nets();
-        for (const auto& net: nets) {
-            debug::debug(net->to_string());
-            net->show_path();
-            total_length += net->length();
-        }
+        bool incremental,
+        bool try_all_modes
+    ) -> DataPerCycle {
+        // record length info
+        debug::info(
+            "\n\
+            **********************************************************************************\n\
+                                            Net & Path Infomation\n\
+            **********************************************************************************\
+            "
+        );
+        engine.show_net_and_path();
 
-        debug::info_fmt("Total length of all nets: {}", total_length);
-        return total_length;
+        // show length info
+        debug::info(
+            "\n\
+            **********************************************************************************\n\
+                                            Data Analysis\n\
+            **********************************************************************************\
+            "
+        );
+
+        const auto& nets = engine.all_nets_in_modes(engine.mode());
+        auto data = engine.show_final_data(nets, incremental);
+        return data;
     }
 
     auto show_retry_expt(circuit::Net* net, RouteEngine& engine, hardware::Interposer* interposer) -> void {
-        //! 会出现路径重复的问题
-        debug::debug("\n");
-        debug::debug("Show details of retry exception");
-        debug::debug(net->to_string());
+        debug::debug(std::String("\nShow details of retry exception" + net->to_string()));
         
         auto state = net_connection_state(net, interposer);
 

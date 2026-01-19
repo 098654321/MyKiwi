@@ -3,6 +3,72 @@
 针对 [kiwimore](https://www.kiwimoore.com/) 设计的一款 chiplet interposer，所制作的布局布线工具。
 
 
+## 项目分支
+
+- version_before_commands
+
+    不支持增量布线，可以在普通布线场景下支持完整的布局布线流程。最后一次提交是 2025 年过年前
+
+- master
+    
+    针对 version_before_commands 调整了 algo 部分的框架，加入命令模式，但是没有加入增量布线算法，也没有修改原有算法。最后一次提交是 2025 年 3 月。
+
+- dev.incre_no_sharing
+
+    最新的增量布线版本，在布线失败时不共享
+
+    ```c++
+    cycle = 0
+    load nets, sort nets by reuse frequency（在原有布线优先级的基础上，对于同一种优先级的线网之间用 reuse frequency 排序）
+    while {
+        for net in nets {
+            path = route net with maze(using the new cost function)
+        }
+        
+        if fail {
+            if (cycle == 0) {
+                remove nets not belongs to this mode
+                reroute
+            }
+            else {
+                return success with path from last cycle
+            }
+        }
+            
+        update recorder        
+
+        if (cycle >= MIN_CYCLE_NUMBER)
+            return success with path
+
+        cycle++
+    }
+    ```
+
+- dev.bus_routing
+
+    另一个增量布线版本，在布线失败时允许共享
+
+    ```c++
+    cycle = 0
+    load nets, sort nets by reuse frequency
+    while:
+        for net in nets:
+            path = route net with maze(using the new cost function)
+            if fail:
+                path = allow sharing, reroute net with maze(using the new cost function)
+            endif
+            update recorder
+        endfor
+
+        if (MAX_CYCLE_NUMBER > cycle >= MIN_CYCLE_NUMBER) and (no tobmux is shared):
+            return success
+        else if (cycle >= MAX_CYCLE_NUMBER)
+            return failure
+        endif
+
+        cycle++
+    endwhile
+    ```
 
 
 ## 项目结构
@@ -44,6 +110,7 @@ Options：
 - `-h, --help`：打印帮助信息
 - `-V, --version`：打印版本信息
 - `-v, --verbose`: 输出 Debug 信息
+- `-i, --incremental <mode>`: 进入增量布线，需要跟一个正整数 mode
 
 
 
@@ -99,6 +166,7 @@ xmake run module_test [module]
     |case 7-9|一个 cpu-ai-mem 芯粒系统|
     |case 10-12|一个 cpu 芯粒系统|
     |case 13-16|一个 AI core 芯粒系统|
+- case 17-18 测试增量布线功能
 
 编译：
 

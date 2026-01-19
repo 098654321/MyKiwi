@@ -5,7 +5,7 @@
 #include <circuit/basedie.hh>
 
 #include <algo/router/route_nets.hh>
-#include <algo/router/maze/mazeroutestrategy.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
 
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>

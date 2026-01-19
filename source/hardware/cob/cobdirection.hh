@@ -10,3 +10,13 @@ namespace kiwi::hardware {
     };
 
 }
+
+
+namespace kiwi::hardware {
+    struct COBDirectionHash {
+        size_t operator()(const COBDirection& dir) const {
+            return static_cast<size_t>(dir);
+        }
+    };
+}
+

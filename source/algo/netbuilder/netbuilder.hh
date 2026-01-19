@@ -34,9 +34,9 @@ namespace kiwi::algo {
         void build();
 
     private:
-        auto build_no_sync_nets(std::Span<const std::Box<circuit::Connection>> connections) -> void;
-        auto build_sync_net(std::Span<const std::Box<circuit::Connection>> connections) -> void;
-        auto build_fixed_nets() -> void;
+        auto build_no_sync_nets(std::Span<const std::Box<circuit::Connection>> connections, int group, int m) -> void;
+        auto build_sync_net(std::Span<const std::Box<circuit::Connection>> connections, int group, int m) -> void;
+        auto build_fixed_nets(int m) -> void;
         auto build_01_ports() -> void;
      
         using Node = std::Variant<hardware::Track*, hardware::Bump*>;

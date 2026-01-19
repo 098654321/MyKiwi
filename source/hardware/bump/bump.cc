@@ -10,6 +10,7 @@ namespace kiwi::hardware {
         _coord{coord},
         _tob{tob},
         _connected_track{nullptr},
+        _allocated_track{nullptr},
         _signal_dir{TOBSignalDirection::DisConnected},
         _accessable_cobunit{}
     {
@@ -25,6 +26,10 @@ namespace kiwi::hardware {
         this->_signal_dir = signal_dir;
 
         track->set_connected_bump(this, signal_dir);
+    }
+
+    auto Bump::set_allocated_track(Track* track) -> void {
+        this->_allocated_track = track;
     }
 
     auto Bump::update_bump(Bump* bump, TOB* prev_tob, TOB* next_tob) -> Bump* {

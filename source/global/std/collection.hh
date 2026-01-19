@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <bitset>
+#include <functional>
 
 namespace std {
 
@@ -49,5 +50,11 @@ namespace std {
 
     template <typename T>
     using Deque = std::deque<T>;
+
+    template <typename T>
+    using MaxHeap = std::priority_queue<T>;
+
+    template <typename T, class Compare>
+    using MinHeap = std::priority_queue<T, std::vector<T>, Compare>;
     
 }

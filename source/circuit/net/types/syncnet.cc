@@ -3,6 +3,7 @@
 #include <hardware/coord.hh>
 #include <assert.h>
 #include <algorithm>
+#include <algo/router/incremental/maze/routing.hh>
 
 
 
@@ -10,14 +11,16 @@ namespace kiwi::circuit
 {
 
     SyncNet::SyncNet(
-        std::Vector<std::Box<BumpToBumpNet>> btbnets,
-        std::Vector<std::Box<BumpToTrackNet>> bttnets,
-        std::Vector<std::Box<TrackToBumpNet>> ttbnets
-    ) : 
-        _btbnets{std::move(btbnets)},
-        _bttnets{std::move(bttnets)},
-        _ttbnets{std::move(ttbnets)},
-        Net{Priority{0}}
+        std::Vector<std::Rc<BumpToBumpNet>> btbnets,
+        std::Vector<std::Rc<BumpToTrackNet>> bttnets,
+        std::Vector<std::Rc<TrackToBumpNet>> ttbnets,
+        const std::HashSet<int>& modes,
+        std::String& name
+    ) :
+        _btbnets{btbnets},
+        _bttnets{bttnets},
+        _ttbnets{ttbnets},
+        Net{Priority{0}, modes, name}
     {
     }
 
@@ -25,7 +28,7 @@ namespace kiwi::circuit
         for (auto& net : this->_btbnets) {
             net->update_tob_postion(prev_tob, next_tob);
         }
-        
+
         for (auto& net : this->_bttnets) {
             net->update_tob_postion(prev_tob, next_tob);
         }
@@ -37,6 +40,12 @@ namespace kiwi::circuit
 
     auto SyncNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_sync_net(interposer, this);
+    }
+
+    auto SyncNet::incremental_route(
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine, bool shared
+    ) -> bool {
+        return strategy.route_sync_net(interposer, this, engine, shared);
     }
 
     auto SyncNet::update_priority(float bias) -> void {
@@ -89,10 +98,29 @@ namespace kiwi::circuit
         }
     }
 
-    
+    auto SyncNet::accessable_cobunit() -> std::HashMap<hardware::Bump*, std::HashSet<std::usize>> {
+        std::HashMap<hardware::Bump*, std::HashSet<std::usize>> map{};
+
+        for (auto& net: _btbnets) {
+            const auto& net_map = net->accessable_cobunit();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: _bttnets) {
+            const auto& net_map = net->accessable_cobunit();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: _ttbnets) {
+            const auto& net_map = net->accessable_cobunit();
+            map.insert(net_map.begin(), net_map.end());
+        }
+
+        return map;
+    }
+
+
     auto SyncNet::to_string() const -> std::String {
         auto ss = std::StringStream {};
-        ss << "Syncnet net:\n";
+        ss << std::format("{}: Syncnet net:\n", this->_name);
         for (auto& net: _btbnets) {
             ss << "    " << net->to_string() << '\n';
         }
@@ -244,41 +272,293 @@ namespace kiwi::circuit
     }
 
     auto SyncNet::collect_package() -> bool {
+        bool flag = true;
         if (
             this->_path_package._regular_path.empty()\
-            && this->_path_package._tob_to_track.empty()\
-            && this->_path_package._track_to_tob.empty()
+            || this->_path_package._tob_to_track.empty()\
+            || this->_path_package._track_to_tob.empty()
         ) {
-            auto collect = [&](circuit::Net* net) {
-                auto& package = net->pathpackage();
-    
-                auto& path = this->_path_package._regular_path;
-                path.insert(path.end(), package._regular_path.begin(), package._regular_path.end());
-    
-                auto& tob_to_track = this->_path_package._tob_to_track;
-                tob_to_track.insert(tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
-    
-                auto& track_to_tob = this->_path_package._track_to_tob;
-                track_to_tob.insert(track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
-    
-                this->_path_package._length += package._length;
-            };
-    
-            for (auto& net: this->_btbnets) {
-                collect(net.get());
+            flag = false;
+        }
+
+        this->_history_path_package = circuit::HistoryPathPackage(this->_path_package);
+        auto collect = [&](circuit::Net* net, PathPackage& new_package) {
+            auto& package = net->pathpackage();
+
+            new_package._regular_path.insert(new_package._regular_path.end(), package._regular_path.begin(), package._regular_path.end());
+            new_package._tob_to_track.insert(new_package._tob_to_track.end(), package._tob_to_track.begin(), package._tob_to_track.end());
+            new_package._track_to_tob.insert(new_package._track_to_tob.end(), package._track_to_tob.begin(), package._track_to_tob.end());
+            new_package._length += package._length;
+        };
+
+        PathPackage total_package{};
+        for (auto& net: this->_btbnets) {
+            collect(net.get(), total_package);
+        }
+        for (auto& net: this->_bttnets) {
+            collect(net.get(), total_package);
+        }
+        for (auto& net: this->_ttbnets) {
+            collect(net.get(), total_package);
+        }
+        this->_path_package = total_package;
+
+        return flag;
+    }
+
+    auto SyncNet::nodes_map() -> std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> {
+        std::HashMap<hardware::Bump*, std::HashSet<hardware::Bump*>> map{};
+        for(auto& net: this->_btbnets) {
+            for (auto& m: net->nodes_map()) {
+                map.emplace(m);
             }
-            for (auto& net: this->_bttnets) {
-                collect(net.get());
-            }
-            for (auto& net: this->_ttbnets) {
-                collect(net.get());
+        }
+        return map;
+    }
+
+    auto SyncNet::nodes_direction() -> std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> {
+        std::HashMap<hardware::Bump*, hardware::TOBBumpDirection> map{};
+
+        for (auto& net: this->_btbnets) {
+            auto net_map = net->nodes_direction();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: this->_bttnets) {
+            auto net_map = net->nodes_direction();
+            map.insert(net_map.begin(), net_map.end());
+        }
+        for (auto& net: this->_ttbnets) {
+            auto net_map = net->nodes_direction();
+            map.insert(net_map.begin(), net_map.end());
+        }
+
+        return map;
+    }
+
+    auto SyncNet::operator == (const Net& net) const -> bool {
+    try {
+        auto sync_net = dynamic_cast<const SyncNet&>(net);
+        bool flag = true;
+
+        for (auto& m: sync_net.btbnets()) {
+            bool flag_n = false;
+            for (auto& n: this->_btbnets) {
+                if (*n == *m) {
+                    flag_n = true;
+                    break;
+                }
             }
 
-            return true;
+            if (!flag_n) {
+                flag = false;
+                break;
+            }
+        }
+        for (auto& m: sync_net.bttnets()) {
+            bool flag_n = false;
+            for (auto& n: this->_bttnets) {
+                if (*n == *m) {
+                    flag_n = true;
+                    break;
+                }
+            }
+
+            if (!flag_n) {
+                flag = false;
+                break;
+            }
+        }
+        for (auto& m: sync_net.ttbnets()) {
+            bool flag_n = false;
+            for (auto& n: this->_ttbnets) {
+                if (*n == *m) {
+                    flag_n = true;
+                    break;
+                }
+            }
+
+            if (!flag_n) {
+                flag = false;
+                break;
+            }
+        }
+
+        return flag;
+    }
+    catch (const std::bad_cast& e) {
+        return false;
+    }
+    }
+
+    auto SyncNet::track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> {
+        std::HashSet<hardware::Track*> tracks {};
+
+        for (auto& net: this->_bttnets) {
+            auto [ports, flag] = net->track_ports();
+            tracks.insert(ports.begin(), ports.end());
+        }
+        for (auto& net: this->_ttbnets) {
+            auto [ports, flag] = net->track_ports();
+            tracks.insert(ports.begin(), ports.end());
+        }
+        for (auto& net: this->_btbnets) {
+            auto [ports, flag] = net->track_ports();
+            tracks.insert(ports.begin(), ports.end());
+        }
+
+        if (tracks.size() < this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, false};
+        }
+        else if (tracks.size() == this->port_number()) {
+            return std::Pair<std::HashSet<hardware::Track*>, bool>{tracks, true};
         }
         else {
-            return false;
+            throw std::logic_error("SyncNet::track_ports(): collected tracks.size() > port_number()");
         }
+    }
+
+    auto SyncNet::set_reuse_type(bool reuse_type) -> void {
+        this->_reuse_type.emplace(reuse_type);
+        for (auto& net: this->_btbnets) {
+            net->set_reuse_type(reuse_type);
+        }
+        for (auto& net: this->_bttnets) {
+            net->set_reuse_type(reuse_type);
+        }
+        for (auto& net: this->_ttbnets) {
+            net->set_reuse_type(reuse_type);
+        }
+    }
+
+    auto SyncNet::clear_path() -> void {
+        this->_path_package.clear_all();
+        this->_history_path_package.reset();
+        this->_related_nets_bump.clear();
+        this->_related_nets_track.clear();
+
+        for (auto& net: this->_btbnets) {
+            net->clear_path();
+        }
+        for (auto& net: this->_bttnets) {
+            net->clear_path();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->clear_path();
+        }
+    }
+
+    // return: [num_of_nets, length]
+    auto SyncNet::sync_length() const -> std::Tuple<std::usize, std::usize> {
+        return std::Tuple<std::usize, std::usize>{
+            this->_btbnets.size() + this->_bttnets.size() + this->_ttbnets.size(), this->_path_package._length
+        };
+    }
+
+    auto SyncNet::name() const -> const std::String& {
+        return this->_name;
+    }
+
+    auto SyncNet::reset_pathpackage() -> void {
+        this->_path_package.reset_all();
+
+        for (auto& net: this->_btbnets) {
+            net->reset_pathpackage();
+        }
+        for (auto& net: this->_bttnets) {
+            net->reset_pathpackage();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->reset_pathpackage();
+        }
+    }
+
+    auto SyncNet::move_history_to_current(hardware::Interposer* interposer) -> void {
+        this->_path_package = circuit::PathPackage(this->_history_path_package.value(), interposer);
+        
+        for (auto& net: this->_btbnets) {
+            net->move_history_to_current(interposer);
+        }
+        for (auto& net: this->_bttnets) {
+            net->move_history_to_current(interposer);
+        }
+        for (auto& net: this->_ttbnets) {
+            net->move_history_to_current(interposer);
+        }
+    }
+
+    auto SyncNet::path_in_order() const -> std::Vector<PathInOrder> {
+    try{
+        std::Vector<PathInOrder> paths {};
+        for (auto& net: this->_btbnets) {
+            auto path_in_order = net->path_in_order();
+            paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
+        }
+        for (auto& net: this->_bttnets) {
+            auto path_in_order = net->path_in_order();
+            paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
+        }
+        for (auto& net: this->_ttbnets) {
+            auto path_in_order = net->path_in_order();
+            paths.insert(paths.end(), path_in_order.begin(), path_in_order.end());
+        }
+        debug::info_fmt("SyncNet paths size() = {}", paths.size());
+
+        return paths;
+    }
+    catch(const std::exception& e) {
+        throw std::runtime_error(std::format("SyncNet::path_in_order(): {}", e.what()));
+    }
+    }
+
+    auto SyncNet::set_history_pathpackage() -> void {
+        this->_history_path_package.emplace(HistoryPathPackage(this->_path_package));
+        debug::info_fmt(
+            "set history path package with length {} from current path package with length {}", 
+            this->_history_path_package.value()._length, this->_path_package._length
+        );
+
+        for (auto& net: this->_btbnets) {
+            net->set_history_pathpackage();
+        }
+        for (auto& net: this->_bttnets) {
+            net->set_history_pathpackage();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->set_history_pathpackage();
+        }
+    }
+
+    auto SyncNet::clear_current_package() -> void {
+        this->_path_package.clear_all();
+
+        for (auto& net: this->_btbnets) {
+            net->clear_current_package();
+        }
+        for (auto& net: this->_bttnets) {
+            net->clear_current_package();
+        }
+        for (auto& net: this->_ttbnets) {
+            net->clear_current_package();
+        }
+    }
+
+    auto SyncNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        for (auto& net: _btbnets) {
+            if (net->has_tob_in_ports(tob)) {
+                return true;
+            }
+        }
+        for (auto& net: _bttnets) {
+            if (net->has_tob_in_ports(tob)) {
+                return true;
+            }
+        }
+        for (auto& net: _ttbnets) {
+            if (net->has_tob_in_ports(tob)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

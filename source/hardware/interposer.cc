@@ -9,6 +9,7 @@
 #include <std/collection.hh>
 #include <std/utility.hh>
 #include <std/integer.hh>
+#include <utility/random.hh>
 #include "hardware/cob/cobcoord.hh"
 #include "hardware/coord.hh"
 #include "hardware/track/trackcoord.hh"
@@ -77,7 +78,7 @@ namespace kiwi::hardware {
         }
     }
 
-    auto Interposer::available_tracks(Bump* bump, TOBSignalDirection dir) -> std::HashMap<Track*, TOBConnector> {
+    auto Interposer::available_tracks(Bump* bump, TOBSignalDirection dir, bool shared) -> std::HashMap<Track*, TOBConnector> {
         auto tob = bump->tob();
         auto& coord = Interposer::TOB_COORD_MAP.at(tob->coord());
 
@@ -85,7 +86,7 @@ namespace kiwi::hardware {
 
         auto result = std::HashMap<Track*, TOBConnector>{};
 
-        for (auto& connector : tob->available_connectors(bump->index(), dir)) {
+        for (auto& connector : tob->available_connectors(bump->index(), dir, shared)) {
             // check cobunit
             std::usize index = connector.track_index();
             std::usize bank_size = COB::INDEX_SIZE/2;
@@ -101,12 +102,12 @@ namespace kiwi::hardware {
         return result;
     }  
 
-    auto Interposer::available_tracks_bump_to_track(Bump* bump) -> std::HashMap<Track*, TOBConnector> {
-        return this->available_tracks(bump, TOBSignalDirection::BumpToTrack);
+    auto Interposer::available_tracks_bump_to_track(Bump* bump, bool shared) -> std::HashMap<Track*, TOBConnector> {
+        return this->available_tracks(bump, TOBSignalDirection::BumpToTrack, shared);
     }
 
-    auto Interposer::available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector> {
-        return this->available_tracks(bump, TOBSignalDirection::TrackToBump);
+    auto Interposer::available_tracks_track_to_bump(Bump* bump, bool shared) -> std::HashMap<Track*, TOBConnector> {
+        return this->available_tracks(bump, TOBSignalDirection::TrackToBump, shared);
     }
 
     auto Interposer::adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>> {
@@ -134,7 +135,7 @@ namespace kiwi::hardware {
             auto cob = *option_cob;
             
             // For each connector in cob's adjacent_connectors_from_right
-            for (auto& connector : cob->adjacent_connectors(from_dir, track_coord.index)) {
+            for (auto& connector : cob->adjacent_connectors(from_dir, track_coord.index, cob_coord)) {
                 assert(connector.from_dir() == from_dir);
 
                 auto new_track_coord = cob->to_dir_track_coord(connector.to_dir(), connector.to_track_index());
@@ -198,6 +199,7 @@ namespace kiwi::hardware {
     auto Interposer::get_bump(const TOBCoord& coord, std::usize index) -> std::Option<Bump*> {
         auto tob = this->get_tob(coord);
         if (!tob.has_value()) {
+            debug::info_fmt("Interposer::get_bummp(): TOB not found, coord: ({}, {})", coord.row, coord.col);
             return std::nullopt;
         }
         return (*tob)->get_bump(index);
@@ -207,10 +209,23 @@ namespace kiwi::hardware {
         return this->get_bump(TOBCoord{row, col}, index);
     }
 
+    auto Interposer::randomly_get_a_idle_tob() -> std::Option<TOB*> {
+        auto idle_tobs = std::Vector<TOB*>{};
+        for (auto& [coord, tob] : this->_tobs) {
+            if (tob->is_idle()) {
+                idle_tobs.emplace_back(tob.get());
+            }
+        }
+        if (idle_tobs.empty()) {
+            return std::nullopt;
+        }
+        return idle_tobs[random_i64(0, idle_tobs.size() - 1)];
+    }
+
     auto Interposer::get_a_idle_tob() -> std::Option<TOB*> {
         for (auto& [coord, tob] : this->_tobs) {
             if (tob->is_idle()) {
-                return {tob.get()};
+                return { tob.get() };
             }
         }
         return std::nullopt;
@@ -236,6 +251,23 @@ namespace kiwi::hardware {
         for (auto& [_, tob] : this->_tobs) {
             tob->randomly_map_remain_indexes();
         }
+    }
+
+    auto Interposer::reset_tob_regs() -> void {
+        for (auto& [_, tob] : this->_tobs) {
+            tob->reset_regs();
+        }
+    }
+
+    auto Interposer::reset_cob_regs() -> void {
+        for (auto& [_, cob] : this->_cobs) {
+            cob->reset_regs();
+        }
+    }
+
+    auto Interposer::reset_regs() -> void {
+        this->reset_tob_regs();
+        this->reset_cob_regs();
     }
 
 }

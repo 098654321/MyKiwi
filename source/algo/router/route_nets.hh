@@ -6,6 +6,8 @@
 #include <std/memory.hh>
 #include "./routeengine.hh"
 #include <std/collection.hh>
+#include <algo/route_data.hh>
+
 
 namespace kiwi::hardware {
     class Interposer;
@@ -18,20 +20,25 @@ namespace kiwi::circuit {
 namespace kiwi::algo {
 
     class RouteStrategy;
+    class AllocateStrategy;
     
     auto route_nets(
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        const RouteStrategy& strategy
-    ) -> std::usize;
+        const RouteStrategy& strategy,
+        const AllocateStrategy& allocator,
+        int m,
+        bool incremental,
+        bool try_all_modes, 
+        bool path_exists = false
+    ) -> DataPerCycle;
 
     auto analyze_results(
         hardware::Interposer* interposer,
         RouteEngine& engine,
-        const RouteStrategy& strategy
-    ) -> std::usize;
-
-
+        bool incremental,
+        bool try_all_modes
+    ) -> DataPerCycle;
 
 
     // debug

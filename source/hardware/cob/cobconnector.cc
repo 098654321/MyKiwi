@@ -11,7 +11,8 @@ namespace kiwi::hardware {
         COBDirection to_dir, std::usize to_track_index,
         COBSwRegister*  sw_reg, 
         COBSelRegister* t_to_c_sel_reg, 
-        COBSelRegister* c_to_t_sel_reg
+        COBSelRegister* c_to_t_sel_reg,
+        COBCoord coord
     ) :
         _from_dir{from_dir},
         _from_track_index{from_track_index},
@@ -19,7 +20,8 @@ namespace kiwi::hardware {
         _to_track_index{to_track_index},
         _sw_reg{sw_reg},
         _t_to_c_sel_reg{t_to_c_sel_reg},
-        _c_to_t_sel_reg{c_to_t_sel_reg}
+        _c_to_t_sel_reg{c_to_t_sel_reg},
+        _coord{coord}
     {}
 
     auto COBConnector::is_occupied() -> bool {

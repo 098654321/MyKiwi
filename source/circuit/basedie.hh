@@ -28,11 +28,13 @@ namespace kiwi::circuit {
         auto add_topdie_inst(TopDie* topdie, hardware::TOB* tob) -> TopDieInstance*;
         auto add_external_port(std::String name, const hardware::TrackCoord& coord) -> ExternalPort*;
         auto add_external_port(const hardware::TrackCoord& coord) -> ExternalPort*;
-        auto add_connection(int sync, Pin input, Pin output) -> Connection*;
+        auto add_connection(int mode, int sync, Pin input, Pin output) -> Connection*;
         auto add_pose_port(const std::Vector<hardware::TrackCoord>& ports) -> void;
         auto add_nege_port(const std::Vector<hardware::TrackCoord>& ports) -> void;
 
-        auto add_net(std::Box<Net>) -> void;
+        auto add_net(const std::Rc<Net>&, int) -> void;
+
+        auto reserve_connections(int mode, int sync, int size) -> void;
 
     public:
         auto remove_topdie_inst(std::StringView name) -> bool;
@@ -55,6 +57,9 @@ namespace kiwi::circuit {
         void connection_set_input(Connection* connection, Pin input);
         void connection_set_output(Connection* connection, Pin output);
         void connection_set_sync(Connection* connection, int sync);
+    
+    public:
+        auto merge_same_mode_nets() -> void;
 
     public:
         /*
@@ -78,7 +83,7 @@ namespace kiwi::circuit {
         auto external_ports() const -> const std::HashMap<std::StringView, std::Box<ExternalPort>>&
         { return this->_external_ports; }
 
-        auto connections() const -> const std::HashMap<int, std::Vector<std::Box<Connection>>>& 
+        auto connections() const -> const std::HashMap<int, std::HashMap<int, std::Vector<std::Box<Connection>>>>& 
         { return this->_connections; }
 
         auto pose_ports() const -> const std::Vector<hardware::TrackCoord>&
@@ -87,21 +92,49 @@ namespace kiwi::circuit {
         auto nege_ports() const -> const std::Vector<hardware::TrackCoord>&
         { return this-> _nege_ports; }
 
-        auto nets() -> std::Vector<std::Box<Net>>& 
+        auto nets() -> std::HashMap<int, std::Vector<std::Rc<Net>>>& 
         { return this->_nets; }
 
-        auto nets() const -> std::Span<const std::Box<Net>> 
+        auto nets(int m) -> std::Vector<std::Rc<Net>>& {
+            auto it = this->_nets.find(m);
+            if (it == this->_nets.end()) {
+                debug::fatal_fmt("Cannot find nets with mode {}", m);
+            }
+            else {
+                return it->second;
+            }
+        }
+
+        auto nets() const -> const std::HashMap<int, std::Vector<std::Rc<Net>>>& 
         { return this->_nets; }
+
+        auto nets(int m) const -> std::Span<const std::Rc<Net>>{
+            const auto it = this->_nets.find(m);
+            if (it == this->_nets.end()) {
+                debug::fatal_fmt("Cannot find nets with mode {}", m);
+            }
+            else {
+                return it->second;
+            }
+        }
+
+        auto nets_to_vector() -> std::Vector<std::Rc<Net>> {
+            std::Set<std::Rc<Net>> nets {};
+            for (auto& [m, ns]: this->_nets) {
+                nets.insert(ns.begin(), ns.end());
+            }
+            return std::Vector<std::Rc<Net>>(nets.begin(), nets.end());
+        }
 
     private:
         std::HashMap<std::StringView, std::Box<TopDie>> _topdies {};
         std::HashMap<std::StringView, std::Box<TopDieInstance>> _topdie_insts {};
         std::HashMap<std::StringView, std::Box<ExternalPort>> _external_ports {};
-        std::HashMap<int, std::Vector<std::Box<Connection>>> _connections {};
+        std::HashMap<int, std::HashMap<int, std::Vector<std::Box<Connection>>>> _connections {};
         std::Vector<hardware::TrackCoord> _pose_ports {};
         std::Vector<hardware::TrackCoord> _nege_ports {};
 
-        std::Vector<std::Box<Net>> _nets;
+        std::HashMap<int, std::Vector<std::Rc<Net>>> _nets {};
     };
 
 }

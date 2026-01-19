@@ -24,6 +24,10 @@ namespace kiwi::hardware {
             this->_state = state;
         }
 
+        auto reset() -> void {
+            this->set(COBSwState::DisConnected);
+        }
+
         auto is_occupied() const -> bool {
             return (this->get() == COBSwState::Connected || this->get() == COBSwState::Suspended);
         }
@@ -56,6 +60,10 @@ namespace kiwi::hardware {
 
         auto set(COBSignalDirection direction) -> void {
             this->_direction = direction;
+        }
+
+        auto reset() -> void {
+            this->set(COBSignalDirection::TrackToCOB);
         }
 
         auto set_cob_to_track() -> void {

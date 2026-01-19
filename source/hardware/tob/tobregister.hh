@@ -3,6 +3,11 @@
 #include <std/utility.hh>
 #include <std/integer.hh>
 #include <assert.h>
+#include <std/string.hh>
+#include <std/format.hh>
+#include <debug/debug.hh>
+
+
 
 namespace kiwi::hardware {
 
@@ -33,7 +38,7 @@ namespace kiwi::hardware {
         auto given_out_index() const -> std::Option<std::usize> {
             auto& [reg_state, reg_output] = this->_state;
             return reg_output;
-        }
+        }   
 
         auto give_out(std::usize output_index) -> void {
             auto& [reg_state, reg_output] = this->_state;
@@ -51,13 +56,29 @@ namespace kiwi::hardware {
         // Becarefull when you call `set` directly 
         auto set(std::usize index) -> void {
             auto& [reg_state, reg_output] = this->_state;
-            if (reg_state == TOBMuxRegState::Given_out) {
-                assert(reg_output.has_value() && reg_output.value() == index);
-            }
+            check_consistency(index);
 
             this->_index.emplace(index);
             reg_state = TOBMuxRegState::Given_out;
             reg_output.emplace(index);
+        }
+
+        auto check_consistency(std::usize index) -> void {
+            auto& [reg_state, reg_output] = this->_state;
+
+            if (reg_state == TOBMuxRegState::Given_out) {
+                if (!reg_output.has_value()) {
+                    std::String message("TOBMuxRegister::check_consistency() failed. reg is given out but has nullopt value");
+                    throw std::runtime_error(message);
+                }
+                else if(reg_output.has_value() && reg_output.value() != index) {
+                    std::String message(std::format("TOBMuxRegister::check_consistency() failed. reg is given out, but reg_value {} != output index {}", reg_output.value(), index));
+                    throw std::runtime_error(message);
+                }
+                else {
+                    // correct
+                }
+            }
         }
 
         auto reset() -> void {

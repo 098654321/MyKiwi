@@ -2,6 +2,7 @@
 
 #include "./cobdirection.hh"
 #include "./cobregister.hh"
+#include "./cobcoord.hh"
 
 #include <std/collection.hh>
 #include <std/integer.hh>
@@ -16,7 +17,8 @@ namespace kiwi::hardware {
             COBDirection to_dir,   std::usize to_track_index,
             COBSwRegister*  sw_reg, 
             COBSelRegister* t_to_c_sel_reg, 
-            COBSelRegister* c_to_t_sel_reg
+            COBSelRegister* c_to_t_sel_reg,
+            COBCoord coord
         );
 
         auto is_occupied() -> bool;
@@ -29,6 +31,7 @@ namespace kiwi::hardware {
         auto from_track_index() const -> std::usize { return this->_from_track_index; }
         auto to_dir() const -> COBDirection { return this->_to_dir; }
         auto to_track_index() const -> std::usize { return this->_to_track_index; }
+        auto coord() const -> COBCoord { return this->_coord; }
 
     private:
         COBDirection    _from_dir;
@@ -40,6 +43,8 @@ namespace kiwi::hardware {
         COBSwRegister*  _sw_reg;
         COBSelRegister* _t_to_c_sel_reg;
         COBSelRegister* _c_to_t_sel_reg;
+
+        COBCoord _coord;
     };
 
 }

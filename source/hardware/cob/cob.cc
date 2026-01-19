@@ -17,6 +17,7 @@ namespace kiwi::hardware {
         _coord{coord},
         _cobunits{}
     {
+        this->_cobunits.reserve(UNIT_SIZE);
         for (auto i : std::views::iota(0, int(UNIT_SIZE))) {
             this->_cobunits.emplace_back(std::make_unique<COBUnit>());
         }
@@ -27,7 +28,7 @@ namespace kiwi::hardware {
     {
     }
 
-    auto COB::adjacent_connectors(COBDirection from_dir, std::usize from_track_index) -> std::Vector<COBConnector> {
+    auto COB::adjacent_connectors(COBDirection from_dir, std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
         COB::assert_index(from_track_index);
         
         auto from_cob_index = COB::track_index_to_cob_index(from_track_index);
@@ -51,27 +52,28 @@ namespace kiwi::hardware {
                 to_track_index,
                 unit_ctr.sw_reg,
                 unit_ctr.t_to_c_sel_reg,
-                unit_ctr.c_to_t_sel_reg
+                unit_ctr.c_to_t_sel_reg,
+                coord
             );
         }
 
         return connectors;
     }
 
-    auto COB::adjacent_connectors_from_left(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Left, from_track_index);
+    auto COB::adjacent_connectors_from_left(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Left, from_track_index, coord);
     }
 
-    auto COB::adjacent_connectors_from_right(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Right, from_track_index);
+    auto COB::adjacent_connectors_from_right(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Right, from_track_index, coord);
     }
 
-    auto COB::adjacent_connectors_from_up(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Up, from_track_index);
+    auto COB::adjacent_connectors_from_up(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Up, from_track_index, coord);
     }
 
-    auto COB::adjacent_connectors_from_down(std::usize from_track_index) -> std::Vector<COBConnector> {
-        return this->adjacent_connectors(COBDirection::Down, from_track_index);
+    auto COB::adjacent_connectors_from_down(std::usize from_track_index, COBCoord coord) -> std::Vector<COBConnector> {
+        return this->adjacent_connectors(COBDirection::Down, from_track_index, coord);
     }
 
     auto COB::to_dir_track_coord(COBDirection dir, std::usize index) -> TrackCoord {
@@ -187,6 +189,20 @@ namespace kiwi::hardware {
     auto COB::get_sel_resgiter_value(COBDirection dir, std::usize cob_index) const -> COBSignalDirection {
         auto cob_selregister = sel_register(dir, cob_index);
         return cob_selregister->get();
+    }
+
+    auto COB::get_cob_connector(COBDirection form_dir, std::size_t from_track_index, COBDirection to_dir, std::size_t to_track_index, COBCoord coord) -> COBConnector {
+        return COBConnector(
+            form_dir, from_track_index, to_dir, to_track_index, 
+            sw_register(form_dir, from_track_index, to_dir), sel_register(form_dir, from_track_index), sel_register(to_dir, to_track_index), 
+            coord
+        );
+    }
+
+    auto COB::reset_regs() -> void {
+        for (auto& cob_unit: this->_cobunits) {
+            cob_unit->reset_regs();
+        }
     }
 
 }

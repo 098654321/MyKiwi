@@ -21,3 +21,5 @@ output
 schedule*
 
 /test/EDA_case
+
+.VSCodeCounter/*

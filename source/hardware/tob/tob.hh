@@ -46,14 +46,20 @@ namespace kiwi::hardware {
         auto available_connectors_bump_to_track(std::usize bump_index) -> std::Vector<TOBConnector>;
         auto available_connectors_track_to_bump(std::usize bump_index) -> std::Vector<TOBConnector>;
 
-        auto available_connectors(std::usize bump_index, TOBSignalDirection dir) -> std::Vector<TOBConnector>;
+        auto available_connectors(std::usize bump_index, TOBSignalDirection dir, bool shared = false) -> std::Vector<TOBConnector>;
+        auto bump_track_connectors_chain(std::usize bump_index, std::usize track_index, hardware::TOBBumpDirection direc) -> TOBConnector;
+        auto reset_regs() -> void;
 
     public:
         auto bump_index_map_track_index(std::usize bump_index) const -> std::Option<std::usize>;
-
         auto bump_index_map_hori_index(std::usize bump_index) const -> std::Option<std::usize>;
         auto hori_index_map_vert_index(std::usize hori_index) const -> std::Option<std::usize>;
         auto vert_index_map_track_index(std::usize vert_index) const -> std::Option<std::usize>;
+        auto reset_bump_to_hori_mux() -> void;
+        auto reset_hori_to_vert_mux() -> void;
+        auto reset_veri_to_track_mux() -> void;
+        auto reset_track_dir_registers() -> void;
+        auto reset_bump_dir_registers() -> void;
 
     public:
         auto bump_to_hori_register_nth(std::usize mux_index, std::usize mux_inner_index) -> TOBMuxRegister*;
@@ -69,9 +75,14 @@ namespace kiwi::hardware {
         auto bump_to_hori_register(std::usize bump_index) const -> const TOBMuxRegister*;
         auto hori_to_vert_register(std::usize hori_index) const -> const TOBMuxRegister*;
         auto vert_to_track_register(std::usize vert_index) const -> const TOBMuxRegister*;
+        auto bump_dir_register(std::usize bump_index) -> TOBBumpDirRegister*;
+        auto track_dir_register(std::usize track_index) -> TOBTrackDirRegister*;
         auto bump_to_hori_muxs() const -> const std::Vector<std::Box<TOBMux>>& {return this->_bump_to_hori_muxs;}
+        auto bump_to_hori_muxs(std::size_t n) const -> const std::Box<TOBMux>&;
         auto hori_to_vert_muxs() const -> const std::Vector<std::Box<TOBMux>>& {return this->_hori_to_vert_muxs;}
+        auto hori_to_vert_muxs(std::size_t n) const -> const std::Box<TOBMux>&;
         auto vert_to_track_muxs() const -> const std::Vector<std::Box<TOBMux>>& {return this->_vert_to_track_muxs;}
+        auto vert_to_track_muxs(std::size_t n) const -> const std::Box<TOBMux>&;
 
     public:
         auto randomly_map_remain_indexes() -> void;
@@ -129,7 +140,7 @@ namespace kiwi::hardware {
         std::HashMap<std::usize, std::Box<Bump>> _bumps {};
         std::Array<std::usize, 16> _cobunit_resources;
 
-        std::Vector<std::Box<TOBMux>> _bump_to_hori_muxs {};
+        std::Vector<std::Box<TOBMux>> _bump_to_hori_muxs {};        // index = bump_group
         std::Vector<std::Box<TOBMux>> _hori_to_vert_muxs {};
         std::Vector<std::Box<TOBMux>> _vert_to_track_muxs {};
 

@@ -163,17 +163,20 @@ namespace kiwi::widget {
     }
 
     void LayoutScene::addNetItems() {
-        for (auto& [_, connections] : this->_basedie->connections()) {
-            for (const auto& connection : connections) {
-                auto beginPin = this->circuitPinToPinItem(connection->input_pin());
-                auto endPin = this->circuitPinToPinItem(connection->output_pin());
-                
-                assert(beginPin != nullptr);
-                assert(endPin != nullptr);
-
-                this->addNet(beginPin, endPin);
+        for (auto& [mode, inner_connection]: this->_basedie->connections()) {
+            for (auto& [_, connections] : inner_connection) {
+                for (const auto& connection : connections) {
+                    auto beginPin = this->circuitPinToPinItem(connection->input_pin());
+                    auto endPin = this->circuitPinToPinItem(connection->output_pin());
+                    
+                    assert(beginPin != nullptr);
+                    assert(endPin != nullptr);
+    
+                    this->addNet(beginPin, endPin);
+                }
             }
         }
+        
     }
 
     auto LayoutScene::addNet(layout::PinItem* beginPin, layout::PinItem* endPin) -> layout::NetItem* {

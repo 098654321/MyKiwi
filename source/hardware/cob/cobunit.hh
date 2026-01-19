@@ -9,6 +9,15 @@
 
 namespace kiwi::hardware {
 
+    enum class COBSWDirection {
+        RU, 
+        LU, 
+        RD, 
+        LD, 
+        H, 
+        V
+    };
+
     struct COBUnitConnector {
         COBDirection    from_dir;
         std::usize      from_index;
@@ -42,6 +51,7 @@ namespace kiwi::hardware {
         auto adjacent_connectors_from_down(std::usize index) -> std::Vector<COBUnitConnector>;
 
         auto get_connector(COBDirection from_dir, std::usize from_index, COBDirection to_dir) -> COBUnitConnector;
+        auto reset_regs() -> void;
 
     public:
         auto sw_register(COBDirection from_dir, std::usize from_index, COBDirection to_dir) -> COBSwRegister*;

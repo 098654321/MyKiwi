@@ -103,11 +103,14 @@ namespace kiwi::widget {
     }
 
     void SchematicScene::addNetItems() {
-        for (auto& [sync, connections] : this->_basedie->connections()) {
-            for (const auto& connection : connections) {
-                this->addNet(connection.get());
+        for (auto& [mode, inner_connection]: this->_basedie->connections()) {
+            for (auto& [sync, connections] : inner_connection) {
+                for (const auto& connection : connections) {
+                    this->addNet(connection.get());
+                }
             }
         }
+        
     }
 
     void SchematicScene::mouseMoveEvent(QGraphicsSceneMouseEvent* event) {
@@ -336,6 +339,7 @@ namespace kiwi::widget {
             auto endPoint = this->addNetPoint(pin);
             
             auto connection = this->_basedie->add_connection(
+                0,
                 -1, 
                 this->_floatingNet->beginPoint()->connectedPin()->toCircuitPin(),
                 endPoint->connectedPin()->toCircuitPin()

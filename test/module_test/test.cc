@@ -1,9 +1,11 @@
 #include <exception>
 #include <std/string.hh>
 #include <std/collection.hh>
-#include <debug/console.hh>
+#include <global/debug/debug.hh>
+#include <global/debug/console.hh>
 #include <cassert>
 #include <sys/types.h>
+
 
 using TestFunction = void(*)(void);
 
@@ -29,6 +31,8 @@ try {
 
     auto functions = std::HashMap<std::StringView, TestFunction>{};
     auto target = std::StringView{argv[1]};
+    kiwi::debug::set_debug_level(kiwi::debug::DebugLevel::Info);
+    kiwi::debug::initial_log("./debug.log");
 
     REGISTER_TEST(cob)
     REGISTER_TEST(tob)
