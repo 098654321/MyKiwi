@@ -186,4 +186,8 @@ namespace kiwi::circuit {
         throw std::runtime_error("BumpToTrackNet::path_in_order(): " + std::string(e.what()));
     }
     }
+
+    auto BumpToTrackNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        return this->_begin_bump->tob()->coord() == tob->coord();
+    }
 }

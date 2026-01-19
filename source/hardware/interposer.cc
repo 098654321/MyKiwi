@@ -9,6 +9,7 @@
 #include <std/collection.hh>
 #include <std/utility.hh>
 #include <std/integer.hh>
+#include <utility/random.hh>
 #include "hardware/cob/cobcoord.hh"
 #include "hardware/coord.hh"
 #include "hardware/track/trackcoord.hh"

@@ -542,6 +542,25 @@ namespace kiwi::circuit
         }
     }
 
+    auto SyncNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        for (auto& net: _btbnets) {
+            if (net->has_tob_in_ports(tob)) {
+                return true;
+            }
+        }
+        for (auto& net: _bttnets) {
+            if (net->has_tob_in_ports(tob)) {
+                return true;
+            }
+        }
+        for (auto& net: _ttbnets) {
+            if (net->has_tob_in_ports(tob)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 }
 
 

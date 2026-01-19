@@ -266,12 +266,12 @@ static void test_sa_place_strategy() {
     // test_sa_place_strategy_components();
 
     // case1-case6 test
-    test_placement_from_config("../test/config/case1");
-    test_placement_from_config("../test/config/case2");
-    test_placement_from_config("../test/config/case3");
-    test_placement_from_config("../test/config/case4");
-    test_placement_from_config("../test/config/case5");
-    test_placement_from_config("../test/config/case6");
+    test_placement_from_config("../test/config/case1", 0, false);
+    test_placement_from_config("../test/config/case2", 0, false);
+    test_placement_from_config("../test/config/case3", 0, false);
+    test_placement_from_config("../test/config/case4", 0, false);
+    test_placement_from_config("../test/config/case5", 0, false);
+    test_placement_from_config("../test/config/case6", 0, false);
     // case 10 test
     // test_placement_from_config("../test/config/case10");
     // test_all_res_files();

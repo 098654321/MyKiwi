@@ -38,6 +38,7 @@ namespace kiwi::circuit {
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> override;
         virtual auto name() const -> const std::String& override;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
+        virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool override;
     
     public:
         virtual auto operator == (const Net& net) const -> bool override;

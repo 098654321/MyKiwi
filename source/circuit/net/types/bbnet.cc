@@ -194,4 +194,8 @@ namespace kiwi::circuit {
     }
     }
 
+    auto BumpToBumpNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        return (this->_begin_bump->tob()->coord() == tob->coord() || this->_end_bump->tob()->coord() == tob->coord());
+    }
+
 }

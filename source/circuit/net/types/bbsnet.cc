@@ -202,4 +202,19 @@ namespace kiwi::circuit {
     auto BumpToBumpsNet::path_in_order() const -> std::Vector<PathInOrder> {
         return std::Vector<PathInOrder>{};
     }
+
+    auto BumpToBumpsNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        if (this->_begin_bump->tob()->coord() == tob->coord()) {
+            return true;
+        }
+        else {
+            for (auto& b: this->_end_bumps) {
+                if (b->tob()->coord() == tob->coord()) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
 }

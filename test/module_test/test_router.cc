@@ -26,15 +26,16 @@ static void test_route_bump_to_bump_net() {
 
     auto begin_bump = i.get_bump(0, 0, 45).value();
     auto end_bump = i.get_bump(0, 1, 4).value();
-    auto net1 = BumpToBumpNet{begin_bump, end_bump};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    auto net1 = BumpToBumpNet{begin_bump, end_bump, mode_set1, name1};
 
-    auto total_length = router.route_bump_to_bump_net(&i, &net1);
+    router.route_bump_to_bump_net(&i, &net1);
 
     Track* track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path1 = track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path1) {
         debug::info_fmt("{}", t->coord());
     }
@@ -43,15 +44,16 @@ static void test_route_bump_to_bump_net() {
 
     begin_bump = i.get_bump(3, 2, 125).value();
     end_bump = i.get_bump(2, 1, 39).value();
-    auto net2 = BumpToBumpNet{begin_bump, end_bump};
+    const auto mode_set2 = std::HashSet<int>{0};    
+    auto name2 = std::string("test_net2");
+    auto net2 = BumpToBumpNet{begin_bump, end_bump, mode_set2, name2};
 
-    total_length = router.route_bump_to_bump_net(&i, &net2);
+    router.route_bump_to_bump_net(&i, &net2);
 
     track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path2 = track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path2) {
         debug::info_fmt("{}", t->coord());
     }
@@ -60,16 +62,17 @@ static void test_route_bump_to_bump_net() {
 
     begin_bump = i.get_bump(3, 2, 34).value();
     end_bump = i.get_bump(2, 3, 78).value();
-    auto net3 = BumpToBumpNet{begin_bump, end_bump};
+    const auto mode_set3 = std::HashSet<int>{0};
+    auto name3 = std::string("test_net3");
+    auto net3 = BumpToBumpNet{begin_bump, end_bump, mode_set3, name3};
 
-    total_length = router.route_bump_to_bump_net(&i, &net3);
+    router.route_bump_to_bump_net(&i, &net3);
 
     track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path3 = track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
-    for (auto t : path2) {
+    for (auto t : path3) {
         debug::info_fmt("{}", t->coord());
     }
 
@@ -83,14 +86,15 @@ static void test_route_track_to_bump_net() {
 
     auto begin_track = i.get_track(0, 0, TrackDirection::Vertical, 45).value();
     auto end_bump = i.get_bump(0, 1, 4).value();
-    auto net1 = TrackToBumpNet{begin_track, end_bump};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    auto net1 = TrackToBumpNet{begin_track, end_bump, mode_set1, name1};
 
-    auto total_length = router.route_track_to_bump_net(&i, &net1);
+    router.route_track_to_bump_net(&i, &net1);
 
     ASSERT(end_bump->signal_dir() == TOBSignalDirection::TrackToBump);
 
     auto path1 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path1) {
         debug::info_fmt("{}", t->coord());
     }
@@ -99,14 +103,15 @@ static void test_route_track_to_bump_net() {
 
     begin_track = i.get_track(4, 9, TrackDirection::Vertical, 45).value();
     end_bump = i.get_bump(2, 3, 117).value();
-    auto net2 = TrackToBumpNet{begin_track, end_bump};
+    const auto mode_set2 = std::HashSet<int>{0};
+    auto name2 = std::string("test_net2");
+    auto net2 = TrackToBumpNet{begin_track, end_bump, mode_set2, name2};
 
-    total_length = router.route_track_to_bump_net(&i, &net2);
+    router.route_track_to_bump_net(&i, &net2);
 
     ASSERT(end_bump->signal_dir() == TOBSignalDirection::TrackToBump);
 
     auto path2 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path2) {
         debug::info_fmt("{}", t->coord());
     }
@@ -115,14 +120,15 @@ static void test_route_track_to_bump_net() {
 
     begin_track = i.get_track(4, 9, TrackDirection::Vertical, 45).value();
     end_bump = i.get_bump(1, 1, 25).value();
-    auto net3 = TrackToBumpNet{begin_track, end_bump};
+    const auto mode_set3 = std::HashSet<int>{0};
+    auto name3 = std::string("test_net3");
+    auto net3 = TrackToBumpNet{begin_track, end_bump, mode_set3, name3};
 
-    total_length = router.route_track_to_bump_net(&i, &net3);
+    router.route_track_to_bump_net(&i, &net3);
 
     ASSERT(end_bump->signal_dir() == TOBSignalDirection::TrackToBump);
 
     auto path3 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path3) {
         debug::info_fmt("{}", t->coord());
     }
@@ -137,15 +143,17 @@ static void test_route_bump_to_track_net() {
 
     auto begin_bump = i.get_bump(2, 0, 0).value();
     auto end_track = i.get_track(1, 3, TrackDirection::Horizontal, 0).value();
-    auto net1 = BumpToTrackNet{begin_bump, end_track};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    auto net1 = BumpToTrackNet{begin_bump, end_track, mode_set1, name1};
 
-    auto total_length = router.route_bump_to_track_net(&i, &net1);
+    router.route_bump_to_track_net(&i, &net1);
 
     auto begin_track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path1 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
+
     for (auto t : path1) {
         debug::info_fmt("{}", t->coord());
     }
@@ -154,15 +162,16 @@ static void test_route_bump_to_track_net() {
 
     begin_bump = i.get_bump(3, 3, 42).value();
     end_track = i.get_track(1, 2, TrackDirection::Vertical, 117).value();
-    auto net2 = BumpToTrackNet{begin_bump, end_track};
+    const auto mode_set2 = std::HashSet<int>{0};
+    auto name2 = std::string("test_net2");
+    auto net2 = BumpToTrackNet{begin_bump, end_track, mode_set2, name2};
 
-    total_length = router.route_bump_to_track_net(&i, &net2);
+    router.route_bump_to_track_net(&i, &net2);
 
     begin_track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path2 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path2) {
         debug::info_fmt("{}", t->coord());
     }
@@ -171,15 +180,16 @@ static void test_route_bump_to_track_net() {
 
     begin_bump = i.get_bump(3, 3, 7).value();
     end_track = i.get_track(5, 11, TrackDirection::Horizontal, 39).value();
-    auto net3 = BumpToTrackNet{begin_bump, end_track};
+    const auto mode_set3 = std::HashSet<int>{0};
+    auto name3 = std::string("test_net3");
+    auto net3 = BumpToTrackNet{begin_bump, end_track, mode_set3, name3};
 
-    total_length = router.route_bump_to_track_net(&i, &net3);
+    router.route_bump_to_track_net(&i, &net3);
 
     begin_track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path3 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path3) {
         debug::info_fmt("{}", t->coord());
     }
@@ -200,15 +210,17 @@ static void test_route_bump_to_bumps_net() {
     };
     
     i.get_track(0, 0, TrackDirection::Vertical, 45);
-    auto net1 = BumpToBumpsNet{begin_bump, std::move(end_bumps)};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    auto net1 = BumpToBumpsNet{begin_bump, std::move(end_bumps), mode_set1, name1};
 
-    auto total_length = router.route_bump_to_bumps_net(&i, &net1);
+    router.route_bump_to_bumps_net(&i, &net1);
 
     auto begin_track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path1 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
+
     for (auto t : path1) {
         debug::info_fmt("{}", t->coord());
     }
@@ -229,12 +241,14 @@ static void test_route_track_to_bumps_net() {
     };
     
     i.get_track(0, 0, TrackDirection::Vertical, 45);
-    auto net1 = TrackToBumpsNet{begin_track, std::move(end_bumps)};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    auto net1 = TrackToBumpsNet{begin_track, std::move(end_bumps), mode_set1, name1};
 
-    auto total_length = router.route_track_to_bumps_net(&i, &net1);
+    router.route_track_to_bumps_net(&i, &net1);
 
     auto path1 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
+
     for (auto t : path1) {
         debug::info_fmt("{}", t->coord());
     }
@@ -255,15 +269,16 @@ static void test_route_bump_to_tracks_net() {
     };
     
     // i.get_track(0, 0, TrackDirection::Vertical, 45);
-    auto net1 = BumpToTracksNet{begin_bump, std::move(end_tracks)};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    auto net1 = BumpToTracksNet{begin_bump, std::move(end_tracks), mode_set1, name1};
 
-    auto total_length = router.route_bump_to_tracks_net(&i, &net1);
-
+    router.route_bump_to_tracks_net(&i, &net1);
+    
     auto begin_track = begin_bump->connected_track();
     ASSERT(begin_bump->signal_dir() == TOBSignalDirection::BumpToTrack);
 
     auto path1 = begin_track->track_path();
-    debug::info_fmt("total_length: {}", total_length);
     for (auto t : path1) {
         debug::info_fmt("{}", t->coord());
     }
@@ -291,19 +306,21 @@ static void test_route_bump_to_bump_sync_net(){
     auto begin_track4 = interposer.get_track(1, 2, hardware::TrackDirection::Horizontal, 0).value();
     auto end_bump4 = interposer.get_bump(3, 3, 0).value();
 
-    std::Vector<std::Box<BumpToBumpNet>> btbnets {};
-    std::Vector<std::Box<BumpToTrackNet>> bttnets {};
-    std::Vector<std::Box<TrackToBumpNet>> ttbnets {};
+    const auto mode_set1 = std::HashSet<int>{0};
+    auto name1 = std::string("test_net1");
+    std::Vector<std::shared_ptr<BumpToBumpNet>> btbnets {};
+    std::Vector<std::shared_ptr<BumpToTrackNet>> bttnets {};
+    std::Vector<std::shared_ptr<TrackToBumpNet>> ttbnets {};
 
-    btbnets.emplace_back(std::move(std::make_unique<BumpToBumpNet>(begin_bump1, end_bump1)));
-    btbnets.emplace_back(std::move(std::make_unique<BumpToBumpNet>(begin_bump2, end_bump2)));
-    bttnets.emplace_back(std::move(std::make_unique<BumpToTrackNet>(begin_bump3, end_track3)));
-    ttbnets.emplace_back(std::move(std::make_unique<TrackToBumpNet>(begin_track4, end_bump4)));
+    btbnets.emplace_back(std::move(std::make_shared<BumpToBumpNet>(begin_bump1, end_bump1, mode_set1, name1)));
+    btbnets.emplace_back(std::move(std::make_shared<BumpToBumpNet>(begin_bump2, end_bump2, mode_set1, name1)));
+    bttnets.emplace_back(std::move(std::make_shared<BumpToTrackNet>(begin_bump3, end_track3, mode_set1, name1)));
+    ttbnets.emplace_back(std::move(std::make_shared<TrackToBumpNet>(begin_track4, end_bump4, mode_set1, name1)));
 
-    SyncNet snet {std::move(btbnets), std::move(bttnets), std::move(ttbnets)};
-    auto total_length = router.route_sync_net(&interposer, &snet);
 
-    debug::debug_fmt("routing DONE with total length = {}", total_length);
+    SyncNet snet {std::move(btbnets), std::move(bttnets), std::move(ttbnets), mode_set1, name1};
+    router.route_sync_net(&interposer, &snet);
+    
     debug::debug("show net1 path:(length:)");
     auto begin_track1 = begin_bump1->connected_track();
     debug::debug_fmt("length: {}", begin_track1->track_path().size() + 2);

@@ -198,5 +198,7 @@ namespace kiwi::circuit {
         return std::Vector<PathInOrder>{};
     }
 
-    
+    auto BumpToTracksNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
+        return this->_begin_bump->tob()->coord() == tob->coord();
+    }
 }

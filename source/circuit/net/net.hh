@@ -48,6 +48,7 @@ namespace kiwi::circuit {
         virtual auto update_priority(float bias) -> void = 0;
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> = 0;
+        virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool = 0;
 
         // update accessable_cobunit for each bump in this net
         virtual auto check_accessable_cobunit() -> void = 0;
