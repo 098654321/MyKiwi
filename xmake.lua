@@ -1,6 +1,5 @@
 add_rules("mode.debug", "mode.release")
 set_languages("c99", "c++20")
-add_requires("catch2")
 -- add_requires("xlnt", {configs = {shared = false}})
 
 rule("qt.opengl")
@@ -105,8 +104,8 @@ target("regression_test")
     set_kind("binary")
     set_targetdir("./output")
     set_default(true)
-    add_packages("catch2")
     add_includedirs("source", "source/global", "test/regression_test")
+    add_includedirs("$CONDA_PREFIX/include")
     add_files("test/regression_test/**.cc")
     add_files(
         "source/algo/**.cc",
