@@ -122,9 +122,8 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
     float last_cost_nonreuse{0.0};
     float convergence_bound = 50;
     std::usize cycle{0};
-    // std::usize min_cycle{50};
+    std::usize min_cycle{1};
     
-    // while(cycle < min_cycle) {
     while(true) {
         debug::info_fmt("cycle {} start", cycle);
 
@@ -168,11 +167,19 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
         engine.show_net_and_path();
         engine.show_data_in_cycle(cycle, nets);
         
-        // check convergence
-        if (std::fabs(cost_nonreuse - last_cost_nonreuse) < convergence_bound) {
-            debug::info_fmt("convergence reached");
+        // condition of convergence 1: cost_nonreuse not change
+        // if (std::fabs(cost_nonreuse - last_cost_nonreuse) < convergence_bound) {
+        //     debug::info_fmt("convergence reached");
+        //     break;
+        // }
+
+        // condition of convergence 2: maximum cycle
+        if (cycle >= min_cycle) {
+            debug::info_fmt("max cycle reached");
             break;
         }
+
+
         last_cost_nonreuse = cost_nonreuse;
         cycle++;
     }

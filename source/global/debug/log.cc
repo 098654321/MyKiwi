@@ -4,6 +4,7 @@
 namespace kiwi::log {
 
     static auto log_file = std::OutFile{};
+    static bool is_first_initialization = true;
 
     static auto log(std::StringView level, std::StringView message) -> void;
     static auto log_date_time() -> void;
@@ -11,7 +12,16 @@ namespace kiwi::log {
     static auto log_enable() -> bool;
 
     auto initial(const std::FilePath& log_path) -> void {
-        log_file.open(log_path);
+        if (log_file.is_open()) {
+            log_file.close();
+        }
+
+        if (is_first_initialization) {
+            log_file.open(log_path);
+            is_first_initialization = false;
+        } else {
+            log_file.open(log_path, std::ios::app);
+        }
     }
 
     auto debug(std::StringView message) -> void {
