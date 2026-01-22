@@ -2,15 +2,16 @@
 
 #include "std/string.hh"
 #include "std/utility.hh"
+#include "std/file.hh"
 #include <vector>
 
 
-namespace hardware {
+namespace kiwi::hardware {
     class Interposer;
 }
 
 
-namespace circuit {
+namespace kiwi::circuit {
     class BaseDie;
     class TopDieInstance;
 }
@@ -23,9 +24,9 @@ namespace kiwi {
         int mode, std::optional<int> compare, bool try_all_modes, bool placement
     ) -> int;
 
-    auto place(hardware::Interposer*, circuit::BaseDie*, std::vector<circuit::TopDieInstance*>&) -> void;
+    auto place(kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*, std::vector<kiwi::circuit::TopDieInstance*>&) -> void;
     auto route(
-        hardware::Interposer*, circuit::BaseDie*,
+        kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*,
         std::StringView,  const std::FilePath&,
         int mode, std::optional<int> compare, bool try_all_modes
     ) -> void;

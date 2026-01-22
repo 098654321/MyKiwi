@@ -1,1 +1,1 @@
-modified case 3, to specifically test the ability to reduce the number of different registers between different modes
+mode 2 in case 20

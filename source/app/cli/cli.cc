@@ -55,7 +55,7 @@ namespace kiwi {
     }
     }
 
-    auto place(hardware::Interposer* interposer, circuit::BaseDie* basedie, std::vector<circuit::TopDieInstance*>& topdies) -> void {
+    auto place(kiwi::hardware::Interposer* interposer, kiwi::circuit::BaseDie* basedie, std::vector<kiwi::circuit::TopDieInstance*>& topdies) -> void {
         debug::debug("Start layout ...");
         auto strategy = algo::SAPlaceStrategy();
         place(interposer, topdies, basedie, strategy);
@@ -75,7 +75,7 @@ namespace kiwi {
     }
 
     auto route(
-        hardware::Interposer* interposer, circuit::BaseDie* basedie,
+        kiwi::hardware::Interposer* interposer, kiwi::circuit::BaseDie* basedie,
         std::StringView config_path,  const std::FilePath& output_file,
         int mode, std::optional<int> compare, bool try_all_modes
     ) -> void {
