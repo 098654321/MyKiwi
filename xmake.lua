@@ -117,6 +117,21 @@ target("regression_test")
         "source/serde/**.cc"
     )
 
+target("transform_format")
+    set_kind("binary")
+    set_targetdir("./output")
+    set_default(false)
+    add_includedirs("source", "source/global", "test/transform_format")
+    add_files("test/transform_format/**.cc")
+    add_files(
+       "source/algo/**.cc",
+        "source/circuit/**.cc",
+        "source/global/**.cc",
+        "source/hardware/**.cc",
+        "source/parse/**.cc",
+        "source/serde/**.cc"
+    )
+
 -- xmake project -k compile_commands
 
 --
