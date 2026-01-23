@@ -31,7 +31,6 @@
 namespace kiwi::hardware {
     class Interposer;
     class TOB;
-    class COB;
     class Track;
 };
 

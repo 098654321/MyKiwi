@@ -13,10 +13,6 @@
 
 
 
-namespace kiwi::hardware {
-    class TOB;
-    class Interposer;
-}
 
 namespace kiwi::algo {
     class RouteStrategy;

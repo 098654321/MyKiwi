@@ -11,7 +11,6 @@
 namespace kiwi::hardware {
     class Track;
     class Bump;
-    class COB;
 }
 
 namespace kiwi::circuit {

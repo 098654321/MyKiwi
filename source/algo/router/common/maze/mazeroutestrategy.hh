@@ -14,12 +14,6 @@
 #include <std/memory.hh>
 
 
-namespace kiwi::hardware{
-    class Bump;
-    class Track;
-    class COB;
-    class COBConnector;
-}
 
 namespace kiwi::circuit {
     struct PathPackage;

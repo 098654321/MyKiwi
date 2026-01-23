@@ -9,8 +9,6 @@
 namespace kiwi::hardware {
     class Track;
     class Bump;
-    class COB;
-    class COBUnit;
 }
 
 namespace kiwi::circuit {

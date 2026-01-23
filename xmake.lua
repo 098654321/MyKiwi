@@ -1,7 +1,10 @@
 add_rules("mode.debug", "mode.release")
 set_languages("c99", "c++23")
-add_cxflags("-std=c++2b")
-add_cxxflags("-std=c++2b")
+
+if is_plat("linux") then 
+    add_cxflags("-std=c++2b")
+    add_cxxflags("-std=c++2b")
+end
 
 if is_plat("windows") then
     add_requires("catch2")

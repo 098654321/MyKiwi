@@ -12,11 +12,6 @@
 #include <std/memory.hh>
 
 
-namespace kiwi::hardware
-{
-    class TOB;
-    class Interposer;
-}
 
 namespace kiwi::algo
 {
