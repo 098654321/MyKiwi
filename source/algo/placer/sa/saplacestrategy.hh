@@ -7,15 +7,6 @@
 #include <debug/debug.hh>
 // #include <QColor>
 
-namespace kiwi::circuit {
-    class TopDieInstance;
-    class Net;
-    class BaseDie;
-}
-
-namespace kiwi::hardware {
-    class TOB;
-}
 
 namespace kiwi::algo {
     class RouteStrategy;

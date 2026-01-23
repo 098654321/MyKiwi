@@ -14,14 +14,7 @@
 #include <optional>
 
 
-namespace kiwi::hardware {
 
-    class COBConnector;
-    class TOBConnector;
-    class Track;
-    class Bump;
-
-}
 
 
 namespace kiwi::circuit {
@@ -31,10 +24,6 @@ namespace kiwi::circuit {
 //! if connected, set state as "connected" and "given out". 
 //! if removed from package, set state as "disconnected" and "stay inside"
 
-class hardware::TOB;
-class hardware::COB;
-class hardware::COBConnector;
-class hardware::TOBConnector;
 struct COBConnectorInfo;
 struct TOBConnectorInfo;
 struct HistoryPathPackage;

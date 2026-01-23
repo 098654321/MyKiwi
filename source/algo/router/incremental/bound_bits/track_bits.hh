@@ -37,7 +37,7 @@ struct TrackGroupCoord {
 namespace std {
 
     template <>
-    struct std::hash<kiwi::algo::TrackGroupCoord> {
+    struct hash<kiwi::algo::TrackGroupCoord> {
         std::size_t operator() (const kiwi::algo::TrackGroupCoord& coord) const noexcept;
     };
     

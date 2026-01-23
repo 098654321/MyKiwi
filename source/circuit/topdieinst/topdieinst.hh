@@ -7,9 +7,6 @@
 #include <std/collection.hh>
 #include <std/string.hh>
 
-namespace kiwi::hardware {
-    class TOB;
-}
 
 namespace kiwi::circuit {
     
