@@ -117,6 +117,9 @@ target("regression_test")
         add_packages("catch2")
     elseif is_plat("linux") then
         add_includedirs("$(env CONDA_PREFIX)/include")
+        add_linkdirs("$(env CONDA_PREFIX)/lib")
+        add_links("Catch2", "Catch2Main")
+        add_rpathdirs("$(env CONDA_PREFIX)/lib")
     end
     add_includedirs("source", "source/global", "test/regression_test")
     -- add_includedirs("$CONDA_PREFIX/include")
