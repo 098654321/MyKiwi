@@ -219,7 +219,7 @@ namespace kiwi::parse
         try{
             std::String binary {bits.to_string()};      // automatically reverse the bits in "to_string()"
             std::stringstream hexStream;
-            for (size_t i = 0; i < binary.size(); i += 4) {
+            for (std::size_t i = 0; i < binary.size(); i += 4) {
                 std::string byte = binary.substr(i, 4);
                 int value = std::stoi(byte, nullptr, 2); // Convert binary to decimal
                 hexStream << std::hex << std::setw(1) << std::setfill('0') << value; // Convert decimal to hex

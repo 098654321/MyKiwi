@@ -135,8 +135,8 @@ auto HK::randomly_pick(
     }
 
     static std::mt19937 rng(static_cast<unsigned>(std::time(nullptr)));  
-    std::uniform_int_distribution<size_t> dist(0, map.size() - 1);
-    size_t randomIndex = dist(rng);
+    std::uniform_int_distribution<std::size_t> dist(0, map.size() - 1);
+    std::size_t randomIndex = dist(rng);
     auto it = map.begin();
     std::advance(it, randomIndex);
     auto result = *it;

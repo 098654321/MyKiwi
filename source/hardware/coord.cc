@@ -22,7 +22,7 @@ namespace kiwi::hardware {
 
 namespace std {
 
-    size_t hash<kiwi::hardware::Coord>::operator() (const kiwi::hardware::Coord& c) const noexcept {
+    std::size_t hash<kiwi::hardware::Coord>::operator() (const kiwi::hardware::Coord& c) const noexcept {
         auto h = hash<i64>{};
         return h(c.col) ^ h(c.row);
     }

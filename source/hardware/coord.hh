@@ -27,5 +27,5 @@ FORMAT_STRUCT(kiwi::hardware::Coord, row, col)
 
 template<>
 struct std::hash<kiwi::hardware::Coord> {
-    size_t operator() (const kiwi::hardware::Coord& c) const noexcept;
+    std::size_t operator() (const kiwi::hardware::Coord& c) const noexcept;
 };

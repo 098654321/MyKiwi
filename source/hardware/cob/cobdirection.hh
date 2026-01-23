@@ -1,5 +1,7 @@
 #pragma once 
 
+#include <std/integer.hh>
+
 namespace kiwi::hardware {
 
     enum class COBDirection {
@@ -14,8 +16,8 @@ namespace kiwi::hardware {
 
 namespace kiwi::hardware {
     struct COBDirectionHash {
-        size_t operator()(const COBDirection& dir) const {
-            return static_cast<size_t>(dir);
+        std::usize operator()(const COBDirection& dir) const {
+            return static_cast<std::usize>(dir);
         }
     };
 }

@@ -14,8 +14,8 @@ namespace kiwi::utility {
 
     auto split(std::StringView origin, char delim) -> std::Vector<std::StringView> {
         std::Vector<std::StringView> result;
-        size_t start = 0;
-        size_t end;
+        std::size_t start = 0;
+        std::size_t end;
 
         while ((end = origin.find(delim, start)) != std::StringView::npos) {
             result.emplace_back(origin.substr(start, end - start));
