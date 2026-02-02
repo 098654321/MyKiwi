@@ -299,11 +299,17 @@ namespace kiwi::algo{
         // mazing with A* 
         while (!queue.empty()) {
             // get current node
+//debug
+debug::debug("get current node");
+//
             std::pop_heap(queue.begin(), queue.end(), Node::CompareNodes);
             auto node_sptr {queue.back()};
             queue.pop_back();
 
             // find the end node
+//debug
+debug::debug("find the end node");
+//
             auto track {node_sptr->track().get()};
             if (check_found(end_tracks, track)){                
                 auto temp_node_list {tree.backtrace(node_sptr)};
@@ -311,10 +317,16 @@ namespace kiwi::algo{
                 // add to path, and set cobconnector to "suspend" state
                 auto current_path = path_ptr->_regular_path;
                 for (auto& tp: temp_path) {
+//debug
+debug::debug("add track to path");
+//
                     current_path.emplace_back(tp);
                 }
                 auto current_length = path_length(current_path) + bump_length + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
                 // find a shorter path
+//debug
+debug::debug("find a shorter path");
+//
                 if (current_length < max_length) {
                     auto parent {node_sptr->parent()};
                     if(parent.has_value()){
@@ -332,16 +344,25 @@ namespace kiwi::algo{
                     path_ptr->_length = current_length;
                     // find a longer path
                     if (path_ptr->_length > max_length){
+//debug
+debug::debug("find a longer path");
+//
                         return {false, path_ptr->_length};
                     }
                     // find a equal_length path
                     else {
+//debug
+debug::debug("find a equal_length path");
+//
                         return {true, max_length};
                     }
                 }
             }
 
             // expand
+//debug
+debug::debug("expand");
+//
             for (auto& [next_track, connector] : interposer->adjacent_idle_tracks(track)) {
                 auto new_cost {node_sptr->cost() + this->cost_function(node_sptr, connector, end_tracks, this->_recorder)};
                 auto next_track_sptr {std::make_shared<hardware::Track>(*next_track)};
