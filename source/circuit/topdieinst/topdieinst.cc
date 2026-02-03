@@ -59,6 +59,10 @@ namespace kiwi::circuit {
         auto prev_tob = this->_tob;
         auto next_tob = tob;
         this->_tob = next_tob;
+        if (prev_tob.has_value() && *prev_tob != next_tob) {
+            (*prev_tob)->remove_placed_instance();
+            next_tob->set_placed_instance(this);
+        }
         for (auto net : this->_nets) {
             assert(prev_tob.has_value());
             net->update_tob_postion(*prev_tob, next_tob);
