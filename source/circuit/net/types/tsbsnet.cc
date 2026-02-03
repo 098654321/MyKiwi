@@ -19,6 +19,12 @@ namespace kiwi::circuit {
         }
     }
 
+    auto TracksToBumpsNet::swap_tob_position(hardware::TOB* tob1, hardware::TOB* tob2) -> void {
+        for (auto& bump : this->_end_bumps) {
+            bump = hardware::Bump::swap_bump(bump, tob1, tob2);
+        }
+    }
+
     auto TracksToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_tracks_to_bumps_net(interposer, this);
     }

@@ -50,14 +50,30 @@ namespace kiwi::circuit {
     }
 
     auto TopDieInstance::swap_tob_with(TopDieInstance* other) -> void {
-        auto this_tob = this->_tob;
-        auto other_tob = other->_tob;
+        auto tob1 = this->tob();
+        auto tob2 = other->tob();
+        
+        // 1. 收集所有受影响的 Net (去重)
+        std::HashSet<Net*> affected_nets;
+        for (auto net : this->_nets) {
+            affected_nets.insert(net);
+        }
+        for (auto net : other->_nets) {
+            affected_nets.insert(net);
+        }
 
-        assert(this_tob.has_value());
-        assert(other_tob.has_value());
+        // 2. 对每个 Net 执行原子交换
+        for (auto net : affected_nets) {
+            net->swap_tob_position(tob1, tob2);
+        }
 
-        this->move_to_tob(*other_tob);
-        other->move_to_tob(*this_tob);
+        // 3. 交换 Instance 自身的 TOB 指针
+        this->_tob = tob2;
+        other->_tob = tob1;
+
+        // 4. Update placed instance
+        tob1->set_placed_instance(other);
+        tob2->set_placed_instance(this);
     }
 
     auto TopDieInstance::move_to_tob(hardware::TOB* tob) -> void {
@@ -71,6 +87,8 @@ namespace kiwi::circuit {
             net->update_tob_postion(*prev_tob, next_tob);
         }
     }
+
+
 
     auto TopDieInstance::add_net(Net* net) -> void {
         this->_nets.emplace_back(net);

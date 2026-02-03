@@ -14,8 +14,8 @@ namespace kiwi::algo {
 
 const float BASICCOST = 5;
 const float EPSILON = 1;
-const float GROUPCOEF = 0.1;
-const float HISTORYCOEF = 0.9;
+const float GROUPCOEF = 0.3;
+const float HISTORYCOEF = 0.7;
 const float TOBMUXGROUPSIZE = 8;
 const float TRACKGROUPSIZE = 32;
 

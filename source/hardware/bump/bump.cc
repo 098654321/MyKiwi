@@ -40,6 +40,16 @@ namespace kiwi::hardware {
         }
     }
 
+    auto Bump::swap_bump(Bump* bump, TOB* tob1, TOB* tob2) -> Bump* {
+    if (bump->_tob == tob1) {
+        return tob2->get_bump(bump->index()).value();
+    } else if (bump->_tob == tob2) {
+        return tob1->get_bump(bump->index()).value();
+    } else {
+        return bump;
+    }
+}
+
     auto Bump::disconnect_track(Track* track) -> void {
         assert(this->_signal_dir != TOBSignalDirection::DisConnected);
 

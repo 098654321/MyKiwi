@@ -64,6 +64,8 @@ namespace kiwi::circuit {
         virtual auto track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> = 0;
         // return: (bumps_routable, bumps_unroutable, tracks_unroutable)
         virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> = 0;
+        // swap the position of two TOBs in this net
+        virtual auto swap_tob_position(hardware::TOB* tob1, hardware::TOB* tob2) -> void = 0;
         
     public:
         virtual auto clear_related_nets() -> void;
