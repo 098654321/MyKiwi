@@ -38,6 +38,18 @@ namespace kiwi::circuit
         }
     }
 
+    auto SyncNet::swap_tob_position(hardware::TOB* tob1, hardware::TOB* tob2) -> void {
+        for (auto& net : this->_btbnets) {
+            net->swap_tob_position(tob1, tob2);
+        }
+        for (auto& net : this->_bttnets) {
+            net->swap_tob_position(tob1, tob2);
+        }
+        for (auto& net : this->_ttbnets) {
+            net->swap_tob_position(tob1, tob2);
+        }
+    }
+
     auto SyncNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_sync_net(interposer, this);
     }

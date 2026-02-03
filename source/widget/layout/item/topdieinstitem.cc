@@ -153,7 +153,7 @@ namespace kiwi::widget::layout {
         this->updatePos();
         other->updatePos();
 
-        this->_topdieInst->swap_tob_with_(other->_topdieInst);
+        this->_topdieInst->swap_tob_with(other->_topdieInst);
     }
 
     void TopDieInstanceItem::placeToIdleTOB(TOBItem* tob) {

@@ -52,7 +52,8 @@ namespace kiwi::test {
         
         GIVEN("Configs, describing connections, external_ports, topdies and topdie_insts"){
             //! notice: cob array here is 9*12
-            PLEASE_DO_NOT_FAIL_INCRE(20, "", 1, false, 5);
+            PLEASE_DO_NOT_FAIL_INCRE(20, "", 1, false, 1);
+            PLEASE_DO_NOT_FAIL_INCRE(20, "", 2, false, 1);
         }
     }
 

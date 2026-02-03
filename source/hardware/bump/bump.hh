@@ -19,6 +19,7 @@ namespace kiwi::hardware {
 
     public:
         static auto update_bump(Bump* bump, TOB* prev_tob, TOB* next_tob) -> Bump*;
+        static auto swap_bump(Bump* bump, TOB* prev_tob, TOB* next_tob) -> Bump*;
         auto set_connected_track(Track* track, TOBSignalDirection signal_dir) -> void;
         auto set_allocated_track(Track* track) -> void; 
         auto disconnect_track(Track* track) -> void;
@@ -35,8 +36,8 @@ namespace kiwi::hardware {
         auto accessable_cobunit() const -> const std::HashSet<std::usize>& { return this->_accessable_cobunit; }
 
     private:
-        BumpCoord const _coord;
-        TOB* const _tob;
+        BumpCoord _coord;
+        TOB* _tob;
 
         Track* _connected_track; 
         Track* _allocated_track;

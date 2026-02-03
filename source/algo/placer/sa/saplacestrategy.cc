@@ -120,8 +120,7 @@ namespace kiwi::algo {
                     }
                     
                     debug::debug_fmt("Swap {} and {} from TOB {} to TOB {}", topdie_inst1->name(), topdie_inst2->name(), tob1->coord(), tob2->coord());
-                    topdie_inst1->move_to_tob(tob2);
-                    topdie_inst2->move_to_tob(tob1);
+                    topdie_inst1->swap_tob_with(topdie_inst2);
 
                     for (auto net : changed_nets) {
                         new_total_cost += this->net_cost(net) * this->_wirelength_weight;
@@ -140,8 +139,7 @@ namespace kiwi::algo {
                             total_cost = new_total_cost;
                         } else {
                             debug::debug("Reject movement");
-                            topdie_inst1->move_to_tob(tob1);
-                            topdie_inst2->move_to_tob(tob2);
+                            topdie_inst1->swap_tob_with(topdie_inst2);
                         }
                     }
                 } else {

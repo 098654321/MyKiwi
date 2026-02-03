@@ -168,19 +168,19 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
         engine.show_data_in_cycle(cycle, nets);
         
         // condition of convergence 1: cost_nonreuse not change
-        // if (std::fabs(cost_nonreuse - last_cost_nonreuse) < convergence_bound) {
-        //     debug::info_fmt("convergence reached");
-        //     break;
-        // }
+        if (std::fabs(cost_nonreuse - last_cost_nonreuse) < convergence_bound) {
+            debug::info_fmt("convergence reached");
+            break;
+        }
 
         last_cost_nonreuse = cost_nonreuse;
         cycle++;
 
         // condition of convergence 2: maximum cycle
-        if (cycle > max_cycle) {
-            debug::info_fmt("max cycle reached");
-            break;
-        }
+        // if (cycle > max_cycle) {
+        //     debug::info_fmt("max cycle reached");
+        //     break;
+        // }
     }
     return true;
 }

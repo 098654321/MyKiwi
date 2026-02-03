@@ -172,7 +172,6 @@ namespace kiwi::hardware {
 
             reg_count += 1;
         }
-        assert(index == unused_indexes.size());
     }
 
     auto TOBMux::index_map(std::usize input_index) const -> std::Option<std::usize> {

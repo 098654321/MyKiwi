@@ -20,6 +20,10 @@ namespace kiwi::circuit {
         this->_begin_bump = hardware::Bump::update_bump(this->_begin_bump, prev_tob, next_tob);
     }
 
+    auto BumpToTrackNet::swap_tob_position(hardware::TOB* tob1, hardware::TOB* tob2) -> void {
+        this->_begin_bump = hardware::Bump::swap_bump(this->_begin_bump, tob1, tob2);
+    }
+
     auto BumpToTrackNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_bump_to_track_net(interposer, this);
     }
