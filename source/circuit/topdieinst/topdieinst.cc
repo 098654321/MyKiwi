@@ -26,29 +26,6 @@ namespace kiwi::circuit {
         tob->set_placed_instance(this);
     }
     
-    void TopDieInstance::swap_tob_with_(TopDieInstance* other){
-        assert(other != nullptr);
-
-        assert(this->_tob.has_value());
-        assert(other->_tob.has_value());
-
-        auto this_tob = this->tob();
-        auto other_tob = other->tob();
-
-        // NO IDEL!
-        assert(!this_tob->is_idle());
-        assert(!other_tob->is_idle());
-
-        assert(this_tob->placed_instance() == this);
-        assert(other_tob->placed_instance() == other);
-
-        this->_tob.emplace(other_tob);
-        other->_tob.emplace(this_tob);
-
-        this_tob->set_placed_instance(other);
-        other_tob->set_placed_instance(this);
-    }
-
     auto TopDieInstance::swap_tob_with(TopDieInstance* other) -> void {
         auto tob1 = this->tob();
         auto tob2 = other->tob();

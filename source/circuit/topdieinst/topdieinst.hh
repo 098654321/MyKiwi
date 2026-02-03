@@ -46,7 +46,6 @@ namespace kiwi::circuit {
     public:
         // MARK. Move algo method to algo
         void place_to_idle_tob(hardware::TOB* tob);
-        void swap_tob_with_(TopDieInstance* other);
 
     private:
         std::String _name;
