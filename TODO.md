@@ -1,6 +1,6 @@
 ## TODO
 
-- 目前有概率出现布局之后某个net的begin/end bump tob相同，导致布线失败的问题
+- 目前有概率出现布局之后某个net的begin/end bump tob相同，导致布线失败的问题。添加输出信息
 
 - 把 vpr 针对 high-fanout 的优化加上
 

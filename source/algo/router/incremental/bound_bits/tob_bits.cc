@@ -112,11 +112,11 @@ auto GlobalTOBGroup::record_tob(const hardware::TOBCoord& coord, const hardware:
 }
 
 auto GlobalTOBGroup::show() const -> void {
-    debug::debug("TOB groups:");
+    debug::info("TOB groups:");
     for (auto& [coord, group]: this->_tob_groups) {
-        debug::debug_fmt("{}:\n {}", coord, group.to_string());
+        debug::info_fmt("{}:\n {}", coord, group.to_string());
     }
-    debug::debug("\n");
+    debug::info("\n");
 }
 
 auto GlobalTOBGroup::info() const -> std::Tuple<std::usize, std::usize> {

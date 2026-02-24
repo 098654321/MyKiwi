@@ -71,11 +71,11 @@ auto GlobalCOBGroups::record_cob(const hardware::COBConnector& connector, bool r
 }
 
 auto GlobalCOBGroups::show() const -> void {
-    debug::debug("COB groups:");
+    debug::info("COB groups:");
     for (auto& [coord, group]: this->_cob_groups) {
-        debug::debug_fmt("{}:\n {}", coord, group.to_string());
+        debug::info_fmt("{}:\n {}", coord, group.to_string());
     }
-    debug::debug("\n");
+    debug::info("\n");
 }
 
 auto GlobalCOBGroups::info() const -> std::Tuple<std::usize, std::usize> {

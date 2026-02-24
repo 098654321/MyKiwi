@@ -81,8 +81,6 @@ namespace kiwi::parse {
 
     auto load_config(const std::FilePath& config_folder, int mode, bool try_all_modes) -> Config 
     try {
-        debug::info_fmt("Load config from '{}'", config_folder.string());
-    
         auto config_paths = ConfigFilepaths{};
         serde::deserialize(serde::Json::load_from(config_folder / "config.json"), config_paths);    // deserialize and store in config_paths
 

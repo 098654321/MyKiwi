@@ -31,7 +31,7 @@ namespace kiwi::circuit {
     }
     
     auto BaseDie::add_topdie(std::String name, std::HashMap<std::String, std::usize> pin_map) -> TopDie* {
-        debug::info_fmt("Add topdie '{}'", name);
+        debug::debug_fmt("Add topdie '{}'", name);
 
         auto topdie = std::make_unique<TopDie>(std::move(name), std::move(pin_map));
         auto res = this->_topdies.emplace(topdie->name_view(), nullptr);
@@ -51,7 +51,7 @@ namespace kiwi::circuit {
         assert(topdie != nullptr);
         assert(tob != nullptr);
 
-        debug::info_fmt("Add topdie instance '{}' of '{}'", name, topdie->name());
+        debug::debug_fmt("Add topdie instance '{}' of '{}'", name, topdie->name());
 
         auto p = new TopDieInstance{std::move(name), topdie, tob};
         auto topdie_inst = std::Box<TopDieInstance>(p);
@@ -72,7 +72,7 @@ namespace kiwi::circuit {
     }
 
     auto BaseDie::add_external_port(std::String name, const hardware::TrackCoord& coord) -> ExternalPort* {
-        debug::info_fmt("Add external port '{}' in '{}'", name, coord);
+        debug::debug_fmt("Add external port '{}' in '{}'", name, coord);
 
         auto p = new ExternalPort{std::move(name), coord};
         auto external_port = std::Box<ExternalPort>{p};
@@ -86,7 +86,7 @@ namespace kiwi::circuit {
     }
 
     auto BaseDie::add_connection(int mode, int sync, Pin input, Pin output) -> Connection* {
-        debug::info_fmt("Add connection from '{}' to '{}' with group {} in mode {}", input, output, sync, mode);
+        debug::debug_fmt("Add connection from '{}' to '{}' with group {} in mode {}", input, output, sync, mode);
 
         auto p = new Connection{mode, sync, std::move(input), std::move(output)};
         auto connection = std::Box<Connection>{p};

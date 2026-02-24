@@ -2,6 +2,11 @@
 #include "./placestrategy.hh"
 #include "debug/debug.hh"
 #include <circuit/basedie.hh>
+#include <circuit/topdieinst/topdieinst.hh>
+#include <circuit/net/nets.hh>
+#include <hardware/tob/tob.hh>
+#include <hardware/bump/bump.hh>
+#include <std/collection.hh>
 
 namespace kiwi::algo {
     auto place(
@@ -30,9 +35,68 @@ namespace kiwi::algo {
             debug::warning("BaseDie pointer is empty, limited functionality");
         }
 
+        debug::info_fmt("Placement driver: {} top-level instances", topdies.size());
+        for (auto* td : topdies) {
+            auto tob = td ? td->tob() : nullptr;
+            if (tob) {
+                debug::info_fmt("Placement driver: {} at TOB {}", td->name(), tob->coord());
+            } else {
+                debug::info_fmt("Placement driver: {} at TOB {}", td->name(), "None");
+            }
+        }
+
         strategy.place(interposer, topdies);
+        debug::info("Placement driver: placement completed");
+        for (auto* td : topdies) {
+            auto tob = td ? td->tob() : nullptr;
+            if (tob) {
+                debug::info_fmt("Placement driver: final {} at TOB {}", td->name(), tob->coord());
+            } else {
+                debug::info_fmt("Placement driver: final {} at TOB {}", td->name(), "None");
+            }
+        }
+
+        auto nets = std::HashSet<circuit::Net*>{};
+        for (auto* td : topdies) {
+            for (auto* net : td->nets()) {
+                nets.emplace(net);
+            }
+        }
+        std::usize suspicious_count {0};
+        for (auto* net : nets) {
+            if (auto* syncn = dynamic_cast<circuit::SyncNet*>(net)) {
+                for (auto& r : syncn->btbnets()) {
+                    auto* b = r.get();
+                    auto* bb = b->begin_bump();
+                    auto* eb = b->end_bump();
+                    if (bb && eb && bb->tob()->coord() == eb->tob()->coord()) {
+                        ++suspicious_count;
+                        debug::warning_fmt(
+                            "Placement driver: Sync BumpToBumpNet {} on same TOB {}, begin {}, end {}",
+                            b->name(), bb->tob()->coord(), bb->coord(), eb->coord()
+                        );
+                    }
+                }
+            } else if (auto* btb = dynamic_cast<circuit::BumpToBumpNet*>(net)) {
+                auto* bb = btb->begin_bump();
+                auto* eb = btb->end_bump();
+                if (bb && eb && bb->tob()->coord() == eb->tob()->coord()) {
+                    ++suspicious_count;
+                    debug::warning_fmt(
+                        "Placement driver: BumpToBumpNet {} on same TOB {}, begin {}, end {}",
+                        btb->name(), bb->tob()->coord(), bb->coord(), eb->coord()
+                    );
+                }
+            }
+        }
+        if (suspicious_count > 0) {
+            debug::warning_fmt("Placement driver: {} suspicious BumpToBump nets found on same TOB", suspicious_count);
+        } else {
+            debug::info("Placement driver: no suspicious BumpToBump nets detected");
+        }
+
         auto cost = evaluate_placement(interposer, topdies, basedie, strategy);
-        debug::info_fmt("Layout completed, total cost: {}", cost);
+        debug::info_fmt("Placement driver: evaluation cost {}", cost);
     }
     
     auto evaluate_placement(
