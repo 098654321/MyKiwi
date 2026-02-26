@@ -143,7 +143,7 @@ namespace kiwi::hardware {
             message += std::format("{}, ", index);
         }
         message += "]";
-        debug::debug_fmt("randomly_map(): Total unused indexes: {}", message);
+        // debug::debug_fmt("randomly_map(): Total unused indexes: {}", message);
 
         // randomly map remain indexes
         std::usize index = 0, reg_count = 0;
@@ -163,11 +163,11 @@ namespace kiwi::hardware {
                 reg.set(unused_indexes.at(index));
                 index += 1;
 
-                debug::debug_fmt("randomly_map(): reg_{} is set to {}", reg_count, reg.get().value());
+                // debug::debug_fmt("randomly_map(): reg_{} is set to {}", reg_count, reg.get().value());
             }
             else{
                 assert(reg.is_given_out());
-                debug::debug_fmt("randomly_map(): reg_{} already has a value {}", reg_count, reg.get().value());
+                // debug::debug_fmt("randomly_map(): reg_{} already has a value {}", reg_count, reg.get().value());
             }
 
             reg_count += 1;

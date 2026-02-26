@@ -252,19 +252,19 @@ namespace kiwi::hardware {
         int count{0};
 
         for (auto& mux : this->_bump_to_hori_muxs) {
-            debug::debug_fmt("bump_to_hori_mux: {}", count++);
+            // debug::debug_fmt("bump_to_hori_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
 
         count = 0;
         for (auto& mux : this->_hori_to_vert_muxs) {
-            debug::debug_fmt("hori_to_vert_mux: {}", count++);
+            // debug::debug_fmt("hori_to_vert_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
 
         count = 0;
         for (auto& mux : this->_vert_to_track_muxs) {
-            debug::debug_fmt("vert_to_track_mux: {}", count++);
+            // debug::debug_fmt("vert_to_track_mux: {}", count++);
             mux->randomly_map_remain_indexes();
         }
     }

@@ -29,6 +29,10 @@ namespace kiwi::algo {
         const PlaceStrategy& strategy
     ) -> void;   
 
+    auto check_nets(
+        const std::Vector<circuit::TopDieInstance*>& topdies
+    ) -> void;
+
     auto evaluate_placement(
         hardware::Interposer* interposer,
         const std::Vector<circuit::TopDieInstance*>& topdies,

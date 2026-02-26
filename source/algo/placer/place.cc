@@ -44,7 +44,7 @@ namespace kiwi::algo {
                 debug::info_fmt("Placement driver: {} at TOB {}", td->name(), "None");
             }
         }
-
+        
         strategy.place(interposer, topdies);
         debug::info("Placement driver: placement completed");
         for (auto* td : topdies) {
@@ -56,6 +56,24 @@ namespace kiwi::algo {
             }
         }
 
+        check_nets(topdies);
+
+        auto cost = evaluate_placement(interposer, topdies, basedie, strategy);
+        debug::info_fmt("Placement driver: evaluation cost {}", cost);
+    }
+    
+    auto evaluate_placement(
+        hardware::Interposer* interposer,
+        const std::Vector<circuit::TopDieInstance*>& topdies,
+        circuit::BaseDie* basedie,
+        const PlaceStrategy& strategy
+    ) -> std::i64 {
+        return strategy.evaluate_placement(interposer, topdies, basedie);
+    }
+
+    auto check_nets(
+        const std::Vector<circuit::TopDieInstance*>& topdies
+    ) -> void {
         auto nets = std::HashSet<circuit::Net*>{};
         for (auto* td : topdies) {
             for (auto* net : td->nets()) {
@@ -94,17 +112,5 @@ namespace kiwi::algo {
         } else {
             debug::info("Placement driver: no suspicious BumpToBump nets detected");
         }
-
-        auto cost = evaluate_placement(interposer, topdies, basedie, strategy);
-        debug::info_fmt("Placement driver: evaluation cost {}", cost);
-    }
-    
-    auto evaluate_placement(
-        hardware::Interposer* interposer,
-        const std::Vector<circuit::TopDieInstance*>& topdies,
-        circuit::BaseDie* basedie,
-        const PlaceStrategy& strategy
-    ) -> std::i64 {
-        return strategy.evaluate_placement(interposer, topdies, basedie);
     }
 }
