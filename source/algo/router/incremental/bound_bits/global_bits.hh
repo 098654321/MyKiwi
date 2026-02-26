@@ -26,16 +26,16 @@ public:
     }
 
     auto show_bits() -> void {
-        debug::debug("Show bound bits:\n");
+        debug::info("Show bound bits:\n");
 
         this->_track_groups.show();
-        debug::debug("\n");
+        debug::info("\n");
 
         this->_cob_groups.show();
-        debug::debug("\n");
+        debug::info("\n");
 
         this->_tob_groups.show();
-        debug::debug("\n");
+        debug::info("\n");
     }
 
     auto get_rate() const -> std::Tuple<double, double> {

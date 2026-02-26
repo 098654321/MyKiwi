@@ -15,7 +15,6 @@ auto RouteData::collect_net_length(const std::Vector<circuit::Net*>& nets) const
     
     for (const auto& net: nets) {
         auto l = net->length();
-        debug::debug_fmt("net {} length: {}", net->name(), l);
 
         if (l > 0) {
             total_length += l;

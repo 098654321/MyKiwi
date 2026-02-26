@@ -35,9 +35,9 @@ auto GlobalTrackGroups::record_track(const hardware::TrackCoord& coord, bool reu
 
 auto GlobalTrackGroups::show() const -> void {
     for (auto& [coord, group]: this->_track_groups) {
-        debug::debug_fmt("{}:\n {}", coord.to_string(), group.to_string());
+        debug::info_fmt("{}:\n {}", coord.to_string(), group.to_string());
     }
-    debug::debug("\n");
+    debug::info("\n");
 }
 
 // return <not_used, monopolized_by_reuse, has_nonreuse>

@@ -67,23 +67,13 @@ namespace kiwi::algo {
         auto thermal_cost(const std::Vector<circuit::TopDieInstance*>& topdies) const -> std::i64;
         auto power_cost(const std::Vector<circuit::TopDieInstance*>& topdies, circuit::BaseDie* basedie) const -> std::i64;
         auto manhattan_distance(const hardware::TOBCoord& coord1, const hardware::TOBCoord& coord2) const -> std::i64;
-        
         auto randomly_choice_one_topdie_insts(std::Vector<circuit::TopDieInstance*>& topdies) const -> circuit::TopDieInstance*;
         auto randomly_choice_two_topdie_insts(std::Vector<circuit::TopDieInstance*>& topdies) const -> std::Tuple<circuit::TopDieInstance*, circuit::TopDieInstance*>;
         auto random_f64() const -> double;
-        
         auto collect_nets(const std::Vector<circuit::TopDieInstance*>& topdies) const -> std::HashSet<circuit::Net*>;
-
         auto is_changable(circuit::TopDieInstance* inst, hardware::TOB* tob) const -> bool;
-        
-        // auto try_routing(
-        //     hardware::Interposer* interposer,
-        //     circuit::BaseDie* basedie,
-        //     const RouteStrategy& route_strategy
-        // ) const -> std::i64;
-        
+        auto check_nets(const std::Vector<circuit::TopDieInstance*>& topdies) const -> void;
         auto get_topdie_power(const circuit::TopDieInstance& topdie) const -> double;
-        // auto get_topdie_color(const circuit::TopDieInstance& topdie) const -> QColor;
 
     private:
         const double _init_temperature {100.0}; 

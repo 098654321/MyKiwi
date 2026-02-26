@@ -36,7 +36,7 @@ namespace kiwi::algo {
             debug::warning("No top-level chip instance needs to be laid out");
             return;
         }
-        debug::info_fmt("Total {} top-level chip instance(s) need to be laid out", topdies.size());
+        debug::info_fmt("Totally {} top-level chip instance(s) need to be laid out", topdies.size());
         
         if (!interposer) {
             debug::error("Interposer pointer is empty");
@@ -46,6 +46,16 @@ namespace kiwi::algo {
         auto nets = this->collect_nets(topdies);
         if (nets.empty()) {
             debug::warning("No network connection");
+        }
+
+        debug::info("Initial placement snapshot");
+        for (auto* td : topdies) {
+            auto tob = td ? td->tob() : nullptr;
+            if (tob) {
+                debug::info_fmt("TopDie {} at TOB {}", td->name(), tob->coord());
+            } else {
+                debug::info_fmt("TopDie {} at TOB {}", td->name(), "None");
+            }
         }
 
         double temperature {this->_init_temperature}; 
@@ -60,7 +70,7 @@ namespace kiwi::algo {
         while (temperature > this->_freeze_temperature && no_improvement_count < this->_max_no_improvement) {
             bool improved = false;
             for (std::usize n = 0; n < this->_solve_number; ++n) {
-                int new_total_cost = total_cost;
+                auto new_total_cost = total_cost;
 
                 if (this->decide_to_swap_topdie_inst(temperature)) {
                     debug::debug("Swap two top-level chip instance");
@@ -89,14 +99,14 @@ namespace kiwi::algo {
 
                     auto tob1 = topdie_inst1->tob();
                     auto tob2 = topdie_inst2->tob();
-
-                    if (!this->is_changable(topdie_inst1, tob2) || !this->is_changable(topdie_inst2, tob1)) {
-                        debug::debug_fmt("TOB {} or {} is not changable for {} and {}", tob1->coord(), tob2->coord(), topdie_inst1->name(), topdie_inst2->name());
-                        continue;
-                    }
-
+                    
                     if (!tob1 || !tob2) {
                         debug::debug_fmt("TOB {} or {} is empty", tob1->coord(), tob2->coord());
+                        continue;
+                    }
+                    
+                    if (!this->is_changable(topdie_inst1, tob2) || !this->is_changable(topdie_inst2, tob1)) {
+                        debug::debug_fmt("TOB {} or {} is not changable for {} and {}", tob1->coord(), tob2->coord(), topdie_inst1->name(), topdie_inst2->name());
                         continue;
                     }
 
@@ -119,7 +129,7 @@ namespace kiwi::algo {
                         continue;
                     }
                     
-                    debug::debug_fmt("Swap {} and {} from TOB {} to TOB {}", topdie_inst1->name(), topdie_inst2->name(), tob1->coord(), tob2->coord());
+                    debug::debug_fmt("Swap {} on TOB {} and {} on TOB {}", topdie_inst1->name(), tob1->coord(), topdie_inst2->name(), tob2->coord());
                     topdie_inst1->swap_tob_with(topdie_inst2);
 
                     for (auto net : changed_nets) {
@@ -137,9 +147,11 @@ namespace kiwi::algo {
                         if (random_f64() <= std::exp(exp_x)) {
                             debug::debug("Accept movement");
                             total_cost = new_total_cost;
+                            
                         } else {
                             debug::debug("Reject movement");
                             topdie_inst1->swap_tob_with(topdie_inst2);
+                            this->check_nets(topdies);
                         }
                     }
                 } else {
@@ -202,9 +214,11 @@ namespace kiwi::algo {
                         if (random_f64() <= std::exp(exp_x)) {
                             debug::debug("Accept movement");
                             total_cost = new_total_cost;
+                            
                         } else {
                             debug::debug("Reject movement");
                             topdie_inst->move_to_tob(prev_tob);
+                            this->check_nets(topdies);
                         }
                     }
                 }   
@@ -223,8 +237,10 @@ namespace kiwi::algo {
             iteration++;
             debug::info_fmt("Iteration {}: Temperature={:.2f}, Current cost={}, optimal cost={}", iteration, temperature, total_cost, best_cost);
         }
+        // debug
         this->restore_placement(topdies, best_solution);
-        debug::info_fmt("Layout completed, final cost: {}", best_cost);
+        //
+        debug::info("Layout completed");
     }
 
     auto SAPlaceStrategy::is_changable(circuit::TopDieInstance* inst, hardware::TOB* target_tob) const -> bool {
@@ -403,10 +419,37 @@ namespace kiwi::algo {
         std::Vector<circuit::TopDieInstance*>& topdies,
         const std::HashMap<circuit::TopDieInstance*, hardware::TOB*>& placement
     ) const -> void {
-        for (auto& topdie : topdies) {
+        auto tob_to_topdie = std::HashMap<hardware::TOB*, circuit::TopDieInstance*>{};
+        for (auto* topdie : topdies) {
+            tob_to_topdie.emplace(topdie->tob(), topdie);
+        }
+
+        for (auto* topdie : topdies) {
             auto it = placement.find(topdie);
-            if (it != placement.end()) {
-                topdie->move_to_tob(it->second);
+            if (it == placement.end()) {
+                throw std::runtime_error(std::format("TopDieInstance {} not found in placement", topdie->name()));
+            }
+            auto target_tob = it->second;
+            if (!target_tob) {
+                throw std::runtime_error(std::format("TopDieInstance {} target TOB is null", topdie->name()));
+            }
+            if (topdie->tob() == target_tob) {
+                continue;
+            }
+
+            auto occ_it = tob_to_topdie.find(target_tob);
+            if (occ_it != tob_to_topdie.end() && occ_it->second != topdie) { // target_tob has already have a topdie
+                auto* other = occ_it->second;
+                auto* tob1 = topdie->tob();
+                auto* tob2 = other->tob();
+                topdie->swap_tob_with(other);
+                tob_to_topdie[tob1] = other;
+                tob_to_topdie[tob2] = topdie;
+            } else {
+                auto* prev_tob = topdie->tob();
+                topdie->move_to_tob(target_tob);
+                tob_to_topdie.erase(prev_tob);
+                tob_to_topdie.emplace(target_tob, topdie);
             }
         }
     }
@@ -510,14 +553,45 @@ namespace kiwi::algo {
         return static_cast<double>(nets.size()) / 10.0; 
     }
 
-    // auto SAPlaceStrategy::get_topdie_color(const circuit::TopDieInstance& topdie) const -> QColor {
-    //     double power = this->get_topdie_power(topdie);       
-    //     if (power > this->_thermal_threshold) {
-    //         return QColor(255, 0, 0);
-    //     } else if (power > this->_power_threshold) {
-    //         return QColor(255, 165, 0);
-    //     } else {
-    //         return QColor(0, 255, 0);
-    //     }
-    // }
+    auto SAPlaceStrategy::check_nets(
+        const std::Vector<circuit::TopDieInstance*>& topdies
+    ) const -> void {
+        auto nets = std::HashSet<circuit::Net*>{};
+        std::usize suspicious_count {0};
+
+        for (auto* td : topdies) {
+            for (auto* net : td->nets()) {
+                if (auto* syncn = dynamic_cast<circuit::SyncNet*>(net)) {
+                    for (auto& r : syncn->btbnets()) {
+                        auto* b = r.get();
+                        auto* bb = b->begin_bump();
+                        auto* eb = b->end_bump();
+                        if (bb && eb && bb->tob()->coord() == eb->tob()->coord()) {
+                            ++suspicious_count;
+                            debug::warning_fmt(
+                                "Placement driver: Sync BumpToBumpNet {} on same TOB {}, begin {}, end {}",
+                                b->name(), bb->tob()->coord(), bb->coord(), eb->coord()
+                            );
+                        }
+                    }
+                } else if (auto* btb = dynamic_cast<circuit::BumpToBumpNet*>(net)) {
+                    auto* bb = btb->begin_bump();
+                    auto* eb = btb->end_bump();
+                    if (bb && eb && bb->tob()->coord() == eb->tob()->coord()) {
+                        ++suspicious_count;
+                        debug::warning_fmt(
+                            "Placement driver: BumpToBumpNet {} on same TOB {}, begin {}, end {}",
+                            btb->name(), bb->tob()->coord(), bb->coord(), eb->coord()
+                        );
+                    }
+                }   
+            }
+        }
+        
+        if (suspicious_count > 0) {
+            debug::warning_fmt("Placement driver: {} suspicious BumpToBump nets found on same TOB", suspicious_count);
+        } else {
+            debug::info("Placement driver: no suspicious BumpToBump nets detected");
+        }
+    }
 }

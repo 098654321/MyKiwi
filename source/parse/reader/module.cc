@@ -21,6 +21,7 @@ namespace kiwi::parse {
 
         read_config(config_folder, interposer.get(), basedie.get(), mode, try_all_modes);
         
+        debug::info("Read config done.");
         return {std::move(interposer), std::move(basedie)};
     }
 

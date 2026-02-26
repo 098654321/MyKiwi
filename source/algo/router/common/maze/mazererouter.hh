@@ -115,21 +115,6 @@ namespace kiwi::algo{
         auto cost_function(const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize;
         auto Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize;
     
-    private:    // for debug
-        auto print_end_tracks(const std::HashSet<hardware::Track*>& end_tracks) const -> void{
-            for (auto& t: end_tracks){
-                debug::debug_fmt("{}", t->coord());
-            }
-            debug::debug("\n");
-        }
-
-        auto print_path(const routed_path* ptr_path) const -> void{
-            for (auto& [p, _]: *ptr_path){
-                debug::debug_fmt("{}", p->coord());
-            }
-            debug::debug("\n\n");
-        }
-    
     private:
         const NodeTrackInterface _node_track_interface {};
         bool _incremental;
