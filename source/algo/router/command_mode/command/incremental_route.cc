@@ -2,6 +2,7 @@
 #include <global/debug/debug.hh>
 #include <algo/router/routeerror.hh>
 #include <algorithm>
+#include <cmath>
 
 
 namespace kiwi::algo {
