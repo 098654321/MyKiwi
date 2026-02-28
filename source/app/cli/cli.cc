@@ -62,8 +62,6 @@ namespace kiwi {
         assert(strategy.is_valid_placement(interposer, topdies));
         auto end_time1 = std::chrono::high_resolution_clock::now();
 
-        auto cost = evaluate_placement(interposer, topdies, basedie, strategy);
-        debug::info_fmt("Layout evaluation result: {}", cost);
         debug::info("Layout result:");
         for (const auto& topdie : topdies) {
             if (topdie->tob()) {
