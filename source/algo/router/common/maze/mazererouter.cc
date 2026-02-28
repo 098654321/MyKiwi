@@ -295,37 +295,17 @@ namespace kiwi::algo{
         std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
     ) const -> std::tuple<bool, std::usize>{
         debug::info("Refinding path ...");
-        auto base_length = path_length(path_ptr->_regular_path) + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
-        if (end_tracks.size() > 0) {
-            auto c = (*end_tracks.begin())->coord();
-            debug::info_fmt(
-                "Refinding path: max_length {}, bump_length {}, end_tracks {}, end_coord ({}, {}, {}, {}), base_length {}",
-                max_length, bump_length, end_tracks.size(), c.row, c.col, c.dir, c.index, base_length
-            );
-        }
-        else {
-            debug::info_fmt(
-                "Refinding path: max_length {}, bump_length {}, end_tracks {}, base_length {}",
-                max_length, bump_length, end_tracks.size(), base_length
-            );
-        }
         std::Vector<std::Rc<Node>> queue {tree._root};
         std::make_heap(queue.begin(), queue.end(), Node::CompareNodes);
 
         // mazing with A* 
         while (!queue.empty()) {
             // get current node
-//debug
-debug::debug("get current node");
-//
             std::pop_heap(queue.begin(), queue.end(), Node::CompareNodes);
             auto node_sptr {queue.back()};
             queue.pop_back();
 
             // find the end node
-//debug
-debug::debug("find the end node");
-//
             auto track {node_sptr->track().get()};
             if (check_found(end_tracks, track)){                
                 auto temp_node_list {tree.backtrace(node_sptr)};
@@ -333,16 +313,10 @@ debug::debug("find the end node");
                 // add to path, and set cobconnector to "suspend" state
                 auto current_path = path_ptr->_regular_path;
                 for (auto& tp: temp_path) {
-//debug
-debug::debug("add track to path");
-//
                     current_path.emplace_back(tp);
                 }
                 auto current_length = path_length(current_path) + bump_length + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
                 // find a shorter path
-//debug
-debug::debug("find a shorter path");
-//
                 if (current_length < max_length) {
                     auto parent {node_sptr->parent()};
                     if(parent.has_value()){
@@ -360,73 +334,31 @@ debug::debug("find a shorter path");
                     path_ptr->_length = current_length;
                     // find a longer path
                     if (path_ptr->_length > max_length){
-//debug
-debug::debug("find a longer path");
-//
                         return {false, path_ptr->_length};
                     }
                     // find a equal_length path
                     else {
-//debug
-debug::debug("find a equal_length path");
-//
                         return {true, max_length};
                     }
                 }
             }
 
             // expand
-//debug
-debug::debug_fmt(
-    "expand from ({}, {}, {}, {}) level {} cost {}",
-    track->coord().row, track->coord().col, (int)track->coord().dir, track->coord().index,
-    node_sptr->level(), node_sptr->cost()
-);
-//
             for (auto& [next_track, connector] : interposer->adjacent_idle_tracks(track)) {
-// debug
-auto nc = next_track->coord();
-auto cc = connector.coord();
-debug::debug_fmt(
-    "neighbor ({}, {}, {}, {}) via COB ({}, {}) {}->{} occ {} conn {}",
-    nc.row, nc.col, (int)nc.dir, nc.index,
-    cc.row, cc.col, (int)connector.from_dir(), connector.to_track_index(),
-    connector.is_occupied(), connector.is_connected()
-);
-//debug
                 auto new_cost {node_sptr->cost() + this->cost_function(node_sptr, connector, end_tracks, this->_recorder)};
                 auto next_track_sptr {std::make_shared<hardware::Track>(*next_track)};
                 auto new_level = node_sptr->level() + 1;
                 auto next_node {std::make_shared<Node>(next_track_sptr, connector, node_sptr, new_cost, tree.reuse_type(), new_level)};
-//debug
-debug::debug("check predecessor");
-//
                 if (!tree.is_a_predecessor(node_sptr, next_node)){
                     tree.check_max_level(new_level);
                     node_sptr->add_child(next_node);
                     queue.push_back(next_node);
                     std::push_heap(queue.begin(), queue.end(), Node::CompareNodes);
-//debug
-debug::debug_fmt(
-    "push child ({}, {}, {}, {}) level {} cost {}",
-    nc.row, nc.col, (int)nc.dir, nc.index, new_level, new_cost
-);
-}
-else{
-debug::debug_fmt(
-    "skip predecessor ({}, {}, {}, {})",
-    nc.row, nc.col, (int)nc.dir, nc.index
-);
-//
                 }
             }
 
             // check
             if (tree._max_level + path_ptr->_length > 2*max_length) {
-                debug::warning_fmt(
-                    "MazeRerouter::refind_path: max_level {} path_length {} max_length {}",
-                    tree._max_level, path_ptr->_length, max_length
-                );
                 throw RetryExpt("MazeRerouter::refind_path: tree._max_level > 2*max_length");
             }
         }

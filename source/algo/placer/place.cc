@@ -46,20 +46,9 @@ namespace kiwi::algo {
         }
         
         strategy.place(interposer, topdies);
-        debug::info("Placement driver: placement completed");
-        for (auto* td : topdies) {
-            auto tob = td ? td->tob() : nullptr;
-            if (tob) {
-                debug::info_fmt("Placement driver: final {} at TOB {}", td->name(), tob->coord());
-            } else {
-                debug::info_fmt("Placement driver: final {} at TOB {}", td->name(), "None");
-            }
-        }
-
         check_nets(topdies);
 
         auto cost = evaluate_placement(interposer, topdies, basedie, strategy);
-        debug::info_fmt("Placement driver: evaluation cost {}", cost);
     }
     
     auto evaluate_placement(
@@ -109,8 +98,6 @@ namespace kiwi::algo {
         }
         if (suspicious_count > 0) {
             debug::warning_fmt("Placement driver: {} suspicious BumpToBump nets found on same TOB", suspicious_count);
-        } else {
-            debug::info("Placement driver: no suspicious BumpToBump nets detected");
         }
     }
 }

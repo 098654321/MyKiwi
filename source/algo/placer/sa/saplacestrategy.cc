@@ -48,16 +48,6 @@ namespace kiwi::algo {
             debug::warning("No network connection");
         }
 
-        debug::info("Initial placement snapshot");
-        for (auto* td : topdies) {
-            auto tob = td ? td->tob() : nullptr;
-            if (tob) {
-                debug::info_fmt("TopDie {} at TOB {}", td->name(), tob->coord());
-            } else {
-                debug::info_fmt("TopDie {} at TOB {}", td->name(), "None");
-            }
-        }
-
         double temperature {this->_init_temperature}; 
         // auto total_cost = this->total_net_cost(nets) * this->_wirelength_weight + this->congestion_cost(interposer) * this->_congestion_weight + this->thermal_cost(topdies) * this->_thermal_weight;
         auto total_cost = this->total_net_cost(nets) * this->_wirelength_weight + this->thermal_cost(topdies) * this->_thermal_weight;
@@ -590,8 +580,6 @@ namespace kiwi::algo {
         
         if (suspicious_count > 0) {
             debug::warning_fmt("Placement driver: {} suspicious BumpToBump nets found on same TOB", suspicious_count);
-        } else {
-            debug::info("Placement driver: no suspicious BumpToBump nets detected");
         }
     }
 }

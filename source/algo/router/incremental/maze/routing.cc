@@ -626,9 +626,6 @@ auto IncreRouting::sync_incremental_reroute(
     bool shared
 ) const -> std::tuple<bool, std::usize> {
     debug::info_fmt("sync_incremental_reroute: max_length {}, nets {}", max_length, nets.size());
-    for (auto& net: nets) {
-        debug::info_fmt("sync_incremental_reroute: net {} length {}", net->name(), net->pathpackage()._length);
-    }
 
     std::Vector<circuit::Net*> nets_to_be_rerouted {};
     std::String reroute_nets{};
@@ -662,7 +659,6 @@ auto IncreRouting::sync_incremental_reroute(
         }
     }
     else{
-        debug::info("sync_incremental_reroute: no nets to reroute");
         return std::tuple<std::usize, std::usize>{true, max_length};
     }
 }
