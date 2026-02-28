@@ -293,6 +293,20 @@ namespace kiwi::algo{
         std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
     ) const -> std::tuple<bool, std::usize>{
         debug::info("Refinding path ...");
+        auto base_length = path_length(path_ptr->_regular_path) + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
+        if (end_tracks.size() > 0) {
+            auto c = (*end_tracks.begin())->coord();
+            debug::info_fmt(
+                "Refinding path: max_length {}, bump_length {}, end_tracks {}, end_coord ({}, {}, {}, {}), base_length {}",
+                max_length, bump_length, end_tracks.size(), c.row, c.col, c.dir, c.index, base_length
+            );
+        }
+        else {
+            debug::info_fmt(
+                "Refinding path: max_length {}, bump_length {}, end_tracks {}, base_length {}",
+                max_length, bump_length, end_tracks.size(), base_length
+            );
+        }
         std::Vector<std::Rc<Node>> queue {tree._root};
         std::make_heap(queue.begin(), queue.end(), Node::CompareNodes);
 
@@ -378,6 +392,10 @@ debug::debug("expand");
 
             // check
             if (tree._max_level + path_ptr->_length > 2*max_length) {
+                debug::warning_fmt(
+                    "MazeRerouter::refind_path: max_level {} path_length {} max_length {}",
+                    tree._max_level, path_ptr->_length, max_length
+                );
                 throw RetryExpt("MazeRerouter::refind_path: tree._max_level > 2*max_length");
             }
         }

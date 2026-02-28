@@ -524,7 +524,7 @@ namespace kiwi::circuit
 
     auto SyncNet::set_history_pathpackage() -> void {
         this->_history_path_package.emplace(HistoryPathPackage(this->_path_package));
-        debug::info_fmt(
+        debug::debug_fmt(
             "set history path package with length {} from current path package with length {}", 
             this->_history_path_package.value()._length, this->_path_package._length
         );

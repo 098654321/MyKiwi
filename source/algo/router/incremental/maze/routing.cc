@@ -625,6 +625,11 @@ auto IncreRouting::sync_incremental_reroute(
     RouteEngine& engine,
     bool shared
 ) const -> std::tuple<bool, std::usize> {
+    debug::info_fmt("sync_incremental_reroute: max_length {}, nets {}", max_length, nets.size());
+    for (auto& net: nets) {
+        debug::info_fmt("sync_incremental_reroute: net {} length {}", net->name(), net->pathpackage()._length);
+    }
+
     std::Vector<circuit::Net*> nets_to_be_rerouted {};
     std::String reroute_nets{};
     for (auto& net: nets) {
@@ -636,6 +641,9 @@ auto IncreRouting::sync_incremental_reroute(
 
     if (nets_to_be_rerouted.size() > 0) {
         debug::info(std::format("sync_incremental_reroute(): reroute nets {}", reroute_nets));
+        for (auto& net: nets_to_be_rerouted) {
+            debug::info_fmt("sync_incremental_reroute: reroute net {} length {}", net->name(), net->pathpackage()._length);
+        }
     }
 
     if (nets_to_be_rerouted.size() > 0) {
@@ -645,13 +653,16 @@ auto IncreRouting::sync_incremental_reroute(
             if (max_length != ml){
                 throw FinalError("MazeRouteStrategy::sync_reroute(): max_length != ml when succeed");
             }
+            debug::info_fmt("sync_incremental_reroute: success max_length {}", max_length);
             return std::tuple<std::usize, std::usize>{true, max_length};
         }
         else{           // have longer path OR routing failed
+            debug::info_fmt("sync_incremental_reroute: failed new_max_length {}", ml);
             return std::tuple<std::usize, std::usize>{false, ml};
         }
     }
     else{
+        debug::info("sync_incremental_reroute: no nets to reroute");
         return std::tuple<std::usize, std::usize>{true, max_length};
     }
 }
