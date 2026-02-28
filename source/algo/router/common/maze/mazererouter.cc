@@ -375,18 +375,47 @@ debug::debug("find a equal_length path");
 
             // expand
 //debug
-debug::debug("expand");
+debug::debug_fmt(
+    "expand from ({}, {}, {}, {}) level {} cost {}",
+    track->coord().row, track->coord().col, (int)track->coord().dir, track->coord().index,
+    node_sptr->level(), node_sptr->cost()
+);
 //
             for (auto& [next_track, connector] : interposer->adjacent_idle_tracks(track)) {
+// debug
+auto nc = next_track->coord();
+auto cc = connector.coord();
+debug::debug_fmt(
+    "neighbor ({}, {}, {}, {}) via COB ({}, {}) {}->{} occ {} conn {}",
+    nc.row, nc.col, (int)nc.dir, nc.index,
+    cc.row, cc.col, (int)connector.from_dir(), connector.to_track_index(),
+    connector.is_occupied(), connector.is_connected()
+);
+//debug
                 auto new_cost {node_sptr->cost() + this->cost_function(node_sptr, connector, end_tracks, this->_recorder)};
                 auto next_track_sptr {std::make_shared<hardware::Track>(*next_track)};
                 auto new_level = node_sptr->level() + 1;
                 auto next_node {std::make_shared<Node>(next_track_sptr, connector, node_sptr, new_cost, tree.reuse_type(), new_level)};
+//debug
+debug::debug("check predecessor");
+//
                 if (!tree.is_a_predecessor(node_sptr, next_node)){
                     tree.check_max_level(new_level);
                     node_sptr->add_child(next_node);
                     queue.push_back(next_node);
                     std::push_heap(queue.begin(), queue.end(), Node::CompareNodes);
+//debug
+debug::debug_fmt(
+    "push child ({}, {}, {}, {}) level {} cost {}",
+    nc.row, nc.col, (int)nc.dir, nc.index, new_level, new_cost
+);
+}
+else{
+debug::debug_fmt(
+    "skip predecessor ({}, {}, {}, {})",
+    nc.row, nc.col, (int)nc.dir, nc.index
+);
+//
                 }
             }
 
