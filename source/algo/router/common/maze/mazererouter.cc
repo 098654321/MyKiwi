@@ -34,7 +34,7 @@ namespace kiwi::algo{
     Tree::Tree(const std::Rc<Node> root, std::Option<bool> reuse_type)
          : _root(root), _reuse_type{reuse_type}, _max_level{0}
     {
-        if (root->parent() != std::nullopt || root->cost() != 0 || root->post_nodes().size() != 0){
+        if (root->parent() != std::nullopt || std::fabs(root->cost()) > 0.001 || root->post_nodes().size() != 0){
             auto parent_coord {root->parent().value()->track()->coord()};
             kiwi::debug::fatal_fmt("Tree_constructor: root node must have null parent, empty children and a 0 cost, \
                                     but now it has parent ({}, {}, {}, {}), cost {} and {} children", \
@@ -183,7 +183,9 @@ namespace kiwi::algo{
         path_ptr->_length = path_length(path_ptr->_regular_path) + (path_ptr->_tob_to_track.size() > 0 ? 1 : 0);
     }
 
-    auto MazeRerouter::cost_function(const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize{
+    auto MazeRerouter::cost_function(
+        const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder
+    ) const -> float {
         if (this->_incremental) {
             auto type = node->reuse_type();
             if (!type.has_value()) {
@@ -192,10 +194,10 @@ namespace kiwi::algo{
             if (recorder == nullptr) {
                 throw std::runtime_error("cost_function: recorder is not set");
             }
-            recorder->expand_cost(node->track().get(), connector, type.value());
+            return recorder->expand_cost(node->track().get(), connector, type.value());
         }
         else {
-            return 1 + Manhattan_distance(node, end_tracks);
+            return (float)(1 + Manhattan_distance(node, end_tracks));
         }
     }
 

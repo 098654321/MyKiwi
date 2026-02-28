@@ -29,7 +29,7 @@ namespace kiwi::algo{
     class Node{
         // A track with additional attributes
     public:
-        Node(const std::Rc<hardware::Track> track, const hardware::COBConnector& connector, const std::Rc<Node> prev_node, std::usize cost, std::Option<bool> reuse_type, std::usize level)
+        Node(const std::Rc<hardware::Track> track, const hardware::COBConnector& connector, const std::Rc<Node> prev_node, float cost, std::Option<bool> reuse_type, std::usize level)
         : _track{track}, _connector{connector}, _prev_node{prev_node}, _cost{cost}, _post_nodes{}, _reuse_type{reuse_type}, _level{level}
         {}
     
@@ -46,7 +46,7 @@ namespace kiwi::algo{
         inline auto parent() -> std::Option<std::Rc<Node>>;
         inline auto track() -> std::Rc<hardware::Track> {return this->_track;}
         inline auto post_nodes() -> std::Vector<std::Rc<Node>>& {return this->_post_nodes;}
-        inline auto cost() -> std::usize {return this->_cost;}
+        inline auto cost() -> float {return this->_cost;}
         inline auto connector() -> std::Option<hardware::COBConnector>& {return this->_connector;}
         inline auto reuse_type() -> std::Option<bool> {return this->_reuse_type;}
         inline auto level() -> std::usize {return this->_level;}
@@ -56,7 +56,7 @@ namespace kiwi::algo{
         std::Option<hardware::COBConnector> _connector;
         std::Rc<Node> _prev_node;
         std::Vector<std::Rc<Node>> _post_nodes; 
-        std::usize _cost;
+        float _cost;
         std::Option<bool> _reuse_type;
         std::usize _level;
     };
@@ -78,7 +78,7 @@ namespace kiwi::algo{
     struct NodeTrackInterface{
         auto track_rootify(hardware::Track* track, hardware::COBConnector& connector, std::Option<bool> reuse_type) const -> std::Rc<Node>{
             auto track_sptr {std::make_shared<hardware::Track>(*track)};
-            return std::make_shared<Node>(track_sptr, connector, nullptr, 0, reuse_type, 0);
+            return std::make_shared<Node>(track_sptr, connector, nullptr, 0.0, reuse_type, 0);
         }
 
         auto nodes_trackify(std::Vector<std::Rc<Node>>& nodes) const -> routed_path{
@@ -112,7 +112,7 @@ namespace kiwi::algo{
             hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
             std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
         ) const -> std::tuple<bool, std::usize>;
-        auto cost_function(const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> std::usize;
+        auto cost_function(const std::Rc<Node> node, hardware::COBConnector& connector, const std::HashSet<hardware::Track*>& end_tracks, HardwareRecorder* recorder) const -> float;
         auto Manhattan_distance(const std::Rc<Node> node, const std::HashSet<hardware::Track*>& end_tracks) const -> std::usize;
     
     private:
