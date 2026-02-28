@@ -5,7 +5,7 @@ namespace kiwi::circuit {
 
     auto Net::set_pathpackage(const PathPackage& path_package) -> void {
         if (path_package._regular_path.size() == 0 || path_package._length == 0){
-            debug::info("path package is empty");
+            debug::debug("path package is empty");
         }
         // this->_history_path_package.emplace(HistoryPathPackage(this->_path_package));
         this->_path_package = path_package;
@@ -13,7 +13,7 @@ namespace kiwi::circuit {
 
     auto Net::set_history_pathpackage() -> void {
         this->_history_path_package.emplace(HistoryPathPackage(this->_path_package));
-        debug::info_fmt(
+        debug::debug_fmt(
             "set history path package with length {} from current path package with length {}", 
             this->_history_path_package.value()._length, this->_path_package._length
         );

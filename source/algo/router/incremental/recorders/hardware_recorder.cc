@@ -313,7 +313,7 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
             auto connector = tobconnector.value();
             auto pbump = bump.value();
             if (pbump == nullptr) {
-                debug::info("bump is nullptr");
+                debug::debug("bump is nullptr");
             }
             auto tobcoord = pbump->tob()->coord();
             msg += std::string(std::format("TOB_reg at {}, {} ----\n", tobcoord.row, tobcoord.col));
@@ -437,7 +437,7 @@ auto HardwareRecorder::show_path_recorder_status(const std::unordered_map<std::s
 
     msg += "END HardwareRecorder Status --------\n";
 
-    debug::info(msg);
+    debug::debug(msg);
 }
 
 auto HardwareRecorder::show_cost() const -> std::tuple<float, float> {
