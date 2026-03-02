@@ -21,8 +21,8 @@ namespace kiwi::parse {
     ) -> void;
 
     // return <bool1, bool2>
-    // where bool1 is true if the controlbis_<mode>.txt exists
-    // bool2 is true if bool1 if false and any controlbits_<other_mode>.txt exists
+    // bool1 is true if the controlbis_<mode>.txt exists
+    // bool2 is true if bool1 is false and any controlbits_<other_mode>.txt exists
     auto read_controlbits(
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,

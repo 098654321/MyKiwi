@@ -46,18 +46,21 @@ namespace kiwi::parse {
         int mode,
         bool try_all_modes
     ) -> std::Pair<bool, bool> {
-        if (try_all_modes) {
+        if (try_all_modes) {                // need to consider all the connections in all the modes, not a single mode
             return {false, false};
         }
 
         debug::info("Load controlbits ...");
 
         auto controlbits = load_controlbits(config_folder, mode);
-        if (controlbits.has_value()) {
+        if (controlbits.has_value()) {      // controlbits is loaded
             bits_to_paths(interposer, basedie, controlbits.value(), mode);
             return std::Pair<bool, bool>{true, true};
         }
-        else {
+        else if (mode == 0) {               // the only mode is not routed, return
+            return std::Pair<bool, bool>{false, false};
+        }
+        else {                              // in incre mode, try to load controlbits in other modes
             std::Vector<std::pair<int, std::usize>> mode_size {};
             for (auto& [m, nets]: basedie->nets()) {
                 if (m == mode) continue;

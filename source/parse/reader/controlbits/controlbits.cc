@@ -113,6 +113,7 @@ namespace kiwi::parse {
                 load_length(net.get());
             }
         }
+        show_path_from_bits(basedie->nets(mode));
     }
     catch (const std::exception& e) {
         debug::exception_fmt("bits_to_paths(): {}", e.what());
@@ -271,7 +272,7 @@ namespace kiwi::parse {
                 auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl%8)*8;
                 auto track_index = controlbits.vctrltotrack.at(tobcoord)[vctrl%64] == 0? vctrl : (vctrl+64)%128;
                 auto connector = bump->tob()->bump_track_connectors_chain(bump_index, track_index, dir);   // already set the state to "given_out"
-                debug::info_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
+                debug::debug_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
 
                 auto track_coord = hardware::TrackCoord{bump->coord().row, bump->coord().col, hardware::TrackDirection::Vertical, track_index};
                 auto track = interposer->get_track(track_coord);
@@ -579,6 +580,24 @@ namespace kiwi::parse {
         }
         for (auto& n: net->ttbnets()) {
             collect(n.get());
+        }
+    }
+
+    auto show_path_from_bits(const std::Vector<std::Rc<circuit::Net>>& nets) -> void {
+        debug::info("Show path from control bits:");
+
+        for (const auto& net: nets) {
+            debug::info(net->to_string());
+            auto l = net->length();
+
+            if (l > 0) {
+                debug::info_fmt("Routing length of this net: {}", l);
+                debug::info_fmt("Routing priority of this net: {}", net->priority().value());
+                net->show_path();
+            }
+            else {
+                debug::info_fmt("net {} is not routed", net->name());
+            }
         }
     }
 
