@@ -51,7 +51,7 @@ namespace kiwi::parse {
         }
 
         debug::info("Load controlbits ...");
-
+        
         auto controlbits = load_controlbits(config_folder, mode);
         if (controlbits.has_value()) {      // controlbits is loaded
             bits_to_paths(interposer, basedie, controlbits.value(), mode);

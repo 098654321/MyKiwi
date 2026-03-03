@@ -446,10 +446,10 @@ namespace kiwi::parse {
                     package._regular_path.emplace_back(cur, connector);
                     cur = prev_track;
                 }
-                // reverse
                 package._regular_path.emplace_back(begin_track, std::nullopt);
-                // set cobconnector state
+                // reverse
                 std::reverse(package._regular_path.begin(), package._regular_path.end());
+                // set cobconnector state
                 for (auto& [t, c]: package._regular_path) {
                     if (c.has_value()) {
                         c.value().suspend();
