@@ -232,7 +232,8 @@ auto load_hardware(hardware::Interposer* interposer, const parse::Controlbits& c
             }
             if (bits[i] == hardware::TOBBumpDirection::BumpToTOB) {
                 begin_bumps.insert(*bump);
-            } else {
+            } 
+            else if(bits[i] == hardware::TOBBumpDirection::TOBToBump) {
                 end_bumps.insert(*bump);
             }
         }
@@ -245,9 +246,10 @@ auto load_hardware(hardware::Interposer* interposer, const parse::Controlbits& c
                 throw std::logic_error("load_hardware(): Track not found");
             }
             if (bits[i] == hardware::TOBTrackDirection::TrackToTOB) {
-                begin_tracks.insert(*track);
-            } else {
                 end_tracks.insert(*track);
+            } 
+            else if(bits[i] == hardware::TOBTrackDirection::TOBToTrack) {
+                begin_tracks.insert(*track);
             }
         }
     }
@@ -265,10 +267,11 @@ auto check_bump_and_track(hardware::Interposer* interposer, const parse::Control
         auto tobcoord = bump->tob()->coord();
         auto coord_in_interposer = hardware::Interposer::TOB_COORD_MAP.at(tobcoord);
         auto bump_index = bump->index();
-        
+// 这里算的可能有问题
         auto hctrl = controlbits.bumptohctrl.at(tobcoord).at(bump_index) + (bump_index/8)*8;
         auto trans_hctrl = (hctrl/64)*64 + (hctrl%8)*8 + (hctrl - (hctrl/64)*64)/8;
         auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl%8)*8;
+        // auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl/8)*8;
         auto track_index = controlbits.vctrltotrack.at(tobcoord)[vctrl%64] == 0? vctrl : (vctrl+64)%128;
         auto connector = bump->tob()->bump_track_connectors_chain(bump_index, track_index, dir); 
         auto track = interposer->get_track(coord_in_interposer.row, coord_in_interposer.col, hardware::TrackDirection::Vertical, track_index);
@@ -286,7 +289,7 @@ auto check_bump_and_track(hardware::Interposer* interposer, const parse::Control
         }
         bump->set_connected_track(*track, tob_sig_direction);
         
-        debug::debug_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
+        debug::debug_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index); 
     };
 
     auto check_track_index = [get_tobconnector](const std::set<hardware::Bump*>& bumps, std::set<hardware::Track*>& tracks_copy, hardware::TOBBumpDirection dir, auto& to_tobconnector) {
@@ -603,10 +606,23 @@ auto show_bumps_and_tracks_collected(
     const std::set<hardware::Track*>& begin_tracks, 
     const std::set<hardware::Track*>& end_tracks
 ) -> void {
-    debug::debug_fmt("begin_bumps.size: {}", begin_bumps.size());
-    debug::debug_fmt("end_bumps.size: {}", end_bumps.size());
-    debug::debug_fmt("begin_tracks.size: {}", begin_tracks.size());
-    debug::debug_fmt("end_tracks.size: {}", end_tracks.size());
+    // print all the bumps and tracks
+    debug::debug_fmt("begin_bumps:");
+    for (auto& bump: begin_bumps) {
+        debug::debug_fmt("Bump: {}", bump->coord(), bump->index());
+    }
+    debug::debug_fmt("end_bumps:");
+    for (auto& bump: end_bumps) {
+        debug::debug_fmt("Bump: {}", bump->coord(), bump->index());
+    }
+    debug::debug_fmt("begin_tracks:");
+    for (auto& track: begin_tracks) {
+        debug::debug_fmt("Track: {}", track->coord());
+    }
+    debug::debug_fmt("end_tracks:");
+    for (auto& track: end_tracks) {
+        debug::debug_fmt("Track: {}", track->coord());
+    }
 }
 
 auto show_tobconnectors(const std::unordered_map<hardware::Bump*, hardware::TOBConnector>& tobconnectors) -> void {
