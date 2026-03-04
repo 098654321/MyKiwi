@@ -148,6 +148,23 @@ target("transform_format")
         "source/serde/**.cc"
     )
 
+target("parse_controlbits")
+    set_kind("binary")
+    set_targetdir("./output")
+    set_default(false)
+    add_includedirs("source", "source/global")
+    add_files("tools/parse_controlbits.cc")
+    add_files(
+        "source/algo/**.cc",
+        "source/circuit/**.cc",
+        "source/global/**.cc",
+        "source/hardware/**.cc",
+        "source/parse/**.cc",
+        "source/serde/**.cc"
+    )
+
+
+
 -- xmake project -k compile_commands
 
 --

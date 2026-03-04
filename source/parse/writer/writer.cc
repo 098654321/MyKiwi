@@ -209,7 +209,7 @@ namespace kiwi::parse
         for (std::usize i = 0; i < 4; i++)
         {
             std::usize bank{i/2}, bank_index{i%2};
-            std::String name = std::format("tob_{}_{}_{}_bank{}_en{}", row, col, reg_name, bank, bank_index);
+            std::String name = std::format("tob_{}_{}_{}_bank{}_en_{}", row, col, reg_name, bank, bank_index);
             file << to_hex(splitted_bits[i]) << " " << name << std::endl;
         }
     }

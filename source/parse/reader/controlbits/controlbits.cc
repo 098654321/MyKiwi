@@ -92,7 +92,7 @@ namespace kiwi::parse {
         return controlbits;
     }
     catch (const std::exception& e) {
-        debug::exception_fmt("Unexpected exception in loading controlbits(): {}", e.what());
+        debug::exception_fmt("loading controlbits(): {}", e.what());
     }
     }
 
@@ -172,7 +172,7 @@ namespace kiwi::parse {
         if (tokens[3] == "dly" || tokens[3] == "drv") {
             return false;
         } else if (tokens[3] == "tob2bump" || tokens[3] == "bump2tob") {
-            int index = std::stoi(tokens[4].substr(4)) * 64 + std::stoi(tokens[5].substr(2)) * 32;
+            int index = std::stoi(tokens[4].substr(4)) * 64 + std::stoi(tokens[6]) * 32;
             auto &map = (tokens[3] == "tob2bump") ? tob2bump_sig : bump2tob_sig;
 
             auto iter = map->emplace(coord, std::bitset<128>{});

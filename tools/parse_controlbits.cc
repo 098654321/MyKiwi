@@ -23,8 +23,18 @@ namespace kiwi {
 
 auto print_help() -> void;
 auto parse_arguments(int, char**) -> std::tuple<std::string, int>;
-auto load_hardware(hardware::Interposer*, const parse::Controlbits&) -> std::tuple<std::set<hardware::Bump*>, std::set<hardware::Bump*>, std::set<hardware::Track*>, std::set<hardware::Track*>>;
-auto check_bump_and_track(hardware::Interposer*, const parse::Controlbits&, const std::set<hardware::Bump*>&, const std::set<hardware::Bump*>&, const std::set<hardware::Track*>&, const std::set<hardware::Track*>&) -> std::tuple<std::unordered_map<hardware::Bump*, hardware::TOBConnector>, std::unordered_map<hardware::Track*, hardware::TOBConnector>>;
+auto load_hardware(
+    hardware::Interposer*, 
+    const parse::Controlbits&
+) -> std::tuple<std::set<hardware::Bump*>, std::set<hardware::Bump*>, std::set<hardware::Track*>, std::set<hardware::Track*>>;
+auto check_bump_and_track(
+    hardware::Interposer*, 
+    const parse::Controlbits&, 
+    const std::set<hardware::Bump*>&, 
+    const std::set<hardware::Bump*>&, 
+    const std::set<hardware::Track*>&, 
+    const std::set<hardware::Track*>&
+) -> std::tuple<std::unordered_map<hardware::Bump*, hardware::TOBConnector>, std::unordered_map<hardware::Track*, hardware::TOBConnector>>;
 
 using prev_info_t = std::unordered_map<hardware::Track*, std::optional<std::tuple<hardware::Track*, hardware::COBConnector>>>;
 
@@ -39,13 +49,39 @@ struct ParseState {
 };
 
 auto is_external_track(const hardware::Track*) -> bool;
-auto build_path_forward(const prev_info_t&, hardware::Track*, hardware::Track*) -> std::vector<std::tuple<hardware::Track*, std::optional<hardware::COBConnector>>>;
-auto build_path_by_backtrace(const prev_info_t&, hardware::Track*, hardware::Track*) -> std::vector<std::tuple<hardware::Track*, std::optional<hardware::COBConnector>>>;
-auto reverse_adj_tracks(hardware::Interposer*, hardware::Track*, const parse::Controlbits&) -> std::vector<std::tuple<hardware::Track*, hardware::COBConnector>>;
+auto build_path_forward(
+    const prev_info_t&, 
+    hardware::Track*, 
+    hardware::Track*
+) -> std::vector<std::tuple<hardware::Track*, std::optional<hardware::COBConnector>>>;
+auto build_path_by_backtrace(
+    const prev_info_t&, 
+    hardware::Track*, 
+    hardware::Track*
+) -> std::vector<std::tuple<hardware::Track*, std::optional<hardware::COBConnector>>>;
+auto reverse_adj_tracks(
+    hardware::Interposer*, 
+    hardware::Track*, 
+    const parse::Controlbits&
+) -> std::vector<std::tuple<hardware::Track*, hardware::COBConnector>>;
 auto calc_path_length(const circuit::PathPackage&) -> std::size_t;
 auto show_nets(circuit::BaseDie*, int) -> void;
-auto build_parse_state(const std::set<hardware::Bump*>&, const std::set<hardware::Bump*>&, const std::set<hardware::Track*>&, const std::set<hardware::Track*>&) -> ParseState;
-auto run_step7(
+auto show_controlbits(const parse::Controlbits&) -> void;
+auto show_bumps_and_tracks_collected(
+    const std::set<hardware::Bump*>&, 
+    const std::set<hardware::Bump*>&, 
+    const std::set<hardware::Track*>&, 
+    const std::set<hardware::Track*>&
+) -> void;
+auto show_tobconnectors(const std::unordered_map<hardware::Bump*, hardware::TOBConnector>&) -> void;
+auto show_tobconnectors(const std::unordered_map<hardware::Track*, hardware::TOBConnector>&) -> void;
+auto build_parse_state(
+    const std::set<hardware::Bump*>&, 
+    const std::set<hardware::Bump*>&, 
+    const std::set<hardware::Track*>&, 
+    const std::set<hardware::Track*>&
+) -> ParseState;
+auto find_path(
     hardware::Interposer*,
     circuit::BaseDie*,
     const parse::Controlbits&,
@@ -54,7 +90,7 @@ auto run_step7(
     const std::unordered_map<hardware::Track*, hardware::TOBConnector>&,
     ParseState&
 ) -> void;
-auto run_step8(
+auto check_track_to_bump_net(
     hardware::Interposer*,
     circuit::BaseDie*,
     const parse::Controlbits&,
@@ -66,7 +102,7 @@ auto run_step8(
 
 /////////////////////////////////////////////////////////////
 
-int main(int argc, char** argv) {
+int main_parse(int argc, char** argv) {
 try{
     if (argc < 5) {
         print_help();
@@ -74,36 +110,47 @@ try{
     }
 
     // step1: parse arguments
+    debug::info("Parse arguments");
     auto [folder, mode] = parse_arguments(argc, argv);
 
     // step2: initial log
+    debug::info("Initial log");
     debug::initial_log("./debug.log");
 
     // step3: init hardware
+    debug::info("Init hardware");
     auto interposer = std::make_unique<hardware::Interposer>();
     auto basedie = std::make_unique<circuit::BaseDie>();
 
     // step4: load controlbits
+    debug::info("Load controlbits");    
     auto controlbits = parse::load_controlbits(folder, mode);
     if (!controlbits.has_value()) {
         throw std::logic_error("Controlbits not found");
     }
+    show_controlbits(controlbits.value());
 
     // step5: load hardware from tob controlbits
     // notice: only part of the tracks are loaded here, because some other tracks are IO ports of the interposer
     //         and will be loaded during the maze algorithm
+    debug::info("Load hardware from controlbits");    
     auto [begin_bumps, end_bumps, begin_tracks, end_tracks] = load_hardware(interposer.get(), controlbits.value());
+    show_bumps_and_tracks_collected(begin_bumps, end_bumps, begin_tracks, end_tracks);
 
     // step6: check if there is error in the loaded hardware
+    debug::info("Check loaded hardware");    
     auto [begin_tobconnectors, end_tobconnectors] = check_bump_and_track(interposer.get(), controlbits.value(), begin_bumps, end_bumps, begin_tracks, end_tracks);
-
     auto state = build_parse_state(begin_bumps, end_bumps, begin_tracks, end_tracks);
+    show_tobconnectors(begin_tobconnectors);
+    show_tobconnectors(end_tobconnectors);
 
     // step7: 根据 cob 的controlbits信息开始寻找路径
-    run_step7(interposer.get(), basedie.get(), controlbits.value(), mode, begin_tobconnectors, end_tobconnectors, state);
+    debug::info("Find path");    
+    find_path(interposer.get(), basedie.get(), controlbits.value(), mode, begin_tobconnectors, end_tobconnectors, state);
 
     // step8: 检查是否还有从IO到bump的net
-    run_step8(interposer.get(), basedie.get(), controlbits.value(), mode, end_tobconnectors, state);
+    debug::info("Check track to bump net");    
+    check_track_to_bump_net(interposer.get(), basedie.get(), controlbits.value(), mode, end_tobconnectors, state);
 
     // step9: show net info
     show_nets(basedie.get(), mode);
@@ -161,6 +208,10 @@ std::tuple<std::string, int> parse_arguments(int argc, char** argv) {
         show_help("Error: -mode argument without mode\n");
     }
     auto mode = arguments[mode_index + 1];
+
+    if (argument_index("-v") != -1) {
+            debug::set_debug_level(debug::DebugLevel::Debug);
+        }
 
     return {file_path, std::stoi(mode)};
 }
@@ -276,7 +327,7 @@ auto build_parse_state(const std::set<hardware::Bump*>& begin_bumps, const std::
     return state;
 }
 
-auto run_step7(
+auto find_path(
     hardware::Interposer* interposer,
     circuit::BaseDie* basedie,
     const parse::Controlbits& controlbits,
@@ -345,7 +396,7 @@ auto run_step7(
             package._track_to_tob.emplace_back(end_bump, end_connector, matched_end_track);
             package._length = calc_path_length(package);
 
-            auto net_name = std::String{std::format("Controlbits_BumpToBumpNet_{}_mode_{}", state.net_index, mode)};
+            auto net_name = std::String{std::format("Controlbits_BumpToBumpNet_{}", state.net_index)};
             auto net = std::make_shared<circuit::BumpToBumpNet>(begin_bump, end_bump, mode_set, net_name);
             net->set_pathpackage(package);
             basedie->add_net(net, mode);
@@ -362,7 +413,7 @@ auto run_step7(
             package._tob_to_track.emplace_back(begin_bump, begin_connector, begin_track);
             package._length = calc_path_length(package);
 
-            auto net_name = std::String{std::format("Controlbits_BumpToTrackNet_{}_mode_{}", state.net_index, mode)};
+            auto net_name = std::String{std::format("Controlbits_BumpToTrackNet_{}", state.net_index)};
             auto net = std::make_shared<circuit::BumpToTrackNet>(begin_bump, matched_io_track, mode_set, net_name);
             net->set_pathpackage(package);
             basedie->add_net(net, mode);
@@ -374,7 +425,7 @@ auto run_step7(
     }
 }
 
-auto run_step8(
+auto check_track_to_bump_net(
     hardware::Interposer* interposer,
     circuit::BaseDie* basedie,
     const parse::Controlbits& controlbits,
@@ -536,5 +587,47 @@ auto show_nets(circuit::BaseDie* basedie, int mode) -> void {
     }
 }
 
+auto show_controlbits(const parse::Controlbits& controlbits) -> void {
+    debug::debug_fmt("controlbits.tob_bumpsig_direction_size: {}", controlbits.tob_bumpsig_direction.size());
+    debug::debug_fmt("controlbits.tob_tracksig_direction_size: {}", controlbits.tob_tracksig_direction.size());
+    debug::debug_fmt("controlbits.cobsig_direction: {}", controlbits.cobsig_direction.size());
+    debug::debug_fmt("controlbits.bumptohctrl: {}", controlbits.bumptohctrl.size());
+    debug::debug_fmt("controlbits.hctrltovctrl: {}", controlbits.hctrltovctrl.size());
+    debug::debug_fmt("controlbits.vctrltotrack: {}", controlbits.vctrltotrack.size());
+    debug::debug_fmt("controlbits.cobsw: {}", controlbits.cobsw.size());
+}
+
+auto show_bumps_and_tracks_collected(
+    const std::set<hardware::Bump*>& begin_bumps, 
+    const std::set<hardware::Bump*>& end_bumps, 
+    const std::set<hardware::Track*>& begin_tracks, 
+    const std::set<hardware::Track*>& end_tracks
+) -> void {
+    debug::debug_fmt("begin_bumps.size: {}", begin_bumps.size());
+    debug::debug_fmt("end_bumps.size: {}", end_bumps.size());
+    debug::debug_fmt("begin_tracks.size: {}", begin_tracks.size());
+    debug::debug_fmt("end_tracks.size: {}", end_tracks.size());
+}
+
+auto show_tobconnectors(const std::unordered_map<hardware::Bump*, hardware::TOBConnector>& tobconnectors) -> void {
+    debug::debug_fmt("tobconnectors.size: {}", tobconnectors.size());
+}
+
+auto show_tobconnectors(const std::unordered_map<hardware::Track*, hardware::TOBConnector>& tobconnectors) -> void {
+    debug::debug_fmt("tobconnectors.size: {}", tobconnectors.size());
+}
+
+
 
 }
+
+
+int main(int argc, char** argv) {
+    try {
+        kiwi::main_parse(argc, argv);
+    }
+    catch (const std::exception& err) {
+        kiwi::debug::exception("Unexpected exception");
+    }
+}
+
