@@ -1,7 +1,5 @@
 ## TODO
 
-- 目前有概率出现布局之后某个net的begin/end bump tob相同，导致布线失败的问题。添加输出信息
-
 - 把 vpr 针对 high-fanout 的优化加上
 
 - 一对多的 net 的 path_in_order() 函数需要重新实现**
