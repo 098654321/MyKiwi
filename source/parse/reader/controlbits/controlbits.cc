@@ -189,7 +189,8 @@ namespace kiwi::parse {
             
             auto iter = map.emplace(coord, std::Array<int, 128>{});
             for (int i = 0; i < 24; i += 3) {
-                int value = std::stoi(reversed_bits.substr(i, 3), nullptr, 2);
+                // int value = std::stoi(reversed_bits.substr(i, 3), nullptr, 2);           // 这是最高位在左边
+                int value = (reversed_bits[i] - '0') + (reversed_bits[i + 1] - '0') * 2 + (reversed_bits[i + 2] - '0') * 4; // 这个最高位在右边
                 iter.first->second[index + i / 3] = value;
             }
         } else if (tokens[3] == "bank") {
