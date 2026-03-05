@@ -187,18 +187,19 @@ namespace kiwi::parse
         {
             auto& data = splitted_bits[outer_i];    
             for (std::size_t i = 0; i < data.size(); ++i) {
-                std::bitset<3> bits{data[i]};       // trans decimal 0-7 to binary 000-111(LSB on the left)
+                std::bitset<3> bits{data[i]};       // trans decimal 0-7 to binary 000-111(MSB on the right)
                 for (std::size_t j = 0; j < 3; ++j) {
-                    result[outer_i][i * 3 + 2 - j] = bits[j]; 
+                    result[outer_i][i * 3 + j] = bits[j];  // MSB on the right
                 }
             }
-        }                                           // positive sequence
+        }                                           // for each 3-bit binary number, MSB is on the right
+                                                    // and for the whole 32-bit control signal, MSB is on the right
 
         for (std::usize i = 0; i < 16; ++i)
         {
             std::usize bank{i/8}, bank_index{i%8};
             std::String name = std::format("tob_{}_{}_{}_bank{}_{}", row, col, reg_name, bank, bank_index);
-            file << to_hex(result[i]) << " " << name << std::endl;  // negative sequence
+            file << to_hex(result[i]) << " " << name << std::endl;  
         }
     }
 
@@ -209,7 +210,7 @@ namespace kiwi::parse
         for (std::usize i = 0; i < 4; i++)
         {
             std::usize bank{i/2}, bank_index{i%2};
-            std::String name = std::format("tob_{}_{}_{}_bank{}_en{}", row, col, reg_name, bank, bank_index);
+            std::String name = std::format("tob_{}_{}_{}_bank{}_en_{}", row, col, reg_name, bank, bank_index);
             file << to_hex(splitted_bits[i]) << " " << name << std::endl;
         }
     }
@@ -217,7 +218,7 @@ namespace kiwi::parse
     auto Writer::to_hex(const std::Bits<32>& bits) -> std::String
     {                                                   // input bits: in the positive sequence
         try{
-            std::String binary {bits.to_string()};      // automatically reverse the bits in "to_string()"
+            std::String binary {bits.to_string()};      // automatically reverse the bits in "to_string()", and MSB is on the left
             std::stringstream hexStream;
             for (std::size_t i = 0; i < binary.size(); i += 4) {
                 std::string byte = binary.substr(i, 4);

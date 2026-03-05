@@ -92,7 +92,7 @@ namespace kiwi::parse {
         return controlbits;
     }
     catch (const std::exception& e) {
-        debug::exception_fmt("Unexpected exception in loading controlbits(): {}", e.what());
+        debug::exception_fmt("loading controlbits(): {}", e.what());
     }
     }
 
@@ -113,6 +113,7 @@ namespace kiwi::parse {
                 load_length(net.get());
             }
         }
+        show_path_from_bits(basedie->nets(mode));
     }
     catch (const std::exception& e) {
         debug::exception_fmt("bits_to_paths(): {}", e.what());
@@ -171,7 +172,7 @@ namespace kiwi::parse {
         if (tokens[3] == "dly" || tokens[3] == "drv") {
             return false;
         } else if (tokens[3] == "tob2bump" || tokens[3] == "bump2tob") {
-            int index = std::stoi(tokens[4].substr(4)) * 64 + std::stoi(tokens[5].substr(2)) * 32;
+            int index = std::stoi(tokens[4].substr(4)) * 64 + std::stoi(tokens[6]) * 32;
             auto &map = (tokens[3] == "tob2bump") ? tob2bump_sig : bump2tob_sig;
 
             auto iter = map->emplace(coord, std::bitset<128>{});
@@ -188,7 +189,7 @@ namespace kiwi::parse {
             
             auto iter = map.emplace(coord, std::Array<int, 128>{});
             for (int i = 0; i < 24; i += 3) {
-                int value = std::stoi(reversed_bits.substr(i, 3), nullptr, 2);
+                int value = (reversed_bits[i] - '0') + (reversed_bits[i + 1] - '0') * 2 + (reversed_bits[i + 2] - '0') * 4; 
                 iter.first->second[index + i / 3] = value;
             }
         } else if (tokens[3] == "bank") {
@@ -271,7 +272,7 @@ namespace kiwi::parse {
                 auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl%8)*8;
                 auto track_index = controlbits.vctrltotrack.at(tobcoord)[vctrl%64] == 0? vctrl : (vctrl+64)%128;
                 auto connector = bump->tob()->bump_track_connectors_chain(bump_index, track_index, dir);   // already set the state to "given_out"
-                debug::info_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
+                debug::debug_fmt("load_tobconnector(): calculated index = {}->{}->{}->{}", bump_index, hctrl, vctrl, track_index);
 
                 auto track_coord = hardware::TrackCoord{bump->coord().row, bump->coord().col, hardware::TrackDirection::Vertical, track_index};
                 auto track = interposer->get_track(track_coord);
@@ -445,10 +446,10 @@ namespace kiwi::parse {
                     package._regular_path.emplace_back(cur, connector);
                     cur = prev_track;
                 }
-                // reverse
                 package._regular_path.emplace_back(begin_track, std::nullopt);
-                // set cobconnector state
+                // reverse
                 std::reverse(package._regular_path.begin(), package._regular_path.end());
+                // set cobconnector state
                 for (auto& [t, c]: package._regular_path) {
                     if (c.has_value()) {
                         c.value().suspend();
@@ -579,6 +580,24 @@ namespace kiwi::parse {
         }
         for (auto& n: net->ttbnets()) {
             collect(n.get());
+        }
+    }
+
+    auto show_path_from_bits(const std::Vector<std::Rc<circuit::Net>>& nets) -> void {
+        debug::info("Show path from control bits:");
+
+        for (const auto& net: nets) {
+            debug::info(net->to_string());
+            auto l = net->length();
+
+            if (l > 0) {
+                debug::info_fmt("Routing length of this net: {}", l);
+                debug::info_fmt("Routing priority of this net: {}", net->priority().value());
+                net->show_path();
+            }
+            else {
+                debug::info_fmt("net {} is not routed", net->name());
+            }
         }
     }
 

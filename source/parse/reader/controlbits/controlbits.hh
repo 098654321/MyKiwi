@@ -9,6 +9,7 @@
 #include <circuit/basedie.hh>
 #include <std/file.hh>
 #include <std/utility.hh>
+#include <std/memory.hh>
 
 
 namespace kiwi::circuit {
@@ -46,6 +47,8 @@ namespace kiwi::parse {
     auto load_path_with_maze_sync(circuit::SyncNet*, hardware::Interposer* , const Controlbits&) -> void;
     auto load_length(circuit::Net*) -> void;
     auto load_length_sync(circuit::SyncNet*) -> void;
+
+    auto show_path_from_bits(const std::Vector<std::Rc<circuit::Net>>& nets) -> void;
 
     auto adj_tracks(hardware::Interposer*, hardware::Track*, const Controlbits&) -> std::Vector<std::Tuple<hardware::Track*, hardware::COBConnector>>;
     auto sw_type(hardware::Track*, hardware::Track*) -> std::Tuple<hardware::COBSWDirection, hardware::COBCoord, std::usize>;
