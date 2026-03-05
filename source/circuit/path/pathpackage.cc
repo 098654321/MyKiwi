@@ -100,7 +100,7 @@ for (auto& preg: pregs) {
 
         if (this->_tob_to_track.size() > 0) {
             for (auto& [bump, tobconnector, track]: this->_tob_to_track) {
-                debug::info_fmt("Begin_bump: ({}, index={})", bump->coord(), bump->index());
+                debug::info_fmt("Begin_bump: {}", bump->coord());
             }
         }
 
@@ -110,7 +110,7 @@ for (auto& preg: pregs) {
 
         if (this->_track_to_tob.size() > 0) {
             for (auto& [bump, tobconnector, track]: this->_track_to_tob) {
-                debug::info_fmt("End_bump: ({}, index={})", bump->coord(), bump->index());
+                debug::info_fmt("End_bump: {}", bump->coord());
             }
         }
         debug::info("\n");

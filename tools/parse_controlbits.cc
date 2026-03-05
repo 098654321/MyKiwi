@@ -485,7 +485,7 @@ auto check_track_to_bump_net(
             package._length = calc_path_length(package);
 
             auto mode_set = std::HashSet<int>{mode};
-            auto net_name = std::String{std::format("Controlbits_TrackToBumpNet_{}_mode_{}", state.net_index, mode)};
+            auto net_name = std::String{std::format("Controlbits_TrackToBumpNet_{}", state.net_index)};
             auto net = std::make_shared<circuit::TrackToBumpNet>(source_io_track, end_bump, mode_set, net_name);
             net->set_pathpackage(package);
             basedie->add_net(net, mode);
@@ -576,6 +576,7 @@ auto calc_path_length(const circuit::PathPackage& package) -> std::size_t {
 }
 
 auto show_nets(circuit::BaseDie* basedie, int mode) -> void {
+    debug::info_fmt("**************************** Show nets ****************************");
     for (const auto& net: basedie->nets(mode)) {
         debug::info(net->to_string());
         auto l = net->length();
