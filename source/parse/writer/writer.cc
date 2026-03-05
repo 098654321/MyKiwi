@@ -189,7 +189,7 @@ namespace kiwi::parse
             for (std::size_t i = 0; i < data.size(); ++i) {
                 std::bitset<3> bits{data[i]};       // trans decimal 0-7 to binary 000-111(LSB on the left)
                 for (std::size_t j = 0; j < 3; ++j) {
-                    result[outer_i][i * 3 + 2 - j] = bits[j]; 
+                    result[outer_i][i * 3 + 2 - j] = bits[j]; // LSB on the right
                 }
             }
         }                                           // positive sequence
