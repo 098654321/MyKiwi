@@ -115,7 +115,7 @@ try{
 
     // step2: initial log
     debug::info("Initial log");
-    debug::initial_log("./debug.log");
+    debug::initial_log("./parse_controlbits.log");
 
     // step3: init hardware
     debug::info("Init hardware");
