@@ -266,13 +266,12 @@ auto check_bump_and_track(hardware::Interposer* interposer, const parse::Control
     auto get_tobconnector = [&controlbits, interposer](hardware::Bump* bump, hardware::TOBBumpDirection dir, auto& to_tobconnector) -> void {
         auto tobcoord = bump->tob()->coord();
         auto coord_in_interposer = hardware::Interposer::TOB_COORD_MAP.at(tobcoord);
-        auto bump_index = bump->index();
-// 这里算的可能有问题
-        auto hctrl = controlbits.bumptohctrl.at(tobcoord).at(bump_index) + (bump_index/8)*8;
-        auto trans_hctrl = (hctrl/64)*64 + (hctrl%8)*8 + (hctrl - (hctrl/64)*64)/8;
-        auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl%8)*8;
-        // auto vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (hctrl/64)*64 + (hctrl/8)*8;
-        auto track_index = controlbits.vctrltotrack.at(tobcoord)[vctrl%64] == 0? vctrl : (vctrl+64)%128;
+        int bump_index = bump->index();
+
+        int hctrl = controlbits.bumptohctrl.at(tobcoord).at(bump_index) + (bump_index/8)*8;
+        int trans_hctrl = (hctrl/64)*64 + (hctrl%8)*8 + (hctrl - (hctrl/64)*64)/8;
+        int vctrl = controlbits.hctrltovctrl.at(tobcoord).at(trans_hctrl) + (trans_hctrl/64)*64 + ((trans_hctrl-(trans_hctrl/64)*64)/8)*8;
+        int track_index = controlbits.vctrltotrack.at(tobcoord)[vctrl%64] == 0? vctrl : (vctrl+64)%128;
         auto connector = bump->tob()->bump_track_connectors_chain(bump_index, track_index, dir); 
         auto track = interposer->get_track(coord_in_interposer.row, coord_in_interposer.col, hardware::TrackDirection::Vertical, track_index);
         if (!track.has_value()) {
