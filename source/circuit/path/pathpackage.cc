@@ -96,7 +96,7 @@ for (auto& preg: pregs) {
     }
 
     auto PathPackage::show() const -> void {
-        debug::info("\nPrinting path...");
+        debug::info("Printing path...");
 
         if (this->_tob_to_track.size() > 0) {
             for (auto& [bump, tobconnector, track]: this->_tob_to_track) {
