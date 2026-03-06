@@ -62,6 +62,28 @@ def main():
             print(f"Error creating output directory: {e}")
             sys.exit(1)
 
+    # Setup logging to report.log
+    log_file_path = os.path.join(output_dir, "report.log")
+    
+    class Logger(object):
+        def __init__(self, filename):
+            self.terminal = sys.stdout
+            self.log = open(filename, "w")
+
+        def write(self, message):
+            self.terminal.write(message)
+            self.log.write(message)
+            self.log.flush()
+
+        def flush(self):
+            # this flush method is needed for python 3 compatibility.
+            # this handles the flush command by doing nothing.
+            # you might want to specify some extra behavior here.
+            self.terminal.flush()
+            self.log.flush()
+
+    sys.stdout = Logger(log_file_path)
+
     print(f"Loading register map from {json_path}...")
     reg_map = load_register_map(json_path)
     
