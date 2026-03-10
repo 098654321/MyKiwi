@@ -46,12 +46,14 @@ namespace kiwi::parse {
     private:
         auto write_cob(std::ofstream& file) -> void;
         auto write_tob(std::ofstream& file) -> void;
+        auto write_xinzhai(std::ofstream& file) -> void;
 
         auto write_cob_template(std::ofstream&, const std::Bits<128>&, std::String, std::usize, std::usize) -> void;
         auto write_tob_template64(std::ofstream&, const std::Bits<64>&, std::String, std::usize, std::usize) -> void;
         auto write_tob_template128(std::ofstream&, const std::Bits<128>&, std::String, std::usize, std::usize) -> void;
         auto write_tob_template_mux(std::ofstream&, const std::Array<std::usize, 128>&, std::String, std::usize, std::usize) -> void;
         auto only_this_one_looks_f__king_different_from_others(std::ofstream&, const std::Bits<128>&, std::String, std::usize, std::usize) -> void;
+        auto write_xinzhai_template(std::ofstream&, const std::Bits<128>&, const std::string& name) -> void;
     
     private:
         auto to_hex(const std::Bits<32>& bits) -> std::String;
