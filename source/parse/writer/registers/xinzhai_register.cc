@@ -103,7 +103,7 @@ namespace kiwi::parse
         }
 
         // group 5
-        for (std::size_t index = 31; index >= 0; --index) {
+        for (int index = 31; index >= 0; --index) {
             bits[index] = 0;
         }
     }
@@ -147,7 +147,7 @@ namespace kiwi::parse
         }
 
         // group 5
-        for (std::size_t index = 31; index >= 0; --index) {
+        for (int index = 31; index >= 0; --index) {
             bits[index] = 0;
         }
     }
