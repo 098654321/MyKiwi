@@ -36,6 +36,18 @@ namespace kiwi::parse
         std::Bits<128> sw_h;
     };
 
+    struct XinzhaiValue
+    {
+        std::Bits<128> padctrl_right;
+        std::Bits<128> padctrl_left;
+        std::Bits<128> padctrl_up;
+        std::Bits<128> padctrl_down;
+        std::Bits<128> SiPpadctrl_right;
+        std::Bits<128> SiPpadctrl_left;
+        std::Bits<128> SiPpadctrl_up;
+        std::Bits<128> SiPpadctrl_down;
+    };
+
 
     struct RegisterValue
     {
@@ -59,6 +71,7 @@ namespace kiwi::parse
 
         std::HashMap<hardware::TOBCoord, TobValue> tobs;
         std::HashMap<hardware::COBCoord, CobValue> cobs;
+        XinzhaiValue xinzhai;
     };
 }
 

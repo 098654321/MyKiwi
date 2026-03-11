@@ -1,7 +1,9 @@
 #include "./writer.hh"
 #include "./registers/tobregister.hh"
 #include "./registers/cobregister.hh"
+#include "./registers/xinzhai_register.hh"
 #include <hardware/interposer.hh>
+#include <algorithm>
 
 #include <algorithm>
 #include <sstream>
@@ -21,7 +23,7 @@ namespace kiwi::parse
     auto Writer::fetch_and_write(const std::FilePath& file) -> void
     {
         build_regs();
-        fetch();                // LSB on the left
+        fetch();                
         write(file);            // MSB on the left
     }
 
@@ -29,8 +31,10 @@ namespace kiwi::parse
     {
         TobRegister* ptr_tr = new TobRegister(_pinterposer);
         CobRegister* ptr_cr = new CobRegister(_pinterposer);
+        XinzhaiRegister* ptr_xr = new XinzhaiRegister(_pinterposer);
         _regs.emplace_back(ptr_tr);
         _regs.emplace_back(ptr_cr);
+        _regs.emplace_back(ptr_xr);
     }
 
     auto Writer::fetch() -> void
@@ -50,6 +54,7 @@ namespace kiwi::parse
 
         write_cob(file);
         write_tob(file);
+        write_xinzhai(file);
     }
 
     auto Writer::write_cob(std::ofstream& file) -> void
@@ -108,6 +113,34 @@ namespace kiwi::parse
                     throw std::runtime_error(std::format("cannot find cob at ({}, {})", row, col));
                 }
             }
+        }
+    }
+
+    auto Writer::write_xinzhai(std::ofstream& file) -> void {
+        write_xinzhai_template(file, _rv.xinzhai.padctrl_right, "xinzhai_C4_noi_right_pad_ctrl");
+        write_xinzhai_template(file, _rv.xinzhai.padctrl_left, "xinzhai_C4_noi_left_pad_ctrl");
+        write_xinzhai_template(file, _rv.xinzhai.padctrl_up, "xinzhai_C4_noi_up_pad_ctrl");
+        write_xinzhai_template(file, _rv.xinzhai.padctrl_down, "xinzhai_C4_noi_down_pad_ctrl");
+
+        write_xinzhai_template(file, _rv.xinzhai.SiPpadctrl_right, "xinzhai_C4_noi_SiP_right_pad_ctrl");
+        write_xinzhai_template(file, _rv.xinzhai.SiPpadctrl_left, "xinzhai_C4_noi_SiP_left_pad_ctrl");
+        write_xinzhai_template(file, _rv.xinzhai.SiPpadctrl_up, "xinzhai_C4_noi_SiP_up_pad_ctrl");
+        write_xinzhai_template(file, _rv.xinzhai.SiPpadctrl_down, "xinzhai_C4_noi_SiP_down_pad_ctrl");
+    }
+
+    auto Writer::write_xinzhai_template(std::ofstream& file, const std::Bits<128>& bits, const std::string& name) -> void {
+        // reverse the bits and make the MSB on the right
+        auto reverse_bits = std::Bits<128>{};
+        for (std::size_t i = 0; i < 128; ++i) {
+            reverse_bits[i] = bits[127 - i];
+        }
+
+        // output
+        auto splitted_bits = split_bits<128, 4>(reverse_bits);
+        for (std::usize i = 0; i < 4; i++)
+        {
+            std::String output_name = name + "_" + std::to_string(i);
+            file << to_hex(splitted_bits[i]) << " " << output_name << std::endl;    // MSB is on the left
         }
     }
 
@@ -216,7 +249,7 @@ namespace kiwi::parse
     }
 
     auto Writer::to_hex(const std::Bits<32>& bits) -> std::String
-    {                                                   // input bits: in the positive sequence
+    {                                                   
         try{
             std::String binary {bits.to_string()};      // automatically reverse the bits in "to_string()", and MSB is on the left
             std::stringstream hexStream;
