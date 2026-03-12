@@ -18,7 +18,7 @@ About connection.txt format:
   - For pose/nege connections: '<chip> pose <count>' or '<chip> nege <count>'
   - For simple/bus connections: '<src> <dst> simple <count>' or '<src> <dst> bus <count>'
     where <src> and <dst> can be chip instance names or the board name (currently "xinzhai"). 'simple' means each connection is independent, while 'bus' means a high-speed bus net, and all connections with the same src/dst/count form a group that must be allocated identically across modes if repeated.
-
+- A special section for multi-fanout chip ports can be defined with '# multi_fanout_chip_port', followed by lines listing chip port names. These ports are allowed to be reused multiple times within the same mode.
 """
 
 from __future__ import annotations
