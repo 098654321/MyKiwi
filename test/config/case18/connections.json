@@ -2,260 +2,196 @@
     "1": {
         "-1": [
             [
-                "muyan_0.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_0.s_tx_flit_b0",
+                "muyan_1.s_tx_flit_b0"
             ],
             [
-                "muyan_0.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_0.s_tx_flit_b1",
+                "muyan_1.s_tx_flit_b1"
             ],
             [
-                "muyan_0.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_0.s_tx_flit_b2",
+                "muyan_4.s_tx_flit_b2"
             ],
             [
-                "muyan_0.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_0.s_tx_clk",
+                "muyan_4.s_tx_clk"
             ],
             [
-                "muyan_1.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_1.s_tx_flit_b2",
+                "muyan_2.s_tx_flit_b2"
             ],
             [
-                "muyan_1.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_1.s_tx_clk",
+                "muyan_2.s_tx_clk"
             ],
             [
-                "muyan_1.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_1.s_tx_flit_vld",
+                "muyan_5.s_tx_flit_vld"
             ],
             [
-                "muyan_1.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_1.s_tx_flit_b5",
+                "muyan_5.s_tx_flit_b5"
             ],
             [
-                "muyan_2.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_2.s_tx_flit_b0",
+                "muyan_3.s_tx_flit_b0"
             ],
             [
-                "muyan_2.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_2.s_tx_flit_b1",
+                "muyan_3.s_tx_flit_b1"
             ],
             [
-                "muyan_2.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_2.s_tx_flit_vld",
+                "muyan_6.s_tx_flit_vld"
             ],
             [
-                "muyan_2.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_2.s_tx_flit_b5",
+                "muyan_6.s_tx_flit_b5"
             ],
             [
-                "muyan_3.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_3.s_tx_flit_b2",
+                "muyan_7.s_tx_flit_b2"
             ],
             [
-                "muyan_3.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_3.s_tx_clk",
+                "muyan_7.s_tx_clk"
             ],
             [
-                "muyan_3.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_4.s_tx_flit_b6",
+                "muyan_5.s_tx_flit_b6"
             ],
             [
-                "muyan_3.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_4.s_tx_flit_b7",
+                "muyan_5.s_tx_flit_b7"
             ],
             [
-                "muyan_4.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_4.s_tx_flit_b0",
+                "muyan_8.s_tx_flit_b0"
             ],
             [
-                "muyan_4.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_4.s_tx_flit_b1",
+                "muyan_8.s_tx_flit_b1"
             ],
             [
-                "muyan_4.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_5.s_tx_crdtARW_free",
+                "muyan_6.s_tx_crdtARW_free"
             ],
             [
-                "muyan_4.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_5.rd5",
+                "muyan_6.rd5"
             ],
             [
-                "muyan_5.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_5.chipID2",
+                "muyan_9.chipID2"
             ],
             [
-                "muyan_5.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_5.chipID1",
+                "muyan_9.chipID1"
             ],
             [
-                "muyan_5.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_6.s_tx_flit_b6",
+                "muyan_7.s_tx_flit_b6"
             ],
             [
-                "muyan_5.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_6.s_tx_flit_b7",
+                "muyan_7.s_tx_flit_b7"
             ],
             [
-                "muyan_6.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_6.chipID2",
+                "muyan_10.chipID2"
             ],
             [
-                "muyan_6.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_6.chipID1",
+                "muyan_10.chipID1"
             ],
             [
-                "muyan_6.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_7.s_tx_flit_b0",
+                "muyan_11.s_tx_flit_b0"
             ],
             [
-                "muyan_6.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_7.s_tx_flit_b1",
+                "muyan_11.s_tx_flit_b1"
             ],
             [
-                "muyan_7.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_8.s_tx_flit_vld",
+                "muyan_9.s_tx_flit_vld"
             ],
             [
-                "muyan_7.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_8.s_tx_flit_b5",
+                "muyan_9.s_tx_flit_b5"
             ],
             [
-                "muyan_7.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_8.s_tx_flit_b2",
+                "muyan_12.s_tx_flit_b2"
             ],
             [
-                "muyan_7.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_8.s_tx_clk",
+                "muyan_12.s_tx_clk"
             ],
             [
-                "muyan_8.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_9.s_tx_flit_b6",
+                "muyan_10.s_tx_flit_b6"
             ],
             [
-                "muyan_8.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_9.s_tx_flit_b7",
+                "muyan_10.s_tx_flit_b7"
             ],
             [
-                "muyan_8.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_9.s_tx_crdtARW_free",
+                "muyan_13.s_tx_crdtARW_free"
             ],
             [
-                "muyan_8.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_9.rd5",
+                "muyan_13.rd5"
             ],
             [
-                "muyan_9.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_10.s_tx_flit_vld",
+                "muyan_11.s_tx_flit_vld"
             ],
             [
-                "muyan_9.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_10.s_tx_flit_b5",
+                "muyan_11.s_tx_flit_b5"
             ],
             [
-                "muyan_9.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_10.s_tx_crdtARW_free",
+                "muyan_14.s_tx_crdtARW_free"
             ],
             [
-                "muyan_9.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_10.rd5",
+                "muyan_14.rd5"
             ],
             [
-                "muyan_10.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_11.s_tx_flit_b2",
+                "muyan_15.s_tx_flit_b2"
             ],
             [
-                "muyan_10.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_11.s_tx_clk",
+                "muyan_15.s_tx_clk"
             ],
             [
-                "muyan_10.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_12.s_tx_flit_b0",
+                "muyan_13.s_tx_flit_b0"
             ],
             [
-                "muyan_10.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_12.s_tx_flit_b1",
+                "muyan_13.s_tx_flit_b1"
             ],
             [
-                "muyan_11.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_13.s_tx_flit_b2",
+                "muyan_14.s_tx_flit_b2"
             ],
             [
-                "muyan_11.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_13.s_tx_clk",
+                "muyan_14.s_tx_clk"
             ],
             [
-                "muyan_11.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_14.s_tx_flit_b0",
+                "muyan_15.s_tx_flit_b0"
             ],
             [
-                "muyan_11.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_12.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_12.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_12.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_12.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_13.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_13.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_13.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_13.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_14.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_14.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_14.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_14.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_15.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_15.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_15.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_15.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_14.s_tx_flit_b1",
+                "muyan_15.s_tx_flit_b1"
             ]
         ],
         "1": [
@@ -1073,265 +1009,143 @@
                 "muyan_14.s_rx_flit_b5",
                 "muyan_15.s_rx_flit_b5"
             ]
+        ],
+        "25": [
+            [
+                "xinzhai_spi_s_csn_1",
+                "muyan_0.spi_s_csn_1"
+            ],
+            [
+                "xinzhai_spi_s_dout_1",
+                "muyan_0.spi_s_din_1"
+            ],
+            [
+                "muyan_0.spi_s_dout_1",
+                "xinzhai_spi_s_din_1"
+            ]
         ]
     },
     "2": {
         "-1": [
             [
-                "muyan_0.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_0.s_tx_flit_b0",
+                "muyan_1.s_tx_flit_b0"
             ],
             [
-                "muyan_0.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_0.s_tx_flit_b1",
+                "muyan_1.s_tx_flit_b1"
             ],
             [
-                "muyan_0.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_1.s_tx_flit_b2",
+                "muyan_2.s_tx_flit_b2"
             ],
             [
-                "muyan_0.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_1.s_tx_clk",
+                "muyan_2.s_tx_clk"
             ],
             [
-                "muyan_1.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_2.s_tx_flit_b0",
+                "muyan_3.s_tx_flit_b0"
             ],
             [
-                "muyan_1.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_2.s_tx_flit_b1",
+                "muyan_3.s_tx_flit_b1"
             ],
             [
-                "muyan_1.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_3.s_tx_flit_b2",
+                "muyan_7.s_tx_flit_b2"
             ],
             [
-                "muyan_1.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_3.s_tx_clk",
+                "muyan_7.s_tx_clk"
             ],
             [
-                "muyan_2.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_4.s_tx_flit_b6",
+                "muyan_5.s_tx_flit_b6"
             ],
             [
-                "muyan_2.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_4.s_tx_flit_b7",
+                "muyan_5.s_tx_flit_b7"
             ],
             [
-                "muyan_2.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_4.s_tx_flit_b0",
+                "muyan_8.s_tx_flit_b0"
             ],
             [
-                "muyan_2.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_4.s_tx_flit_b1",
+                "muyan_8.s_tx_flit_b1"
             ],
             [
-                "muyan_3.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_5.s_tx_crdtARW_free",
+                "muyan_6.s_tx_crdtARW_free"
             ],
             [
-                "muyan_3.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_5.rd5",
+                "muyan_6.rd5"
             ],
             [
-                "muyan_3.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_6.s_tx_flit_b6",
+                "muyan_7.s_tx_flit_b6"
             ],
             [
-                "muyan_3.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_6.s_tx_flit_b7",
+                "muyan_7.s_tx_flit_b7"
             ],
             [
-                "muyan_4.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_8.s_tx_flit_vld",
+                "muyan_9.s_tx_flit_vld"
             ],
             [
-                "muyan_4.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_8.s_tx_flit_b5",
+                "muyan_9.s_tx_flit_b5"
             ],
             [
-                "muyan_4.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_9.s_tx_flit_b6",
+                "muyan_10.s_tx_flit_b6"
             ],
             [
-                "muyan_4.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_9.s_tx_flit_b7",
+                "muyan_10.s_tx_flit_b7"
             ],
             [
-                "muyan_5.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_10.s_tx_flit_vld",
+                "muyan_11.s_tx_flit_vld"
             ],
             [
-                "muyan_5.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_10.s_tx_flit_b5",
+                "muyan_11.s_tx_flit_b5"
             ],
             [
-                "muyan_5.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_11.s_tx_flit_b2",
+                "muyan_15.s_tx_flit_b2"
             ],
             [
-                "muyan_5.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_11.s_tx_clk",
+                "muyan_15.s_tx_clk"
             ],
             [
-                "muyan_6.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_12.s_tx_flit_b0",
+                "muyan_13.s_tx_flit_b0"
             ],
             [
-                "muyan_6.jtag_tdo",
-                "xinzhai_jtag_tdo"
+                "muyan_12.s_tx_flit_b1",
+                "muyan_13.s_tx_flit_b1"
             ],
             [
-                "muyan_6.jtag_tdi",
-                "xinzhai_jtag_tdi"
+                "muyan_13.s_tx_flit_b2",
+                "muyan_14.s_tx_flit_b2"
             ],
             [
-                "muyan_6.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_13.s_tx_clk",
+                "muyan_14.s_tx_clk"
             ],
             [
-                "muyan_7.jtag_trstn",
-                "xinzhai_jtag_trstn"
+                "muyan_14.s_tx_flit_b0",
+                "muyan_15.s_tx_flit_b0"
             ],
             [
-                "muyan_7.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_7.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_7.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_8.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_8.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_8.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_8.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_9.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_9.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_9.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_9.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_10.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_10.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_10.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_10.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_11.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_11.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_11.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_11.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_12.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_12.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_12.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_12.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_13.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_13.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_13.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_13.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_14.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_14.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_14.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_14.jtag_tck",
-                "xinzhai_jtag_tck"
-            ],
-            [
-                "muyan_15.jtag_trstn",
-                "xinzhai_jtag_trstn"
-            ],
-            [
-                "muyan_15.jtag_tdo",
-                "xinzhai_jtag_tdo"
-            ],
-            [
-                "muyan_15.jtag_tdi",
-                "xinzhai_jtag_tdi"
-            ],
-            [
-                "muyan_15.jtag_tck",
-                "xinzhai_jtag_tck"
+                "muyan_14.s_tx_flit_b1",
+                "muyan_15.s_tx_flit_b1"
             ]
         ],
         "1": [
@@ -1842,6 +1656,20 @@
             [
                 "muyan_14.s_rx_flit_b5",
                 "muyan_15.s_rx_flit_b5"
+            ]
+        ],
+        "25": [
+            [
+                "xinzhai_spi_s_csn_1",
+                "muyan_0.spi_s_csn_1"
+            ],
+            [
+                "xinzhai_spi_s_dout_1",
+                "muyan_0.spi_s_din_1"
+            ],
+            [
+                "muyan_0.spi_s_dout_1",
+                "xinzhai_spi_s_din_1"
             ]
         ]
     }

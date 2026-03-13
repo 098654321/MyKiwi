@@ -46,6 +46,60 @@ namespace kiwi::hardware {
         debug::unreachable("Interposer::is_external_port_coord");
     }
 
+    auto Interposer::is_padctrl_port(const TrackCoord& coord) -> bool {
+        std::size_t cob_ext_port_index[16] = {71, 9, 78, 18, 85, 0, 92, 27, 45, 99, 54, 106, 36, 113, 63, 120};
+        auto is_cob_ext_port_index = [&](std::size_t index) {
+            for (std::size_t i = 0; i < 16; i++) {
+                if (cob_ext_port_index[i] == index) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        // (8, 3), hori
+        // (0, 1), hori
+        // (8, 11), hori
+        // (3, 11), vert
+        std::size_t cob_SiPext_port_index[16] = {0, 9, 18, 27, 36, 45, 54, 63, 71, 78, 85, 92, 99, 106, 113, 120};
+        auto is_cob_SiPext_port_index = [&](std::size_t index) {
+            for (std::size_t i = 0; i < 16; i++) {
+                if (cob_SiPext_port_index[i] == index) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        // (4, 0), vert
+        // (0, 5), hori
+        // (8, 7), hori
+        // (0, 8), hori
+        if (coord.row == 8 && coord.col == 3 && coord.dir == hardware::TrackDirection::Horizontal && is_cob_ext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 0 && coord.col == 1 && coord.dir == hardware::TrackDirection::Horizontal && is_cob_ext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 8 && coord.col == 11 && coord.dir == hardware::TrackDirection::Horizontal && is_cob_ext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 3 && coord.col == 11 && coord.dir == hardware::TrackDirection::Vertical && is_cob_ext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 4 && coord.col == 0 && coord.dir == hardware::TrackDirection::Vertical && is_cob_SiPext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 0 && coord.col == 5 && coord.dir == hardware::TrackDirection::Horizontal && is_cob_SiPext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 8 && coord.col == 7 && coord.dir == hardware::TrackDirection::Horizontal && is_cob_SiPext_port_index(coord.index)) {
+            return true;
+        }
+        else if (coord.row == 0 && coord.col == 8 && coord.dir == hardware::TrackDirection::Horizontal && is_cob_SiPext_port_index(coord.index)) {
+            return true;
+        }
+        return false;
+    }
+
     Interposer::Interposer() :
         _cobs{},
         _tobs{},

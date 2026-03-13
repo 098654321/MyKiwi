@@ -502,7 +502,7 @@ auto check_track_to_bump_net(
 }
 
 auto is_external_track(const hardware::Track* track) -> bool {
-    return hardware::Interposer::is_external_port_coord(track->coord());
+    return hardware::Interposer::is_external_port_coord(track->coord()) || hardware::Interposer::is_padctrl_port(track->coord());
 }
 
 auto build_path_forward(const prev_info_t& prev_info, hardware::Track* source, hardware::Track* target) -> std::vector<std::tuple<hardware::Track*, std::optional<hardware::COBConnector>>> {
