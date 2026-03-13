@@ -21,6 +21,17 @@ namespace kiwi::circuit {
 
 namespace kiwi::parse {
 
+    struct XinzhaiControlbits {
+        std::Bits<128> padctrl_right;
+        std::Bits<128> padctrl_left;
+        std::Bits<128> padctrl_up;
+        std::Bits<128> padctrl_down;
+        std::Bits<128> SiPpadctrl_right;
+        std::Bits<128> SiPpadctrl_left;
+        std::Bits<128> SiPpadctrl_up;
+        std::Bits<128> SiPpadctrl_down;
+    };
+
     struct Controlbits {
         std::HashMap<hardware::TOBCoord, std::Array<hardware::TOBBumpDirection, 128>> tob_bumpsig_direction;
         std::HashMap<hardware::TOBCoord, std::Array<hardware::TOBTrackDirection, 128>> tob_tracksig_direction;
@@ -29,6 +40,7 @@ namespace kiwi::parse {
         std::HashMap<hardware::TOBCoord, std::Array<int, 128>> hctrltovctrl;
         std::HashMap<hardware::TOBCoord, std::Bits<64>> vctrltotrack;
         std::HashMap<hardware::COBCoord, std::HashMap<hardware::COBSWDirection, std::Bits<128>>> cobsw;
+        XinzhaiControlbits xinzhai;
     };
 
 
@@ -38,6 +50,8 @@ namespace kiwi::parse {
     auto parse_line(std::String line) -> std::Tuple<std::String, std::Vector<std::String>>;
     auto parse_cob(const std::Vector<std::String>&, Controlbits&, const std::String&) -> void;
     auto parse_tob(const std::Vector<std::String>&, Controlbits&, const std::String&, std::Array<std::unordered_map<hardware::TOBCoord, std::bitset<128>>*, 4>&) -> bool;
+    auto parse_xinzhai(const std::Vector<std::String>&, Controlbits&, const std::String&, std::HashMap<std::String, std::Array<bool, 4>>&) -> void;
+    auto finalize_xinzhai(const std::HashMap<std::String, std::Array<bool, 4>>&) -> void;
     auto process_bump_sig(Controlbits&, const std::unordered_map<hardware::TOBCoord, std::bitset<128>>&, const std::unordered_map<hardware::TOBCoord, std::bitset<128>>&) -> void;
     auto process_track_sig(Controlbits&, const std::unordered_map<hardware::TOBCoord, std::bitset<128>>&, const std::unordered_map<hardware::TOBCoord, std::bitset<128>>&) -> void;
 

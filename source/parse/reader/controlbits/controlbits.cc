@@ -52,6 +52,14 @@ namespace kiwi::parse {
         throw std::invalid_argument("Invalid COBDirection: " + dir);
     }
 
+    auto parse_xinzhai(
+        const std::Vector<std::String>& tokens,
+        Controlbits& controlbits,
+        const std::String& reversed_bits,
+        std::HashMap<std::String, std::Array<bool, 4>>& parsed_chunks
+    ) -> void;
+    auto finalize_xinzhai(const std::HashMap<std::String, std::Array<bool, 4>>&) -> void;
+
     auto load_controlbits(const std::FilePath& path, int mode) -> std::Option<Controlbits> {
     try {
         auto controlbits_path = path / ("controlbits_" + std::to_string(mode) + ".txt");
@@ -66,6 +74,7 @@ namespace kiwi::parse {
     
         Controlbits controlbits;
         std::unordered_map<hardware::TOBCoord, std::bitset<128>> tob2bump_sig, bump2tob_sig, tob2track_sig, track2tob_sig;
+        std::HashMap<std::String, std::Array<bool, 4>> xinzhai_parsed_chunks;
         std::string line;
     
         while (std::getline(file, line)) {
@@ -83,9 +92,12 @@ namespace kiwi::parse {
                 auto has_value = parse_tob(tokens, controlbits, reversed_bits, sig_arrays);
                 if (!has_value) 
                     continue;
+            } else if (tokens[0] == "xinzhai") {
+                parse_xinzhai(tokens, controlbits, reversed_bits, xinzhai_parsed_chunks);
             }
         }
     
+        finalize_xinzhai(xinzhai_parsed_chunks);
         process_bump_sig(controlbits, tob2bump_sig, bump2tob_sig);
         process_track_sig(controlbits, tob2track_sig, track2tob_sig);
     
@@ -203,6 +215,99 @@ namespace kiwi::parse {
     }
     catch (const std::exception& e) {
         throw std::runtime_error(std::format("parse_tob(): {}", e.what()));
+    }
+    }
+
+    auto parse_xinzhai(
+        const std::Vector<std::String>& tokens,
+        Controlbits& controlbits,
+        const std::String& reversed_bits,
+        std::HashMap<std::String, std::Array<bool, 4>>& parsed_chunks
+    ) -> void {
+    try {
+        std::Bits<128>* target = nullptr;
+        std::String reg_name;
+        std::usize chunk_index = 0;
+
+        if (tokens.size() == 7 && tokens[1] == "C4" && tokens[2] == "noi" && tokens[4] == "pad" && tokens[5] == "ctrl") {
+            if (tokens[3] == "right") {
+                target = &controlbits.xinzhai.padctrl_right;
+                reg_name = "padctrl_right";
+            } else if (tokens[3] == "left") {
+                target = &controlbits.xinzhai.padctrl_left;
+                reg_name = "padctrl_left";
+            } else if (tokens[3] == "up") {
+                target = &controlbits.xinzhai.padctrl_up;
+                reg_name = "padctrl_up";
+            } else if (tokens[3] == "down") {
+                target = &controlbits.xinzhai.padctrl_down;
+                reg_name = "padctrl_down";
+            }
+
+            chunk_index = static_cast<std::usize>(std::stoul(tokens[6]));
+        } else if (tokens.size() == 8 && tokens[1] == "C4" && tokens[2] == "noi" && tokens[3] == "SiP" && tokens[5] == "pad" && tokens[6] == "ctrl") {
+            if (tokens[4] == "right") {
+                target = &controlbits.xinzhai.SiPpadctrl_right;
+                reg_name = "SiPpadctrl_right";
+            } else if (tokens[4] == "left") {
+                target = &controlbits.xinzhai.SiPpadctrl_left;
+                reg_name = "SiPpadctrl_left";
+            } else if (tokens[4] == "up") {
+                target = &controlbits.xinzhai.SiPpadctrl_up;
+                reg_name = "SiPpadctrl_up";
+            } else if (tokens[4] == "down") {
+                target = &controlbits.xinzhai.SiPpadctrl_down;
+                reg_name = "SiPpadctrl_down";
+            }
+
+            chunk_index = static_cast<std::usize>(std::stoul(tokens[7]));
+        } else {
+            throw std::invalid_argument("unexpected xinzhai descriptor format");
+        }
+
+        if (target == nullptr) {
+            throw std::invalid_argument("invalid xinzhai direction token");
+        }
+        if (chunk_index >= 4) {
+            throw std::invalid_argument(std::format("xinzhai chunk index {} out of range [0, 3]", chunk_index));
+        }
+
+        setBits<128>(*target, static_cast<int>(chunk_index * 32), 32, reversed_bits);
+
+        auto iter = parsed_chunks.emplace(reg_name, std::Array<bool, 4>{false, false, false, false});
+        iter.first->second[chunk_index] = true;
+    }
+    catch (const std::exception& e) {
+        throw std::runtime_error(std::format("parse_xinzhai(): {}", e.what()));
+    }
+    }
+
+    auto finalize_xinzhai(const std::HashMap<std::String, std::Array<bool, 4>>& parsed_chunks) -> void {
+    try {
+        const auto assert_full = [&](const std::String& reg_name) {
+            if (!parsed_chunks.contains(reg_name)) {
+                throw std::invalid_argument(std::format("missing xinzhai register {}", reg_name));
+            }
+
+            const auto& chunks = parsed_chunks.at(reg_name);
+            for (std::usize i = 0; i < 4; ++i) {
+                if (!chunks[i]) {
+                    throw std::invalid_argument(std::format("xinzhai register {} missing chunk {}", reg_name, i));
+                }
+            }
+        };
+
+        assert_full("padctrl_right");
+        assert_full("padctrl_left");
+        assert_full("padctrl_up");
+        assert_full("padctrl_down");
+        assert_full("SiPpadctrl_right");
+        assert_full("SiPpadctrl_left");
+        assert_full("SiPpadctrl_up");
+        assert_full("SiPpadctrl_down");
+    }
+    catch (const std::exception& e) {
+        throw std::runtime_error(std::format("finalize_xinzhai(): {}", e.what()));
     }
     }
 
