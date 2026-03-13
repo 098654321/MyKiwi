@@ -32,6 +32,7 @@ namespace kiwi::hardware {
 
         static const std::HashMap<Coord, Coord> TOB_COORD_MAP;
         static auto is_external_port_coord(const TrackCoord& coord) -> bool;
+        static auto is_padctrl_port(const TrackCoord& coord) -> bool;
         
     public:
         Interposer();
