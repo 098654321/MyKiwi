@@ -4,8 +4,6 @@
 
   - 目前的迭代在case21当中无法收敛，需要检查无法收敛的原因，调整收敛条件
 
-  - 算法需要改一下。从channel的角度，可以根据两个布线场景当中需要切换的那些net的bounding box设计一个中间点，最大化共享的路径；从track的角度，还需要具体根据cobunit group设计track的分配策略
-
 --- 
 
 - 把 vpr 针对 high-fanout 的优化加上
