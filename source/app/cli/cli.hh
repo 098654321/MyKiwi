@@ -20,8 +20,8 @@ namespace kiwi::circuit {
 namespace kiwi {
 
     auto cli_main(
-        std::StringView config_path, std::Option<std::StringView> output_path, 
-        int mode, std::optional<int> compare, bool try_all_modes, bool placement
+        std::StringView config_path, std::Option<std::StringView> output_path,
+        int mode, std::optional<int> compare, bool placement
     ) -> int;
 
     auto place(kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*, std::vector<kiwi::circuit::TopDieInstance*>&) -> void;
@@ -29,6 +29,6 @@ namespace kiwi {
     auto route(
         kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*,
         std::StringView,  const std::FilePath&,
-        int mode, std::optional<int> compare, bool try_all_modes
+        int mode, std::optional<int> compare
     ) -> void;
 }

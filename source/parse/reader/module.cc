@@ -11,16 +11,16 @@
 
 namespace kiwi::parse {
 
-    auto read_config(const std::FilePath& config_folder, int mode, bool try_all_modes)
-        -> std::Tuple<std::Box<hardware::Interposer>, std::Box<circuit::BaseDie>> 
+    auto read_config(const std::FilePath& config_folder, int mode)
+        -> std::Tuple<std::Box<hardware::Interposer>, std::Box<circuit::BaseDie>>
     {
         debug::info_fmt("Read config in '{}'", config_folder.string());
 
         auto interposer = std::make_unique<hardware::Interposer>();
         auto basedie = std::make_unique<circuit::BaseDie>();
 
-        read_config(config_folder, interposer.get(), basedie.get(), mode, try_all_modes);
-        
+        read_config(config_folder, interposer.get(), basedie.get(), mode);
+
         debug::info("Read config done.");
         return {std::move(interposer), std::move(basedie)};
     }
@@ -29,11 +29,10 @@ namespace kiwi::parse {
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        int mode,
-        bool try_all_modes
+        int mode
     ) -> void
     {
-        auto config = load_config(config_folder, mode, try_all_modes);
+        auto config = load_config(config_folder, mode);
         auto reader = Reader{config, interposer, basedie};
         reader.build();
     }
@@ -43,13 +42,8 @@ namespace kiwi::parse {
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        int mode,
-        bool try_all_modes
+        int mode
     ) -> std::Pair<bool, bool> {
-        if (try_all_modes) {                // need to consider all the connections in all the modes, not a single mode
-            return {false, false};
-        }
-
         debug::info("Load controlbits ...");
         
         auto controlbits = load_controlbits(config_folder, mode);

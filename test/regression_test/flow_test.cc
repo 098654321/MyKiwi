@@ -97,7 +97,7 @@ namespace kiwi::test {
             
             debug::info("Starting Incremental Routing...");
             // mode = 2, incremental = true, try_all_modes = false
-            auto data_per_cycle = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, false, has_other_bits);
+            auto data_per_cycle = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
             parse::output_from_routing_results(interposer.get(), ".", basedie.get(), mode, false);
             
             // 5. Verify

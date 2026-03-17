@@ -1,6 +1,6 @@
 # Kiwi /source 工程指南（面向 AI Agent）
 
-本文件是 Kiwi 工程的“唯一入口说明书”。目标是：AI 只阅读本文件，就能理解项目的核心对象模型、算法流程、关键不变量以及常见修改点，从而对工程进行细致修改而不引入逻辑错误。
+本文件是 Kiwi 工程的说明书，AI 阅读本文件后可以理解项目的核心对象模型、算法流程、关键不变量以及常见修改点，从而在理解代码文件之前可以对核心内容有大概的认识。
 
 Kiwi 是面向 chiplet interposer 的布局布线工具：输入一份系统配置（topdie/topdieinst/external ports/connections），在 interposer 的资源模型上完成放置与布线，并输出硬件可用的 controlbits（寄存器配置比特）。
 
@@ -34,7 +34,7 @@ xmake run regression_test
 
 CLI 模式的端到端流程在 `source/app/cli/cli.cc`：
 
-1) `parse::read_config(config_folder, mode, try_all_modes)`  
+1) `parse::read_config(config_folder, mode)`
    - 解析输入配置到 `parse::Config`  
    - 构建 `hardware::Interposer` 与 `circuit::BaseDie`
 

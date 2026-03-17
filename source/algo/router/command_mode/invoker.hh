@@ -44,12 +44,12 @@ public:
 
 public:
     auto invoke(hardware::Interposer*, RouteEngine&) -> void;
-    auto set_route_commands(bool incremental, bool try_all_modes, bool path_exists) -> void;
+    auto set_route_commands(bool incremental, bool path_exists) -> void;
     auto call_remediation(Command*) -> bool;
     auto check_command() -> bool;
 
 public:
-    static auto create_command(CommandType type, bool try_all_modes, bool path_exists) -> std::Rc<Command>;
+    static auto create_command(CommandType type, bool path_exists) -> std::Rc<Command>;
 
 public:
     auto current_command() const -> Command* {

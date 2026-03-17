@@ -138,7 +138,7 @@ namespace kiwi::test {
         basedie->merge_same_mode_nets();
         auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode, try_all_modes);
         if (!has_bits) {
-            auto data_per_cycle = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, try_all_modes, has_other_bits);
+            auto data_per_cycle = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
             data.collect_data_in_cycle(cycle, data_per_cycle);
 
             std::string controlbits_file{"./" + std::to_string(cycle + 1)};

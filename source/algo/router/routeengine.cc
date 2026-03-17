@@ -9,10 +9,10 @@ namespace kiwi::algo {
 
 RouteEngine::RouteEngine(
     const std::HashMap<int, std::Vector<std::Rc<circuit::Net>>>& nets, const RouteStrategy& str, const AllocateStrategy& as, int m,
-    bool incremental, bool try_all_modes, bool path_exists, hardware::Interposer* interposer
+    bool incremental, bool path_exists, hardware::Interposer* interposer
 )
     : _posi{0}, _routestrategy{str}, _allocator{as}, _mode{m},
-      _try_all_modes{try_all_modes}, _incremental{incremental}, _path_exists{path_exists}, _incre_strategy{}, _recorder{interposer}, _route_data{}
+      _incremental{incremental}, _path_exists{path_exists}, _incre_strategy{}, _recorder{interposer}, _route_data{}
 {
     for (auto& [m, net_v]: nets) {
         auto res = this->_nets.emplace(m, std::Vector<circuit::Net*>{});
@@ -105,43 +105,19 @@ auto RouteEngine::show_net_and_path() -> void {
 // return nets to be routed but without an existing path in the initial sequence in routeengine
 auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
     if (this->_incremental) {
-        auto all_nets = std::Vector<circuit::Net*> {};
-        auto s = std::Set<circuit::Net*> {};
-
-        if (this->_try_all_modes) {
-            for (auto& [m, net_v]: this->_nets) {
-                s.insert(net_v.begin(), net_v.end());
-            }
-
-            for (auto& [m, net_v]: this->_nets) {
-                for (auto& net: net_v) {
-                    if (s.contains(net)) {
-                        all_nets.emplace_back(net);
-                        s.erase(net);
-                    }
-                }
-            }
-        }
-        else {
-            all_nets = this->_nets.at(this->_mode);
-        }
+        auto all_nets = this->_nets.at(this->_mode);
 
         if (!this->_path_exists) {
             // no existing path, return all nets
             return all_nets;
         }
         else {
-            if (this->_try_all_modes) {
-                return all_nets;
-            }
-            else {
-                // return nets not shared between modes
-                auto iter = std::remove_if(all_nets.begin(), all_nets.end(), [&](auto& net) {
-                    return net->modes().contains(this->_mode) && net->modes().size() > 1;
-                });
-                all_nets.erase(iter, all_nets.end());
-                return all_nets;
-            }
+            // return nets not shared between modes
+            auto iter = std::remove_if(all_nets.begin(), all_nets.end(), [&](auto& net) {
+                return net->modes().contains(this->_mode) && net->modes().size() > 1;
+            });
+            all_nets.erase(iter, all_nets.end());
+            return all_nets;
         }
     }
     else {
@@ -152,22 +128,17 @@ auto RouteEngine::nets() const -> std::Vector<circuit::Net*> {
 // return nets with the initial sequence in routeengine
 auto RouteEngine::nets(int mode) const -> std::Vector<circuit::Net*> {
     auto net_in_mode = this->_nets.at(mode);
-    
+
     if (this->_incremental) {
         if (!this->_path_exists) {
             return net_in_mode;
         }
         else {
-            if (this->_try_all_modes) {
-                return net_in_mode;
-            }
-            else {
-                auto iter = std::remove_if(net_in_mode.begin(), net_in_mode.end(), [&](auto& net) {
-                    return net->modes().contains(this->_mode) && net->modes().size() > 1;
-                });
-                net_in_mode.erase(iter, net_in_mode.end());
-                return net_in_mode;
-            }
+            auto iter = std::remove_if(net_in_mode.begin(), net_in_mode.end(), [&](auto& net) {
+                return net->modes().contains(this->_mode) && net->modes().size() > 1;
+            });
+            net_in_mode.erase(iter, net_in_mode.end());
+            return net_in_mode;
         }
     }
     else {

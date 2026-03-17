@@ -19,7 +19,6 @@ namespace kiwi::algo {
         const AllocateStrategy& allocator,
         int m,
         bool incremental,
-        bool try_all_modes, 
         bool path_exists
     ) -> DataPerCycle {
         debug::info(
@@ -30,13 +29,13 @@ namespace kiwi::algo {
             "
         );
         auto invoker = Invoker{};
-        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, try_all_modes, path_exists, interposer};
-        invoker.set_route_commands(incremental, try_all_modes, path_exists);
-        
+        auto engine = RouteEngine{basedie->nets(), strateg, allocator, m, incremental, path_exists, interposer};
+        invoker.set_route_commands(incremental, path_exists);
+
         while (!invoker.check_command())
         try {
             invoker.invoke(interposer, engine);
-        } 
+        }
         catch (const RetryExpt& err) {
             assert (err.net() != nullptr);
 
@@ -56,7 +55,7 @@ namespace kiwi::algo {
             throw std::runtime_error("route_nets() >> " + std::String(err.what()));
         }
 
-        auto route_data = analyze_results(interposer, engine, incremental, try_all_modes);
+        auto route_data = analyze_results(interposer, engine, incremental);
         return route_data;
     }
 
@@ -64,8 +63,7 @@ namespace kiwi::algo {
     auto analyze_results(
         hardware::Interposer* interposer,
         RouteEngine& engine,
-        bool incremental,
-        bool try_all_modes
+        bool incremental
     ) -> DataPerCycle {
         // record length info
         debug::info(

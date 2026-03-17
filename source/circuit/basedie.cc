@@ -459,8 +459,8 @@ namespace kiwi::circuit {
                 }
                 else {                      // flag is the same net in set with the most updated mode record
                     flag->add_mode(mode);
-                    net = flag;
-                }
+                    net = flag;             // net shares the same record with flag
+                    }
             }
         }
     }

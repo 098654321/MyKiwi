@@ -9,15 +9,14 @@
 
 namespace kiwi::parse {
 
-    auto read_config(const std::FilePath& config_folder, int mode, bool try_all_modes) 
+    auto read_config(const std::FilePath& config_folder, int mode)
         -> std::Tuple<std::Box<hardware::Interposer>, std::Box<circuit::BaseDie>>;
 
     auto read_config(
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        int mode,
-        bool try_all_modes
+        int mode
     ) -> void;
 
     // return <bool1, bool2>
@@ -27,8 +26,7 @@ namespace kiwi::parse {
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        int mode,
-        bool try_all_modes
+        int mode
     ) -> std::Pair<bool, bool>;
 
 }

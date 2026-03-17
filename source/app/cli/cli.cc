@@ -24,14 +24,14 @@
 namespace kiwi {
 
     auto cli_main(
-        std::StringView config_path, std::Option<std::StringView> output_path, 
-        int mode, std::optional<int> compare, bool try_all_modes, bool placement
+        std::StringView config_path, std::Option<std::StringView> output_path,
+        int mode, std::optional<int> compare, bool placement
     ) -> int {
     try {
         debug::initial_log("./debug.log");
         std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".");
 
-        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, try_all_modes); 
+        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode);
         algo::build_nets(basedie.get(), interposer.get());
 
         if (placement) {
@@ -42,11 +42,11 @@ namespace kiwi {
             if (topdies.empty()) {
                 debug::warning("No chip instances require layout");
             }
-            
+
             place(interposer.get(), basedie.get(), topdies);
         }
-        
-        route(interposer.get(), basedie.get(), config_path, output_file, mode, compare, try_all_modes);
+
+        route(interposer.get(), basedie.get(), config_path, output_file, mode, compare);
 
         return 0;
     }
@@ -75,31 +75,31 @@ namespace kiwi {
     auto route(
         kiwi::hardware::Interposer* interposer, kiwi::circuit::BaseDie* basedie,
         std::StringView config_path,  const std::FilePath& output_file,
-        int mode, std::optional<int> compare, bool try_all_modes
+        int mode, std::optional<int> compare
     ) -> void {
         debug::debug("Start routing ...");
-        if (!try_all_modes && mode == 0) {  // not incremental routing 
-            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer, basedie, mode, try_all_modes);
+        if (mode == 0) {  // not incremental routing
+            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer, basedie, mode);
             if (!has_bits) {
-                algo::route_nets(interposer, basedie, algo::MazeRouteStrategy{false}, algo::HK{}, mode, false, try_all_modes);
-                parse::output_from_routing_results(interposer, output_file, basedie, mode, try_all_modes);
+                algo::route_nets(interposer, basedie, algo::MazeRouteStrategy{false}, algo::HK{}, mode, false);
+                parse::output_from_routing_results(interposer, output_file, basedie, mode);
             }
             else if (has_other_bits) {
                 debug::info("Has other control bits, skip the routing process");
             }
         }
-        else {  // incremental routing with two situations: route all modes (try_all_modes == true) or route single mode (try_all_modes == false && mode > 0)
+        else {  // incremental routing with single mode (mode > 0)
             basedie->merge_same_mode_nets();
-            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer, basedie, mode, try_all_modes);
+            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer, basedie, mode);
             if (!has_bits) {
-                algo::route_nets(interposer, basedie, algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, try_all_modes, has_other_bits);
-                parse::output_from_routing_results(interposer, output_file, basedie, mode, try_all_modes);
+                algo::route_nets(interposer, basedie, algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
+                parse::output_from_routing_results(interposer, output_file, basedie, mode);
             }
             else {
                 debug::info("Already has control bits, skip the routing process");
             }
 
-            if (!try_all_modes && compare.has_value()) {
+            if (compare.has_value()) {
                 std::string current_file {"controlbits_" + std::to_string(mode) + ".txt"};
                 std::string target_file {"controlbits_" + std::to_string(compare.value()) + ".txt"};
                 parse::compare(current_file, target_file);
