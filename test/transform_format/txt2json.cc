@@ -99,8 +99,8 @@ namespace kiwi::serde {
 
 namespace kiwi::parse {
 
-    void txt2json(const std::FilePath& config_folder, const std::FilePath& json_folder, int mode, bool try_all_modes) {
-        auto config = load_config(config_folder, mode, try_all_modes);
+    void txt2json(const std::FilePath& config_folder, const std::FilePath& json_folder, int mode) {
+        auto config = load_config(config_folder, mode);
         
         // 1. topdies.json
         debug::info("load topdies.json");
@@ -161,7 +161,7 @@ int main() {
     for (int i = 8; i <= 15; i++) {
         std::FilePath config_folder = "../test/config/case" + std::to_string(i);
         std::FilePath json_folder = "./json/case" + std::to_string(i);
-        kiwi::parse::txt2json(config_folder, json_folder, 0, false);
+        kiwi::parse::txt2json(config_folder, json_folder, 0);
     }
     
     return 0;

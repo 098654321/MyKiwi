@@ -79,11 +79,11 @@ static void test_basic_placement() {
 }
 
 // test case
-static void test_placement_from_config(const std::String& case_path, int mode, bool try_all_modes) {
+static void test_placement_from_config(const std::String& case_path, int mode) {
     debug::debug_fmt("Configuration file test layout: {}", case_path);
     auto start_time = clock();
     try {
-        auto [interposer, basedie] = read_config(case_path, mode, try_all_modes);
+        auto [interposer, basedie] = read_config(case_path, mode);
 
         auto total_connections{0};
         for (const auto& [sync, connection]: basedie->connections()) {
@@ -266,12 +266,12 @@ static void test_sa_place_strategy() {
     // test_sa_place_strategy_components();
 
     // case1-case6 test
-    test_placement_from_config("../test/config/case1", 0, false);
-    test_placement_from_config("../test/config/case2", 0, false);
-    test_placement_from_config("../test/config/case3", 0, false);
-    test_placement_from_config("../test/config/case4", 0, false);
-    test_placement_from_config("../test/config/case5", 0, false);
-    test_placement_from_config("../test/config/case6", 0, false);
+    test_placement_from_config("../test/config/case1", 0);
+    test_placement_from_config("../test/config/case2", 0);
+    test_placement_from_config("../test/config/case3", 0);
+    test_placement_from_config("../test/config/case4", 0);
+    test_placement_from_config("../test/config/case5", 0);
+    test_placement_from_config("../test/config/case6", 0);
     // case 10 test
     // test_placement_from_config("../test/config/case10");
     // test_all_res_files();

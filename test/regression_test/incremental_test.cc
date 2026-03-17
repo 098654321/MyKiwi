@@ -25,16 +25,16 @@ namespace kiwi::test {
 
     void analyze_route_data(const kiwi::algo::RouteData& data, std::FilePath output_file);
 
-    void test_case(std::usize id, std::usize mode, bool try_all_modes, algo::RouteData& data, std::usize cycle);
+    void test_case(std::usize id, std::usize mode, algo::RouteData& data, std::usize cycle);
 
-    void PLEASE_DO_NOT_FAIL_INCRE(std::usize id, std::String info, std::usize mode, bool try_all_modes, std::usize total_cycle) {
+    void PLEASE_DO_NOT_FAIL_INCRE(std::usize id, std::String info, std::usize mode, std::usize total_cycle) {
         WHEN("Case " + std::to_string(id) + ": " + info) {
             kiwi::algo::RouteData data{};
             debug::initial_log("debug.log");
 
             for (auto i = 0; i < total_cycle;) {
             try {
-                test_case(id, mode, try_all_modes, data, i);
+                test_case(id, mode, data, i);
                 i++;
             }
             catch (const std::exception& e) {
@@ -52,8 +52,8 @@ namespace kiwi::test {
         
         GIVEN("Configs, describing connections, external_ports, topdies and topdie_insts"){
             //! notice: cob array here is 9*12
-            PLEASE_DO_NOT_FAIL_INCRE(20, "", 1, false, 1);
-            PLEASE_DO_NOT_FAIL_INCRE(20, "", 2, false, 1);
+            PLEASE_DO_NOT_FAIL_INCRE(20, "", 1, 1);
+            PLEASE_DO_NOT_FAIL_INCRE(20, "", 2, 1);
         }
     }
 
@@ -130,19 +130,19 @@ namespace kiwi::test {
         output(has_nonreuse_data_vec);
     }
 
-    void test_case(std::usize id, std::usize mode, bool try_all_modes, algo::RouteData& data, std::usize cycle) {
+    void test_case(std::usize id, std::usize mode, algo::RouteData& data, std::usize cycle) {
         std::FilePath config_path{"../test/config/case" + std::to_string(id)};
-                
-        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, try_all_modes);
+
+        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode);
         algo::build_nets(basedie.get(), interposer.get());
         basedie->merge_same_mode_nets();
-        auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode, try_all_modes);
+        auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode);
         if (!has_bits) {
             auto data_per_cycle = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
             data.collect_data_in_cycle(cycle, data_per_cycle);
 
             std::string controlbits_file{"./" + std::to_string(cycle + 1)};
-            parse::output_from_routing_results(interposer.get(), controlbits_file, basedie.get(), mode, try_all_modes);
+            parse::output_from_routing_results(interposer.get(), controlbits_file, basedie.get(), mode);
         }
         else {
             debug::info("Already has control bits, skip the routing process");

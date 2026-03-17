@@ -36,7 +36,7 @@ namespace kiwi::test {
             debug::initial_log("debug_flow_case" + std::to_string(id) + ".log");
 
             // 1. Read config
-            auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0, false);
+            auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0);
             
             // 2. Build nets
             algo::build_nets(basedie.get(), interposer.get());
@@ -65,7 +65,7 @@ namespace kiwi::test {
             debug::info("Starting Routing...");
             auto data = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, 0, false, false);
 
-            parse::output_from_routing_results(interposer.get(), ".", basedie.get(), 0, false);
+            parse::output_from_routing_results(interposer.get(), ".", basedie.get(), 0);
             
             // 5. Verify
             THEN("Routing should succeed"){
@@ -80,7 +80,7 @@ namespace kiwi::test {
             debug::initial_log("debug_flow_incre_case" + std::to_string(id) + ".log");
 
             // 1. Read config
-            auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, false);
+            auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode);
             
             // 2. Build nets
             algo::build_nets(basedie.get(), interposer.get());
@@ -93,12 +93,12 @@ namespace kiwi::test {
             algo::place(interposer.get(), topdies, basedie.get(), place_strategy);
 
             // 4. Run Incremental Routing
-            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode, false);
+            auto [has_bits, has_other_bits] = parse::read_controlbits(config_path, interposer.get(), basedie.get(), mode);
             
             debug::info("Starting Incremental Routing...");
-            // mode = 2, incremental = true, try_all_modes = false
+            // mode = 2, incremental = true
             auto data_per_cycle = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{true}, algo::HK{}, mode, true, has_other_bits);
-            parse::output_from_routing_results(interposer.get(), ".", basedie.get(), mode, false);
+            parse::output_from_routing_results(interposer.get(), ".", basedie.get(), mode);
             
             // 5. Verify
             THEN("Routing should succeed"){
