@@ -1,18 +1,18 @@
 #pragma once
 
-#include <algo/router/command_mode/command.hh>
+#include <algo/router/single_scenario/command_mode/command.hh>
+
 
 namespace kiwi::algo {
 
-class Reroute: public Command {
+class Clear: public Command {
 public:
-    Reroute() = default;
-    ~Reroute() = default;
+    Clear() = default;
+    ~Clear() = default;
 
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;
     auto to_string() const -> const std::String override;
-    
 };
 
 }

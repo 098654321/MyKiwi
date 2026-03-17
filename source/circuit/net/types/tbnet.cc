@@ -1,7 +1,7 @@
 #include "./tbnet.hh"
 #include <hardware/bump/bump.hh>
 #include <hardware/track/track.hh>
-#include <algo/router/incremental/maze/routing.hh>
+#include <algo/router/single_scenario/incremental/maze/routing.hh>
 
 
 namespace kiwi::circuit {

@@ -1,9 +1,9 @@
-#include "./route_nets.hh"
-#include "./command_mode/invoker.hh"
-#include "./routeengine.hh"
-#include "./incremental/bound_bits/global_bits.hh"
+#include <algo/router/single_scenario/route_nets.hh>
+#include <algo/router/single_scenario/command_mode/invoker.hh>
+#include <algo/router/single_scenario/routeengine.hh>
+#include <algo/router/single_scenario/incremental/bound_bits/global_bits.hh>
 #include <algo/router/routeerror.hh>
-#include "debug/debug.hh"
+#include <debug/debug.hh>
 #include <circuit/basedie.hh>
 #include <hardware/interposer.hh>
 #include <algorithm>

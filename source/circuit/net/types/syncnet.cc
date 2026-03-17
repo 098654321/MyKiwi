@@ -3,7 +3,7 @@
 #include <hardware/coord.hh>
 #include <assert.h>
 #include <algorithm>
-#include <algo/router/incremental/maze/routing.hh>
+#include <algo/router/single_scenario/incremental/maze/routing.hh>
 
 
 

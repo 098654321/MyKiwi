@@ -4,7 +4,7 @@
 #include <hardware/bump/bump.hh>
 #include <algorithm>
 #include <stdexcept>
-#include <algo/router/incremental/maze/routing.hh>
+#include <algo/router/single_scenario/incremental/maze/routing.hh>
 
 
 namespace kiwi::circuit {

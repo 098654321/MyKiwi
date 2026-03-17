@@ -1,13 +1,14 @@
 #pragma once
 
-#include <algo/router/command_mode/command.hh>
+#include <algo/router/single_scenario/command_mode/command.hh>
+
 
 namespace kiwi::algo {
 
-class Resources: public Command {
+class Sort: public Command {
 public:
-    Resources() = default;
-    ~Resources() = default;
+    Sort() = default;
+    ~Sort() = default;
 
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;
@@ -16,4 +17,3 @@ public:
 };
 
 }
-

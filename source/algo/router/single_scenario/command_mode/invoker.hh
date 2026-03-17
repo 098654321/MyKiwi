@@ -1,9 +1,9 @@
 #pragma once
 
-#include "command/commands.hh"
+#include <algo/router/single_scenario/command_mode/command/commands.hh>
 #include <global/std/memory.hh>
 #include <global/std/collection.hh>
-#include "../routeerror.hh"
+#include <algo/router/routeerror.hh>
 #include "../routeengine.hh"
 
 
