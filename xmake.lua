@@ -1,5 +1,6 @@
 add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir=".vscode"})
+add_syslinks("pthread")
 set_languages("c99", "c++23")
 
 if is_plat("linux") then 

@@ -9,6 +9,7 @@
 #include <hardware/interposer.hh>
 #include <atomic>
 #include <thread>
+#include <cmath>
 
 namespace kiwi::algo::multi_mode {
 
