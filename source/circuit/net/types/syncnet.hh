@@ -62,6 +62,7 @@ namespace kiwi::circuit {
         virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
         virtual auto clear_current_package() -> void override;
         virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool override;
+        virtual auto compute_bounding_box(int mode) -> std::Option<BoundingBox> override;
 
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         

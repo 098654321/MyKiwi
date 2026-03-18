@@ -59,6 +59,12 @@ namespace kiwi::hardware {
         track->disconnect_bump(this);
     }
 
+    auto Bump::reset_connectivity() -> void {
+        this->_connected_track = nullptr;
+        this->_allocated_track = nullptr;
+        this->_signal_dir = TOBSignalDirection::DisConnected;
+    }
+
     auto Bump::intersect_access_unit(const std::HashSet<std::usize>& accessable_cobunit) -> void {
         std::HashSet<std::usize> intersected_cobunit;
         for (auto cobunit: accessable_cobunit) {

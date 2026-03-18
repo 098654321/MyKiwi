@@ -32,6 +32,8 @@ namespace kiwi::hardware {
         auto disconnect_bump(Bump* bump) -> void;
         auto disconnect_track(Track* pre_track) -> void;
 
+        auto reset_connectivity() -> void;
+
         auto coord() const -> const TrackCoord& { return this->_coord; } 
         auto prev_track() const -> Track* { return this->_prev_track; }
         auto next_track() const -> Track* { return this->_next_track; }

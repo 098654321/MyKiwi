@@ -203,4 +203,35 @@ namespace kiwi::circuit {
         return (this->_begin_bump->tob()->coord() == tob->coord() || this->_end_bump->tob()->coord() == tob->coord());
     }
 
+    auto BumpToBumpNet::compute_bounding_box(int mode) -> std::Option<BoundingBox> {
+        auto* tob1 = this->_begin_bump->tob();
+        auto* tob2 = this->_end_bump->tob();
+        if (tob1 == nullptr || tob2 == nullptr) {
+            return std::nullopt;
+        }
+
+        const auto c1 = tob1->coord_in_interposer();
+        const auto c2 = tob2->coord_in_interposer();
+
+        auto region = Region{};
+        region.col_min = std::min(c1.col, c2.col);
+        region.col_max = std::max(c1.col, c2.col);
+
+        if (c1.row == c2.row) {
+            // Case 2: same horizontal line
+            region.row_min = c1.row - 1;
+            region.row_max = c1.row;
+        } else {
+            // Case 1: diagonal placement
+            const auto top_row = std::min(c1.row, c2.row);
+            const auto bottom_row = std::max(c1.row, c2.row);
+            region.row_min = top_row - 1;
+            region.row_max = bottom_row;
+        }
+
+        region.normalize();
+        this->_bounding_box.emplace(BoundingBox{region, mode, this, nullptr, std::nullopt});
+        return this->_bounding_box;
+    }
+
 }

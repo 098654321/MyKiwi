@@ -23,6 +23,7 @@ namespace kiwi::hardware {
         auto set_connected_track(Track* track, TOBSignalDirection signal_dir) -> void;
         auto set_allocated_track(Track* track) -> void; 
         auto disconnect_track(Track* track) -> void;
+        auto reset_connectivity() -> void;
         auto intersect_access_unit(const std::HashSet<std::usize>& accessable_cobunit) -> void;
 
     public:

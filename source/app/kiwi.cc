@@ -54,6 +54,18 @@ namespace kiwi {
 
         console::print_with_color("\t-c, --compare               ", Color::Cyan);
         console::println("Compare the controlbits between the current mode and the given mode.");
+
+        console::print_with_color("\t-m, --multi-mode            ", Color::Cyan);
+        console::println("Route both mode 1 and mode 2 in one run (new multi-mode router).");
+
+        console::print_with_color("\t    --mm-k <K>              ", Color::Cyan);
+        console::println("Multi-mode: entry/exit COB candidates per paired net (default from params).");
+
+        console::print_with_color("\t    --mm-threshold <EPS>    ", Color::Cyan);
+        console::println("Multi-mode: paired iterative convergence threshold (default from params).");
+
+        console::print_with_color("\t-p, --placement             ", Color::Cyan);
+        console::println("Run placement before routing (SA placement).");
     }
 
     auto print_verion() -> void {
@@ -129,6 +141,38 @@ namespace kiwi {
                 placement = true;
             }
 
+            // multi-mode routing
+            bool multi_mode = false;
+            if (argument_index("-m", "--multi-mode").has_value()) {
+                multi_mode = true;
+            }
+
+            auto mm_k_candidates = std::Option<std::usize>{std::nullopt};
+            if (auto idx = argument_index("--mm-k", "--mm-k"); idx.has_value()) {
+                const auto i = idx.value();
+                if (i >= (arguments.size() - 1) || arguments[i + 1].at(0) == '-') {
+                    debug::fatal("Use '--mm-k' but not indicate K!");
+                }
+                const auto k = std::stoll(arguments[i + 1]);
+                if (k <= 0) {
+                    debug::fatal("--mm-k should be a positive integer");
+                }
+                mm_k_candidates.emplace(static_cast<std::usize>(k));
+            }
+
+            auto mm_converge_threshold = std::Option<double>{std::nullopt};
+            if (auto idx = argument_index("--mm-threshold", "--mm-threshold"); idx.has_value()) {
+                const auto i = idx.value();
+                if (i >= (arguments.size() - 1) || arguments[i + 1].at(0) == '-') {
+                    debug::fatal("Use '--mm-threshold' but not indicate EPS!");
+                }
+                const auto eps = std::stod(arguments[i + 1]);
+                if (!(eps > 0.0)) {
+                    debug::fatal("--mm-threshold should be > 0");
+                }
+                mm_converge_threshold.emplace(eps);
+            }
+
             // command for incremental mode
             auto incre_opt = argument_index("-i", "--incremental");
             auto comp_opt = argument_index("-c", "--compare");
@@ -161,7 +205,11 @@ namespace kiwi {
                 }
             }
 
-            return cli_main(arguments[0], std::move(output_path), incre_mode, compare, placement);
+            return cli_main(
+                arguments[0], std::move(output_path),
+                incre_mode, compare, placement, multi_mode,
+                mm_k_candidates, mm_converge_threshold
+            );
         }
 
         return 0;

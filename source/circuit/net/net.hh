@@ -7,6 +7,7 @@
 #include <std/utility.hh>
 #include <global/debug/debug.hh>
 #include <circuit/path/pathpackage.hh>
+#include <circuit/path/bounding_box.hh>
 #include <variant>
 #include <cassert>
 #include <type_traits>
@@ -45,6 +46,10 @@ namespace kiwi::circuit {
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> = 0;
         virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool = 0;
+
+        // Compute and cache a bounding box used by multi-mode pairing.
+        // Default returns nullopt (e.g. fanout nets or unsupported types).
+        virtual auto compute_bounding_box(int mode) -> std::Option<BoundingBox> { (void)mode; return std::nullopt; }
 
         // update accessable_cobunit for each bump in this net
         virtual auto check_accessable_cobunit() -> void = 0;
@@ -90,6 +95,7 @@ namespace kiwi::circuit {
         virtual auto reuse_type() const -> std::Option<bool> {return this->_reuse_type;}
         virtual auto history_pathpackage() -> std::optional<HistoryPathPackage>& {return this->_history_path_package;}
         virtual auto name() const -> const std::String& {return this->_name;}
+        virtual auto bounding_box() const -> const std::Option<BoundingBox>& { return this->_bounding_box; }
 
         // check if node is the same with nodes belongs to this 
         virtual auto check_relativity(const hardware::Bump* node) const -> const Net* {return nullptr;}
@@ -139,6 +145,7 @@ namespace kiwi::circuit {
         PathPackage _path_package;
         std::optional<HistoryPathPackage> _history_path_package;
         std::HashSet<int> _modes;
+        std::Option<BoundingBox> _bounding_box{std::nullopt};
         std::Option<bool> _reuse_type;
 
         std::HashMap<hardware::Track*, std::Vector<Net*>> _related_nets_track;

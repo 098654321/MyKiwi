@@ -10,6 +10,18 @@ namespace kiwi::parse {
         connect_registers(interposer, basedie, mode);
         write_control_bits(interposer, output_path, mode);
         interposer->reset_regs();
+        interposer->reset_connectivity();
+    }
+
+    auto output_two_modes_from_routing_results(
+        hardware::Interposer* interposer,
+        const std::FilePath& output_path,
+        circuit::BaseDie* basedie,
+        int mode1,
+        int mode2
+    ) -> void {
+        output_from_routing_results(interposer, output_path, basedie, mode1);
+        output_from_routing_results(interposer, output_path, basedie, mode2);
     }
 
     auto write_control_bits(hardware::Interposer* interposer, const std::FilePath& output_path, int mode) -> void {

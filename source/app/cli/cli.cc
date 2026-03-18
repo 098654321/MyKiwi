@@ -10,6 +10,7 @@
 #include <algo/placer/place.hh>
 #include <algo/placer/placestrategy.hh>
 #include <algo/placer/sa/saplacestrategy.hh>
+#include <algo/router/multi_mode/route_multi_mode.hh>
 
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>
@@ -25,7 +26,9 @@ namespace kiwi {
 
     auto cli_main(
         std::StringView config_path, std::Option<std::StringView> output_path,
-        int mode, std::optional<int> compare, bool placement
+        int mode, std::optional<int> compare, bool placement, bool multi_mode,
+        std::Option<std::usize> mm_k_candidates,
+        std::Option<double> mm_converge_threshold
     ) -> int {
     try {
         debug::initial_log("./debug.log");
@@ -46,7 +49,20 @@ namespace kiwi {
             place(interposer.get(), basedie.get(), topdies);
         }
 
-        route_single_mode(interposer.get(), basedie.get(), config_path, output_file, mode, compare);
+        if (multi_mode) {
+            debug::info("multi-mode routing enabled");
+            basedie->merge_same_mode_nets();
+            auto params = kiwi::algo::multi_mode::MultiModeParams{};
+            if (mm_k_candidates.has_value()) {
+                params.k_candidates = mm_k_candidates.value();
+            }
+            if (mm_converge_threshold.has_value()) {
+                params.converge_threshold = mm_converge_threshold.value();
+            }
+            algo::route_multi_mode(interposer.get(), basedie.get(), config_path, output_file, params);
+        } else {
+            route_single_mode(interposer.get(), basedie.get(), config_path, output_file, mode, compare);
+        }
 
         return 0;
     }

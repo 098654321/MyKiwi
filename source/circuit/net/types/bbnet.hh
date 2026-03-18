@@ -40,6 +40,7 @@ namespace kiwi::circuit {
         virtual auto name() const -> const std::String& override;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
         virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool override;
+        virtual auto compute_bounding_box(int mode) -> std::Option<BoundingBox> override;
 
     public:
         virtual auto operator == (const Net& net) const -> bool override;

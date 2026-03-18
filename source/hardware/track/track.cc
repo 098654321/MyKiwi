@@ -83,4 +83,11 @@ namespace kiwi::hardware {
         }
     }
 
+    auto Track::reset_connectivity() -> void {
+        this->_prev_track = nullptr;
+        this->_next_track = nullptr;
+        this->_connected_bump = nullptr;
+        this->_signal_dir = TOBSignalDirection::DisConnected;
+    }
+
 }

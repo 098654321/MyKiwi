@@ -78,6 +78,7 @@ namespace kiwi::hardware {
         auto reset_tob_regs() -> void;
         auto reset_cob_regs() -> void;
         auto reset_regs() -> void;
+        auto reset_connectivity() -> void;
 
     private:
         void build();

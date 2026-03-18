@@ -3,6 +3,7 @@
 #include "std/string.hh"
 #include "std/utility.hh"
 #include "std/file.hh"
+#include "std/integer.hh"
 #include <vector>
 
 
@@ -21,7 +22,9 @@ namespace kiwi {
 
     auto cli_main(
         std::StringView config_path, std::Option<std::StringView> output_path,
-        int mode, std::optional<int> compare, bool placement
+        int mode, std::optional<int> compare, bool placement, bool multi_mode,
+        std::Option<std::usize> mm_k_candidates,
+        std::Option<double> mm_converge_threshold
     ) -> int;
 
     auto place(kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*, std::vector<kiwi::circuit::TopDieInstance*>&) -> void;

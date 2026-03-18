@@ -324,4 +324,18 @@ namespace kiwi::hardware {
         this->reset_cob_regs();
     }
 
+    auto Interposer::reset_connectivity() -> void {
+        for (auto& [coord, track] : this->_tracks) {
+            (void)coord;
+            track->reset_connectivity();
+        }
+        for (auto& [coord, tob] : this->_tobs) {
+            (void)coord;
+            for (auto& [idx, bump] : tob->bumps()) {
+                (void)idx;
+                bump->reset_connectivity();
+            }
+        }
+    }
+
 }

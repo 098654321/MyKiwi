@@ -193,4 +193,61 @@ namespace kiwi::circuit {
     auto TrackToBumpNet::has_tob_in_ports(hardware::TOB* tob) const -> bool {
         return this->_end_bump->tob()->coord() == tob->coord();
     }
+
+    static auto classify_io_port_side(const hardware::TrackCoord& c) -> int {
+        // 0: left, 1: right, 2: up, 3: down, -1: unknown
+        if (c.dir == hardware::TrackDirection::Horizontal) {
+            if (c.col == 0) { return 0; }
+            if (c.col == hardware::Interposer::COB_ARRAY_WIDTH) { return 1; }
+        } else {
+            if (c.row == 0) { return 2; }
+            if (c.row == hardware::Interposer::COB_ARRAY_HEIGHT) { return 3; }
+        }
+        return -1;
+    }
+
+    auto TrackToBumpNet::compute_bounding_box(int mode) -> std::Option<BoundingBox> {
+        auto* tob = this->_end_bump->tob();
+        if (tob == nullptr) {
+            return std::nullopt;
+        }
+
+        const auto chip = tob->coord_in_interposer();
+        const auto io = this->_begin_track->coord();
+        const auto side = classify_io_port_side(io);
+        if (side < 0) {
+            return std::nullopt;
+        }
+
+        auto region = Region{};
+        if (side == 0) {
+            // Case 3 (mirrored): left IO
+            region.col_min = io.col;
+            region.col_max = chip.col;
+            if (chip.row > io.row) { region.row_min = io.row; region.row_max = chip.row; }
+            else { region.row_min = chip.row - 1; region.row_max = io.row; }
+        } else if (side == 1) {
+            // Case 4 (mirrored): right IO
+            region.col_min = chip.col;
+            region.col_max = io.col;
+            if (chip.row > io.row) { region.row_min = io.row; region.row_max = chip.row; }
+            else { region.row_min = chip.row - 1; region.row_max = io.row; }
+        } else if (side == 2) {
+            // Case 5 (mirrored): up IO
+            region.row_min = io.row;
+            region.row_max = chip.row;
+            if (chip.col < io.col) { region.col_min = chip.col; region.col_max = io.col; }
+            else { region.col_min = io.col; region.col_max = chip.col; }
+        } else {
+            // Case 6 (mirrored): down IO
+            region.row_min = chip.row - 1;
+            region.row_max = io.row;
+            if (chip.col < io.col) { region.col_min = chip.col; region.col_max = io.col; }
+            else { region.col_min = io.col; region.col_max = chip.col; }
+        }
+
+        region.normalize();
+        this->_bounding_box.emplace(BoundingBox{region, mode, this, nullptr, std::nullopt});
+        return this->_bounding_box;
+    }
 }

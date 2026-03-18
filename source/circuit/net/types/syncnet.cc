@@ -573,6 +573,39 @@ namespace kiwi::circuit
         return false;
     }
 
+    auto SyncNet::compute_bounding_box(int mode) -> std::Option<BoundingBox> {
+        auto region = Region{};
+        bool has_any = false;
+
+        auto merge = [&](Net* n) {
+            auto bbox_opt = n->compute_bounding_box(mode);
+            if (!bbox_opt.has_value()) {
+                return;
+            }
+            auto r = bbox_opt.value().region;
+            if (!has_any) {
+                region = r;
+                has_any = true;
+            } else {
+                region.row_min = std::min(region.row_min, r.row_min);
+                region.row_max = std::max(region.row_max, r.row_max);
+                region.col_min = std::min(region.col_min, r.col_min);
+                region.col_max = std::max(region.col_max, r.col_max);
+            }
+        };
+
+        for (auto& n : this->_btbnets) { merge(n.get()); }
+        for (auto& n : this->_bttnets) { merge(n.get()); }
+        for (auto& n : this->_ttbnets) { merge(n.get()); }
+
+        if (!has_any) {
+            return std::nullopt;
+        }
+        region.normalize();
+        this->_bounding_box.emplace(BoundingBox{region, mode, this, nullptr, std::nullopt});
+        return this->_bounding_box;
+    }
+
 }
 
 
