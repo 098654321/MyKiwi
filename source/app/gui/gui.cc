@@ -4,7 +4,7 @@
 #include <hardware/interposer.hh>
 #include <circuit/basedie.hh>
 
-#include <algo/router/single_scenario/route_nets.hh>
+#include <algo/router/single_mode/route_nets.hh>
 #include <algo/router/common/maze/mazeroutestrategy.hh>
 
 #include <parse/reader/module.hh>

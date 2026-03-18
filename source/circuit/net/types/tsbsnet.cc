@@ -2,7 +2,7 @@
 #include <hardware/bump/bump.hh>
 #include <hardware/track/track.hh>
 #include <algorithm>
-#include <algo/router/single_scenario/incremental/maze/routing.hh>
+#include <algo/router/single_mode/incremental/maze/routing.hh>
 
 
 namespace kiwi::circuit {

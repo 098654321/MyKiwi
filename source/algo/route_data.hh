@@ -4,7 +4,7 @@
 #include <std/integer.hh>
 #include <circuit/net/nets.hh>
 #include <circuit/net/net.hh>
-#include <algo/router/single_scenario/incremental/bound_bits/global_bits.hh>
+#include <algo/router/single_mode/incremental/bound_bits/global_bits.hh>
 
 
 namespace kiwi::algo {

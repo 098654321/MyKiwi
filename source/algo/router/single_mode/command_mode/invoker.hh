@@ -1,6 +1,6 @@
 #pragma once
 
-#include <algo/router/single_scenario/command_mode/command/commands.hh>
+#include <algo/router/single_mode/command_mode/command/commands.hh>
 #include <global/std/memory.hh>
 #include <global/std/collection.hh>
 #include <algo/router/routeerror.hh>

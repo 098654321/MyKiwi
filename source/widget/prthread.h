@@ -3,7 +3,7 @@
 #include <QThread>
 #include <debug/debug.hh>
 #include <algo/route_data.hh>
-#include <algo/router/single_scenario/route_nets.hh>
+#include <algo/router/single_mode/route_nets.hh>
 #include <algo/netbuilder/netbuilder.hh>
 #include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <algo/router/common/allocate/hopcroft_karp.hh>

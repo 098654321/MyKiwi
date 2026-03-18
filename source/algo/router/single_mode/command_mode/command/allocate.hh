@@ -1,15 +1,14 @@
 #pragma once
 
-#include <algo/router/single_scenario/command_mode/command.hh>
+#include <algo/router/single_mode/command_mode/command.hh>
 
 
 namespace kiwi::algo {
 
-class Set_reuse_type: public Command {
-    
+class Allocate: public Command {
 public:
-    Set_reuse_type() = default;
-    ~Set_reuse_type() = default;
+    Allocate() = default;
+    ~Allocate() = default;
 
 public:
     auto execute(hardware::Interposer*, RouteEngine&) const -> void override;

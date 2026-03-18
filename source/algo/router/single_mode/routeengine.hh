@@ -3,9 +3,9 @@
 #include <circuit/net/nets.hh>
 #include <algo/router/common/routestrategy.hh>
 #include <algo/router/common/allocatestrategy.hh>
-#include <algo/router/single_scenario/incremental/maze/routing.hh>
-#include <algo/router/single_scenario/incremental/recorders/hardware_recorder.hh>
-#include <algo/router/single_scenario/incremental/bound_bits/global_bits.hh>
+#include <algo/router/single_mode/incremental/maze/routing.hh>
+#include <algo/router/single_mode/incremental/recorders/hardware_recorder.hh>
+#include <algo/router/single_mode/incremental/bound_bits/global_bits.hh>
 #include <std/collection.hh>
 #include <std/memory.hh>
 #include <hardware/bump/bump.hh>

@@ -13,7 +13,7 @@
 #include "qfiledialog.h"
 #include "qmessagebox.h"
 #include "widget/setting/settingwidget.h"
-#include <algo/router/single_scenario/route_nets.hh>
+#include <algo/router/single_mode/route_nets.hh>
 
 #include <cassert>
 #include <parse/reader/module.hh>

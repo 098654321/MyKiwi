@@ -1,6 +1,6 @@
 #pragma once
 
-#include <algo/router/single_scenario/command_mode/command.hh>
+#include <algo/router/single_mode/command_mode/command.hh>
 #include <tuple>
 
 

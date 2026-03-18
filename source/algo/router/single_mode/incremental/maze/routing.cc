@@ -3,7 +3,7 @@
 #include <circuit/net/nets.hh>
 #include <ranges>
 #include <algo/router/common/maze/path_length.hh>
-#include <algo/router/single_scenario/routeengine.hh>
+#include <algo/router/single_mode/routeengine.hh>
 #include <algo/router/routeerror.hh>
 #include <type_traits>
 

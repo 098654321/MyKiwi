@@ -4,7 +4,7 @@
 #include <hardware/interposer.hh>
 #include <circuit/basedie.hh>
 
-#include <algo/router/single_scenario/route_nets.hh>
+#include <algo/router/single_mode/route_nets.hh>
 #include <algo/router/common/maze/mazeroutestrategy.hh>
 #include <algo/router/common/allocate/hopcroft_karp.hh>
 #include <algo/placer/place.hh>
@@ -46,7 +46,7 @@ namespace kiwi {
             place(interposer.get(), basedie.get(), topdies);
         }
 
-        route(interposer.get(), basedie.get(), config_path, output_file, mode, compare);
+        route_single_mode(interposer.get(), basedie.get(), config_path, output_file, mode, compare);
 
         return 0;
     }
@@ -72,7 +72,7 @@ namespace kiwi {
         }
     }
 
-    auto route(
+    auto route_single_mode(
         kiwi::hardware::Interposer* interposer, kiwi::circuit::BaseDie* basedie,
         std::StringView config_path,  const std::FilePath& output_file,
         int mode, std::optional<int> compare

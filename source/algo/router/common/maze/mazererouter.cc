@@ -1,7 +1,7 @@
 #include "./mazererouter.hh"
 #include "../../routeerror.hh"
 #include "./path_length.hh"
-#include <algo/router/single_scenario/incremental/recorders/hardware_recorder.hh>
+#include <algo/router/single_mode/incremental/recorders/hardware_recorder.hh>
 #include <circuit/net/nets.hh>
 
 #include <algorithm>
