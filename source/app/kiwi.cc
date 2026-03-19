@@ -28,7 +28,7 @@ namespace kiwi {
     auto print_help() -> void {
         using console::Color;
 
-        console::println("Place & Route tool for kiwimoore's interposer\n");
+        console::println("\nPlace & Route tool for xinzhai active interposer\n");
 
         console::println_with_color("Usage: ", Color::Green);
         console::println_with_color("\tkiwi <input folder path> [OPTIONS]\n", Color::Cyan);
@@ -71,9 +71,8 @@ namespace kiwi {
     auto print_verion() -> void {
         using console::Color;
 
-        console::println_fmt("kiwi v0.1.0 ({} {})\n", __DATE__, __TIME__);
+        console::println_fmt("kiwi v1.0.0 ({} {})\n", __DATE__, __TIME__);
         console::println_with_color(kiwilogo, Color::Blue);
-        console::println("👉 Source: https://github.com/The-Kiwi-Project/Kiwi.git");
     }
 
     int main(int argc, char** argv) {

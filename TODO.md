@@ -4,6 +4,10 @@
 
   - 目前的迭代在case21当中无法收敛，需要检查无法收敛的原因，调整收敛条件**（看一下incremental_route.cc的iterate_routing里面的clear_history_records这一步是否必要）**
 
+- bugs
+
+  - -m 模式下，读取connections文件的时候没有指定读取mode1、2的信息，导致读取的层次不对
+
 --- 
 
 - 把 vpr 针对 high-fanout 的优化加上
