@@ -227,10 +227,10 @@ namespace kiwi::circuit {
             region.row_max = c1.row;
         } else {
             // Case 1: diagonal placement
-            const auto top_row = std::min(c1.row, c2.row);
-            const auto bottom_row = std::max(c1.row, c2.row);
-            region.row_min = top_row - 1;
-            region.row_max = bottom_row;
+            const auto bottom_row = std::min(c1.row, c2.row);
+            const auto top_row = std::max(c1.row, c2.row);
+            region.row_min = bottom_row;
+            region.row_max = top_row - 1;
         }
 
         region.normalize();

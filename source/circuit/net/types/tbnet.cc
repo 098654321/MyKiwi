@@ -195,7 +195,7 @@ namespace kiwi::circuit {
     }
 
     static auto classify_io_port_side(const hardware::TrackCoord& c) -> int {
-        // 0: left, 1: right, 2: up, 3: down, -1: unknown
+        // 0: left, 1: right, 2: down, 3: up, -1: unknown
         if (c.dir == hardware::TrackDirection::Horizontal) {
             if (c.col == 0) { return 0; }
             if (c.col == hardware::Interposer::COB_ARRAY_WIDTH) { return 1; }
@@ -221,27 +221,27 @@ namespace kiwi::circuit {
 
         auto region = Region{};
         if (side == 0) {
-            // Case 3 (mirrored): left IO
+            // Case 3: left IO
             region.col_min = io.col;
             region.col_max = chip.col;
-            if (chip.row > io.row) { region.row_min = io.row; region.row_max = chip.row; }
-            else { region.row_min = chip.row - 1; region.row_max = io.row; }
+            if (chip.row > io.row) { region.row_min = io.row; region.row_max = chip.row - 1; }
+            else { region.row_min = chip.row; region.row_max = io.row; }
         } else if (side == 1) {
-            // Case 4 (mirrored): right IO
+            // Case 4: right IO
             region.col_min = chip.col;
-            region.col_max = io.col;
-            if (chip.row > io.row) { region.row_min = io.row; region.row_max = chip.row; }
-            else { region.row_min = chip.row - 1; region.row_max = io.row; }
+            region.col_max = io.col - 1;
+            if (chip.row > io.row) { region.row_min = io.row; region.row_max = chip.row - 1; }
+            else { region.row_min = chip.row; region.row_max = io.row; }
         } else if (side == 2) {
-            // Case 5 (mirrored): up IO
+            // Case 5: down IO
             region.row_min = io.row;
-            region.row_max = chip.row;
+            region.row_max = chip.row - 1;
             if (chip.col < io.col) { region.col_min = chip.col; region.col_max = io.col; }
             else { region.col_min = io.col; region.col_max = chip.col; }
         } else {
-            // Case 6 (mirrored): down IO
-            region.row_min = chip.row - 1;
-            region.row_max = io.row;
+            // Case 6: up IO
+            region.row_max = io.row - 1;
+            region.row_min = chip.row;
             if (chip.col < io.col) { region.col_min = chip.col; region.col_max = io.col; }
             else { region.col_min = io.col; region.col_max = chip.col; }
         }

@@ -25,7 +25,7 @@
 
 using namespace kiwi;
 using namespace kiwi::hardware;
-using namespace kiwi::algo::multi_mode;
+using namespace kiwi::algo;
 
 static auto current_executable_dir() -> std::filesystem::path {
 #if defined(__APPLE__)

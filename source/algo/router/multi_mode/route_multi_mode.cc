@@ -40,7 +40,6 @@ namespace kiwi::algo {
 
 
         // Step F/G: compute bounding boxes and run Hungarian matching on non-shared nets.
-// need to test 3: whether the bounding box computation is correct
         auto boxes1 = std::Vector<circuit::BoundingBox>{};
         auto boxes2 = std::Vector<circuit::BoundingBox>{};
         auto no_bbox_mode1 = std::Vector<circuit::Net*>{};
