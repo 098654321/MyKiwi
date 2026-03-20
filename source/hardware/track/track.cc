@@ -35,6 +35,10 @@ namespace kiwi::hardware {
         return path;
     }
 
+    auto Track::operator == (const Track& other) const -> bool {
+        return this->_coord == other._coord;
+    }
+
     auto Track::adjacent_cob_coords() -> std::Vector<std::Tuple<COBDirection, COBCoord>> {
         auto result = std::Vector<std::Tuple<COBDirection, COBCoord>>{};
 

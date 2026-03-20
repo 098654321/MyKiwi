@@ -73,13 +73,13 @@ namespace kiwi::parse {
     static auto load_topdies_config(const std::FilePath& path, std::HashMap<std::String, TopDieConfig>& topdies) -> void;
     static auto load_topdie_insts_config(const std::FilePath& path, std::HashMap<std::String, TopdieInstConfig>& topdie_insts) -> void;
     static auto load_external_ports_config(const std::FilePath& path, std::HashMap<std::String, ExternalPortConfig>& exports) -> void;
-    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode) -> void;
+    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode, bool multi_mode) -> void;
     static auto load_ports_01_config(const std::FilePath& path, std::HashMap<std::String, std::HashMap<std::String, hardware::TrackCoord>>& ports_01) -> void;
 
     static auto load_from_txt(const std::FilePath& path, Config& config, int mode) -> void;
     static auto parse_txt_line(const std::String& topdie1, const std::String& topdie2, const std::Array<int, 11>& numbers, Config& config, int mode) -> void;
 
-    auto load_config(const std::FilePath& config_folder, int mode) -> Config
+    auto load_config(const std::FilePath& config_folder, int mode, bool multi_mode) -> Config
     try {
         auto config_paths = ConfigFilepaths{};
         serde::deserialize(serde::Json::load_from(config_folder / "config.json"), config_paths);    // deserialize and store in config_paths
@@ -92,7 +92,7 @@ namespace kiwi::parse {
             load_topdies_config(config_folder / config_paths.topdies, config.topdies);
             load_topdie_insts_config(config_folder / config_paths.topdie_insts, config.topdie_insts);
             load_external_ports_config(config_folder / config_paths.external_ports, config.external_ports);
-            load_connections_config(config_folder / config_paths.connections, config.connections, mode);
+            load_connections_config(config_folder / config_paths.connections, config.connections, mode, multi_mode);
         }
         else if(config_paths.connections.filename().extension().string() == ".txt"){
             load_from_txt(config_folder / config_paths.connections, config, mode);
@@ -157,21 +157,28 @@ namespace kiwi::parse {
     }
     THROW_UP_WITH("Load external ports config")
 
-    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode) -> void
+    static auto load_connections_config(const std::FilePath& path, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& connections, int mode, bool multi_mode) -> void
     try {
         debug::info("Load connections config");
 
         auto extension = path.filename().extension().string();
         if (extension == ".json") {
-            if (mode == 0) {
-                // simple routing config
-                std::HashMap<int, std::Vector<ConnectionConfig>> inner_connections {};
-                serde::deserialize(serde::Json::load_from(path), inner_connections);
-                connections.emplace(0, inner_connections);
+            if (multi_mode) {
+                // multi-mode routing config
+                serde::deserialize(serde::Json::load_from(path), connections);
             }
             else {
-                // incremental routing config
-                serde::deserialize(serde::Json::load_from(path), connections);
+                // single-mode routing config
+                if (mode == 0) {
+                    // simple routing config
+                    std::HashMap<int, std::Vector<ConnectionConfig>> inner_connections {};
+                    serde::deserialize(serde::Json::load_from(path), inner_connections);
+                    connections.emplace(0, inner_connections);
+                }
+                else {
+                    // incremental routing config
+                    serde::deserialize(serde::Json::load_from(path), connections);
+                }
             }
         } 
         // else if (extension == ".xlsx") {

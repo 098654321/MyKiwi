@@ -23,6 +23,7 @@ namespace kiwi::circuit {
         auto move_to_tob(hardware::TOB* tob) -> void;
         auto swap_tob_with(TopDieInstance* other) -> void;
         auto add_net(Net* net) -> void;
+        auto replace_net(Net* old_net, Net* new_net) -> void;
         
     public:
         auto name() const -> const std::String& 

@@ -159,14 +159,16 @@ namespace kiwi::circuit {
     auto BumpToBumpsNet::operator == (const Net& net) const -> bool {
     try {
         auto cast_net = dynamic_cast<const BumpToBumpsNet&>(net);
-        if (this->_begin_bump->coord() == cast_net._begin_bump->coord() && this->_end_bumps.size() == cast_net._end_bumps.size()) {
-            std::HashSet<hardware::BumpCoord> coords {};
-            for (auto& b: this->_end_bumps) {
-                coords.emplace(b->coord());
-            }
-
-            for (auto& b: cast_net._end_bumps) {
-                if (!coords.contains(b->coord())) {
+        if (*this->_begin_bump == *cast_net._begin_bump && this->_end_bumps.size() == cast_net._end_bumps.size()) {
+            for (auto* bump_rhs : cast_net._end_bumps) {
+                bool found = false;
+                for (auto* bump_lhs : this->_end_bumps) {
+                    if (*bump_lhs == *bump_rhs) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
                     return false;
                 }
             }

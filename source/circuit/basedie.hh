@@ -60,6 +60,7 @@ namespace kiwi::circuit {
     
     public:
         auto merge_same_mode_nets() -> void;
+        auto merge_same_nonsync_nets_across_modes() -> void;
 
     public:
         /*

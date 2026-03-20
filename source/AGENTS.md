@@ -44,9 +44,9 @@ CLI 模式的端到端流程在 `source/app/cli/cli.cc`：
 3) 可选布局（`-p/--placement`）：`algo::place(...)`（`source/algo/placer/`）  
    - 当前默认策略：模拟退火 `SAPlaceStrategy`
 
-4) 布线（`algo::route_nets(...)`，`source/algo/router/`）  
-   - 非增量：排序 → 资源准备 → Maze 路由  
-   - 增量：设置复用类型 → 排序 → 资源准备 → 初始化 recorder（如存在旧路径）→ 迭代增量路由
+4) 布线（`source/app/cli/cli.cc`）  
+   - 单模式分支：`route_single_mode(...)` → `algo::route_nets(...)`  
+   - 双模式分支（`--multi-mode`）：`basedie->merge_same_mode_nets()` → `basedie->merge_same_nonsync_nets_across_modes()` → `algo::route_multi_mode(...)`
 
 5) 输出 controlbits（`parse::output_from_routing_results`，`source/parse/writer/`）  
    - `PathPackage::connect_all()` 将路径绑定到 TOB/COB 寄存器对象  
@@ -122,6 +122,8 @@ Net（`source/circuit/net/net.hh`）是布线抽象接口，核心职责：
   - `PathPackage::connect_all()` 将所有 connector `connect()`，并在 Track/Bump 上建立连接关系
 - 清理/回滚必须同步恢复寄存器状态：  
   - `PathPackage::reset_all()` / `clear_all()` / `occupy_all()` 负责批量状态维护
+- 双模式输出防泄漏：  
+  - `parse::output_two_modes_from_routing_results(...)` 会按 mode 顺序输出，并在两次输出之间执行 `interposer->reset_regs()` + `interposer->reset_connectivity()`
 
 ---
 
@@ -312,6 +314,47 @@ Pin 名的解析规则（`Reader::parse_connection_pin`）：
 - 将 Track/COB/TOB 的资源使用按组聚合统计（`BitsGroup<N>`）
 - `GlobalBoundBits::get_rate()` 用于输出 “monopolized_by_reuse / has_nonreuse” 等指标
 
+### 7.5 双模式联合路由（multi_mode）
+
+入口与参数：
+
+- 入口：`algo::route_multi_mode(...)`（`source/algo/router/multi_mode/route_multi_mode.cc`）
+- CLI：
+  - `-m, --multi-mode` 开启双模式联合布线
+  - `--mm-k <K>`：每对 net 的入口/出口 COB 候选并行尝试数
+  - `--mm-threshold <EPS>`：配对迭代收敛阈值
+- 默认参数：`source/algo/router/multi_mode/params.hh`
+
+主流程（按实现顺序）：
+
+1) 分类：shared / mode1-only / mode2-only  
+2) shared 先布（非增量 Maze）并写入 mode1+mode2 占用视图，更新共享类型 recorder  
+3) 非 shared 计算 bbox（普通二端线 + SyncNet）  
+4) 匈牙利最大权匹配（权重为 overlap 区域 COB 数）  
+5) 对每个配对 net 选择 `(entryCob, exitCob)` 候选，执行 k 线程并行、线程内迭代收敛  
+6) winner 单点提交：写 `PathPackage`、占用硬件状态、更新外部 `OccupancyView` 与全局 recorder  
+7) 剩余网（无 bbox / 未配对）收尾布线  
+8) 输出 `controlbits_1.txt` + `controlbits_2.txt`
+
+关键新增组件：
+
+- `OccupancyView`（`occupancy_view.hh/.cc`）  
+  - 按 mode 隔离 COB/TOB 占用，支持 shared 锁定，避免跨 mode 假冲突
+- `Region` / `BoundingBox`（`source/circuit/path/region.hh`、`bounding_box.hh`）  
+  - 支持 bbox 匹配与重叠区域记录
+- `ThreeSegmentDeferredPath`（`source/circuit/path/deferred_path.hh/.cc`）  
+  - 保存三段式强制过点路径，并可转 `HistoryPathPackage`
+- `constrained_maze`（`constrained_maze.hh/.cc`）  
+  - 支持以 COB 邻接规则作为搜索终点
+- `hungarian`（`hungarian.hh/.cc`）  
+  - 用于 mode1/mode2 bbox 最大权匹配
+
+不变量与注意事项：
+
+- 并行尝试阶段不得改写全局硬件状态；只允许 winner 在主线程提交  
+- shared 资源在后续流程中应保持不可拆  
+- 双模式输出必须执行 `reset_connectivity()`，否则 Track/Bump 连通指针会跨 mode 泄漏
+
 ---
 
 ## 8. 目录与关键文件索引（修改时优先查这些）
@@ -345,6 +388,7 @@ Pin 名的解析规则（`Reader::parse_connection_pin`）：
 - `source/algo/router/routeengine.*`：net 视图与旧路径存在性策略
 - `source/algo/router/common/maze/*`：非增量 BFS maze + reroute
 - `source/algo/router/incremental/*`：增量迭代路由与代价模型
+- `source/algo/router/multi_mode/*`：双模式联合路由（占用视图、bbox 匹配、三段式约束、配对迭代）
 
 ### parse/
 
@@ -383,6 +427,10 @@ Pin 名的解析规则（`Reader::parse_connection_pin`）：
 - 连接器状态机必须一致：route 阶段 suspend/give_out，输出阶段 connect_all
 - 增量路由依赖 `HardwareRecorder` 的 cost 更新；修改 cost 需验证收敛条件与失败回退逻辑
 - `RouteEngine::nets()` 在存在旧路径时会过滤 shared nets；改动筛选规则会影响增量复用策略
+- 双模式下新增约束：
+  - `OccupancyView` 的 mode 隔离不能破坏同 mode 冲突检测
+  - 线程内尝试不得写全局 `Net::pathpackage()` 或硬件寄存器状态
+  - winner 提交必须发生在主线程，避免竞态写入
 
 ### 9.4 修改 controlbits 输出格式
 

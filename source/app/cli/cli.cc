@@ -34,7 +34,7 @@ namespace kiwi {
         debug::initial_log("./debug.log");
         std::FilePath output_file = std::FilePath(output_path.has_value() ? *output_path : ".");
 
-        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode);
+        auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, multi_mode);
         algo::build_nets(basedie.get(), interposer.get());
 
         if (placement) {
@@ -50,8 +50,9 @@ namespace kiwi {
         }
 
         if (multi_mode) {
-            debug::info("multi-mode routing enabled");
             basedie->merge_same_mode_nets();
+            basedie->merge_same_nonsync_nets_across_modes();    // need to test: whether the same nonsync nets are merged correctly
+
             auto params = kiwi::algo::multi_mode::MultiModeParams{};
             if (mm_k_candidates.has_value()) {
                 params.k_candidates = mm_k_candidates.value();
@@ -59,6 +60,7 @@ namespace kiwi {
             if (mm_converge_threshold.has_value()) {
                 params.converge_threshold = mm_converge_threshold.value();
             }
+
             algo::route_multi_mode(interposer.get(), basedie.get(), config_path, output_file, params);
         } else {
             route_single_mode(interposer.get(), basedie.get(), config_path, output_file, mode, compare);

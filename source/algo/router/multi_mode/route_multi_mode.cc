@@ -6,6 +6,7 @@
 #include <algo/router/single_mode/incremental/recorders/hardware_recorder.hh>
 #include <debug/debug.hh>
 #include <parse/writer/module.hh>
+#include <stdexcept>
 
 #include "./occupancy_view.hh"
 #include "./hungarian.hh"
@@ -26,41 +27,23 @@ namespace kiwi::algo {
         auto it1 = nets_map.find(1);
         auto it2 = nets_map.find(2);
         if (it1 == nets_map.end() || it2 == nets_map.end()) {
-            debug::fatal("multi-mode routing expects mode 1 and mode 2 nets");
+            debug::fatal("multi-mode routing expects mode 1 and mode 2 nets, while at least one of them is not found");
         }
 
         auto view = kiwi::algo::multi_mode::OccupancyView{interposer};
         auto recorder = HardwareRecorder{interposer};
 
-        std::usize shared = 0;
-        std::usize only1 = 0;
-        std::usize only2 = 0;
-
-        for (const auto& net_rc : it1->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { continue; }
-            if (net->modes().size() > 1) { ++shared; }
-            else { ++only1; }
-        }
-        for (const auto& net_rc : it2->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { continue; }
-            if (net->modes().size() > 1) { continue; } // already counted as shared via mode1 view
-            ++only2;
-        }
-
-        debug::info_fmt(
-            "multi-mode nets classified: shared={}, mode1_only={}, mode2_only={}",
-            shared, only1, only2
-        );
+        auto [shared, only1, only2] = classify_nets(it1, it2);
+std::exit(-1);
 
         // Step E: route shared nets first (non-incremental maze), lock their occupancy for both modes.
+// need to test 2: whether the routing process for shared nets is correct
         auto maze = algo::MazeRouteStrategy{false};
         std::usize shared_routed = 0;
         std::usize shared_total_len = 0;
         for (const auto& net_rc : it1->second) {
             auto* net = net_rc.get();
-            if (net == nullptr) { continue; }
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
             if (net->modes().size() <= 1) { continue; }
 
             net->route(interposer, maze);
@@ -94,6 +77,7 @@ namespace kiwi::algo {
         debug::info_fmt("shared nets routed: count={}, total_length={}", shared_routed, shared_total_len);
 
         // Step F/G: compute bounding boxes and run Hungarian matching on non-shared nets.
+// need to test 3: whether the bounding box computation is correct
         auto boxes1 = std::Vector<circuit::BoundingBox>{};
         auto boxes2 = std::Vector<circuit::BoundingBox>{};
         auto no_bbox_mode1 = std::Vector<circuit::Net*>{};
@@ -101,7 +85,7 @@ namespace kiwi::algo {
 
         for (const auto& net_rc : it1->second) {
             auto* net = net_rc.get();
-            if (net == nullptr) { continue; }
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
             if (net->modes().size() > 1) { continue; } // shared already routed
             auto bb = net->compute_bounding_box(1);
             if (bb.has_value()) {
@@ -112,7 +96,7 @@ namespace kiwi::algo {
         }
         for (const auto& net_rc : it2->second) {
             auto* net = net_rc.get();
-            if (net == nullptr) { continue; }
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
             if (net->modes().size() > 1) { continue; }
             auto bb = net->compute_bounding_box(2);
             if (bb.has_value()) {
@@ -124,7 +108,7 @@ namespace kiwi::algo {
 
         const auto n = std::max(boxes1.size(), boxes2.size());
         if (n == 0) {
-            debug::fatal("no non-shared nets with bounding boxes found");
+            throw std::logic_error("no non-shared nets with bounding boxes found");
         }
 
         auto weights = std::Vector<std::Vector<std::i64>>{};
@@ -172,6 +156,7 @@ namespace kiwi::algo {
             }
         }
 
+// need to test 4: whether the hungarian matching is correct
         auto assign = kiwi::algo::multi_mode::hungarian_max_weight(weights);
         std::usize paired = 0;
         std::i64 paired_weight_sum = 0;
@@ -188,6 +173,7 @@ namespace kiwi::algo {
         auto unpaired_mode1 = std::Vector<circuit::Net*>{};
         auto unpaired_mode2 = std::Vector<circuit::Net*>{};
 
+// need to test 5: whether the paired net groups are correct
         for (std::usize i = 0; i < boxes1.size(); ++i) {
             const auto j = assign[i];
             if (j >= boxes2.size()) {
@@ -231,7 +217,8 @@ namespace kiwi::algo {
             params.k_candidates, params.converge_threshold
         );
 
-        // Step 5: build paired net groups (sorted by priority sum, lower is higher priority).
+        // Step 6: build paired net groups (sorted by priority sum, lower is higher priority).
+// need to test 6: whether the paired net groups are sorted correctly
         std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) {
             return a.priority_sum < b.priority_sum;
         });
@@ -241,7 +228,8 @@ namespace kiwi::algo {
             pairs.size(), no_bbox_mode1.size(), no_bbox_mode2.size()
         );
 
-        // Step 5: route paired groups with k-parallel iterative solver and commit winner.
+        // Step 7: route paired groups with k-parallel iterative solver and commit winner.
+// need to test 7: whether the paired routing is correct
         auto failed = std::Vector<circuit::Net*>{};
         std::usize paired_success = 0;
         for (const auto& p : pairs) {
@@ -288,7 +276,8 @@ namespace kiwi::algo {
         }
         debug::info_fmt("paired routing done: success={}, failed_pairs={}", paired_success, pairs.size() - paired_success);
 
-        // Step 6: route remaining nets (unpaired + no-bbox + paired-failed) using existing non-incremental maze.
+        // Step 8: route remaining nets (unpaired + no-bbox + paired-failed) using existing non-incremental maze.
+// need to test 8: whether the remaining routing is correct
         auto remaining1 = std::Vector<circuit::Net*>{};
         remaining1.insert(remaining1.end(), no_bbox_mode1.begin(), no_bbox_mode1.end());
         remaining1.insert(remaining1.end(), unpaired_mode1.begin(), unpaired_mode1.end());
@@ -307,7 +296,7 @@ namespace kiwi::algo {
 
         auto maze2 = algo::MazeRouteStrategy{false};
         for (auto* net : remaining1) {
-            if (net == nullptr) { continue; }
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
             if (net->modes().size() > 1) { continue; }
             net->route(interposer, maze2);
             auto& pkg = net->pathpackage();
@@ -321,7 +310,7 @@ namespace kiwi::algo {
             recorder.update_recorders_history(pkg, false);
         }
         for (auto* net : remaining2) {
-            if (net == nullptr) { continue; }
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
             if (net->modes().size() > 1) { continue; }
             net->route(interposer, maze2);
             auto& pkg = net->pathpackage();
@@ -341,6 +330,58 @@ namespace kiwi::algo {
             shared_routed, shared_total_len, pairs.size(), paired_success, remaining1.size(), remaining2.size()
         );
         parse::output_two_modes_from_routing_results(interposer, output_path, basedie, 1, 2);
+    }
+
+    // return [shared, mode1_only, mode2_only]
+    auto classify_nets(
+        const auto& mode1_it, const auto& mode2_it
+    ) -> std::Tuple<std::unordered_set<std::shared_ptr<circuit::Net>>, std::unordered_set<std::shared_ptr<circuit::Net>>, std::unordered_set<std::shared_ptr<circuit::Net>>> {
+        debug::info_fmt("classifying nets in mode 1 and mode 2");
+        auto shared = std::unordered_set<std::shared_ptr<circuit::Net>>{};
+        auto only1 = std::unordered_set<std::shared_ptr<circuit::Net>>{};
+        auto only2 = std::unordered_set<std::shared_ptr<circuit::Net>>{};
+        auto shared_net_name = std::String{};
+        auto only1_net_name = std::String{};
+        auto only2_net_name = std::String{};
+
+        for (const auto& net_rc : mode1_it->second) {
+            auto* net = net_rc.get();
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
+
+            if (net->modes().size() > 1) {                  // shared net
+                if (!shared.contains(net)) { 
+                    shared.emplace(net);   
+                    shared_net_name += net->name() + "\n";
+                }
+            }
+            else {                                          // mode1_only net
+                only1.emplace(net);
+                only1_net_name += net->name() + "\n";
+            }
+        }
+        for (const auto& net_rc : mode2_it->second) {
+            auto* net = net_rc.get();
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
+            if (net->modes().size() > 1) {                  // shared net
+                if (!shared.contains(net)) { 
+                    shared.emplace(net);   
+                    shared_net_name += net->name() + "\n";
+                }
+            }
+            else {                                          // mode2_only net
+                if (!only2.contains(net)) {
+                    only2.emplace(net);
+                    only2_net_name += net->name() + "\n";
+                }
+            }
+        }
+
+        debug::info_fmt(
+            "multi-mode nets classified: totally {} shared nets:\n {}, {} mode1_only nets: {}, {} mode2_only nets: {}",
+            shared.size(), shared_net_name, only1.size(), only1_net_name, only2.size(), only2_net_name
+        );
+
+        return std::make_tuple(std::move(shared), std::move(only1), std::move(only2));
     }
 
 }

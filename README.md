@@ -1,181 +1,89 @@
 # Kiwi
 
-针对 [kiwimore](https://www.kiwimoore.com/) 设计的一款 chiplet interposer，所制作的布局布线工具。
+Kiwi 是一款面向 chiplet interposer 的布局布线工具。  
+输入一份配置（芯粒实例、IO、连接关系），输出硬件可用的 `controlbits` 文件。
 
+## 功能概览
 
-## 项目分支
+- 支持布局（可选）+ 布线的一体化流程
+- 支持单模式布线（普通/增量）
+- 支持双模式联合布线（multi-mode），单次运行输出两个模式的控制比特：
+  - `controlbits_1.txt`
+  - `controlbits_2.txt`
 
-- version_before_commands
+## 目录结构
 
-    不支持增量布线，可以在普通布线场景下支持完整的布局布线流程。最后一次提交是 2025 年过年前
+- `source/`：核心源码
+- `test/`：模块测试与回归测试
+- `tools/`：辅助工具（如 `view2d`、`view3d`、`cobmap`）
+- `resource/`：GUI 资源
+- `document/`：项目文档
 
-- master
-    
-    针对 version_before_commands 调整了 algo 部分的框架，加入命令模式，但是没有加入增量布线算法，也没有修改原有算法。最后一次提交是 2025 年 3 月。
+## 构建
 
-- dev.incre_no_sharing
+项目使用 [xmake](https://github.com/xmake-io/xmake) 构建。
 
-    最新的增量布线版本，在布线失败时不共享
-
-    ```c++
-    cycle = 0
-    load nets, sort nets by reuse frequency（在原有布线优先级的基础上，对于同一种优先级的线网之间用 reuse frequency 排序）
-    while {
-        for net in nets {
-            path = route net with maze(using the new cost function)
-        }
-        
-        if fail {
-            if (cycle == 0) {
-                remove nets not belongs to this mode
-                reroute
-            }
-            else {
-                return success with path from last cycle
-            }
-        }
-            
-        update recorder        
-
-        if (cycle >= MIN_CYCLE_NUMBER)
-            return success with path
-
-        cycle++
-    }
-    ```
-
-- dev.bus_routing
-
-    另一个增量布线版本，在布线失败时允许共享
-
-    ```c++
-    cycle = 0
-    load nets, sort nets by reuse frequency
-    while:
-        for net in nets:
-            path = route net with maze(using the new cost function)
-            if fail:
-                path = allow sharing, reroute net with maze(using the new cost function)
-            endif
-            update recorder
-        endfor
-
-        if (MAX_CYCLE_NUMBER > cycle >= MIN_CYCLE_NUMBER) and (no tobmux is shared):
-            return success
-        else if (cycle >= MAX_CYCLE_NUMBER)
-            return failure
-        endif
-
-        cycle++
-    endwhile
-    ```
-
-
-## 项目结构
-
-- [algorithm](./algorithm/)：算法开发与实验
-- [document](./document/)：项目文档
-- [resource](./resource/): GUI 资源
-- [source](./source/)：项目源码
-- [test](./test/)：项目模块测试
-- [tools](./tools/)：工具程序
-
-
-
-
-## 项目构建
-
-本项目由 [xmake](https://github.com/xmake-io/xmake) 工具构建。
-
-安装xmake：[xmake安装](https://xmake.io/mirror/zh-cn/guide/installation.html)
-
-保证系统安装 xmake 以及支持 C++20 版本的编译器。在根目录调用：
-
-````bash
+```bash
 xmake build kiwi
-````
+```
 
+## 快速使用
 
+```bash
+xmake run kiwi <input_folder> [OPTIONS]
+```
 
-## 命令行参数
+常用参数：
 
-````bash
-kiwi <input folder path> [OPTIONS]
-````
+- `-o, --output <OUTPUT_PATH>`：输出目录
+- `-g, --gui`：GUI 模式
+- `-h, --help`：帮助
+- `-V, --version`：版本信息
+- `-v, --verbose`：详细日志
+- `-p, --placement`：布线前执行布局
+- `-i, --incremental <mode>`：单模式增量布线（mode 为正整数）
+- `-c, --compare <mode>`：与目标模式 controlbits 比较（配合增量模式使用）
+- `-m, --multi-mode`：启用双模式联合布线
+- `--mm-k <K>`：multi-mode 每对 net 的候选并行尝试数
+- `--mm-threshold <EPS>`：multi-mode 迭代收敛阈值
 
+## 输入与输出
 
-Options：
-- `-o, --output <OUTPUT_PATH>`：指定输出 controlbit 文件路径
-- `-g, --gui`：使用 GUI 模式
-- `-h, --help`：打印帮助信息
-- `-V, --version`：打印版本信息
-- `-v, --verbose`: 输出 Debug 信息
-- `-i, --incremental <mode>`: 进入增量布线，需要跟一个正整数 mode
+### 输入
 
+- 传入一个配置目录（包含项目所需的 JSON 配置）
+- 双模式联合布线仍然只需一份配置目录，两个模式需求来自同一份连接配置
 
+### 输出
 
-## 工具程序
-
-tools 目录下保存一些实用的工具小程序：
-
-- [cobmap](./tools/cobmap.cc)：计算 COB 端口信息的映射关系
-- [view2d](./tools/view2d.cc)：对指定 config 进行布线，使用 2D 显示布线结果
-- [view3d](./tools/view3d.cc)：对指定 config 进行布线，使用 3D 显示布线结果
-
-根据 xmake.lua 文件中的命令，执行 `xmake build <tool>` 构建、`xmake run <tool> [args]` 允许相应的工具。除此，还提供了 count_lines.py 来计算源代码总行数。
-
-
+- 单模式：输出 `controlbits_<mode>.txt`
+- 双模式（`--multi-mode`）：输出 `controlbits_1.txt` 和 `controlbits_2.txt`
 
 ## 测试
 
-test 目录下保存项目的测试代码，分为 module_test 和 regression_test 两个部分。
-
-### module_test
-
-对各个模块进行单独测试。
-
-编译：
+### 模块测试
 
 ```bash
 xmake build module_test
+xmake run module_test [module|all]
 ```
 
-运行：
-
-````bash
-xmake run module_test [module]
-````
-
-`module` 指定要测试的模块（见 simpletest 目录），`all` 表示全部测试。
-
-### regression_test
-
-集成系统各个模块，用于回归测试，目前包含 16 个 case 。
-- case 1-6 测试基本的功能 ：
-    |case|说明|
-    |:---:|:---:|
-    |[case1](./test/config/case1)|仅测试同步线布线功能|
-    |[case2](./test/config/case2)|测试同步线，并对同步线中的一个bump增加一根连到I/O的线，测试已布线bump的复用|
-    |[case3](./test/config/case3)|仅测试非同步线布线功能|
-    |[case4](./test/config/case4)|包含 VDD/GND|
-    |[case5](./test/config/case5)|重复连接|
-    |[case6](./test/config/case6)|更多的连接数量|
-- case 7-16 使用构造的芯粒系统进行测试，系统中包含所有类型的线网与较多的线网数量 ：
-    |case|说明|
-    |:---:|:---:|
-    |case 7-9|一个 cpu-ai-mem 芯粒系统|
-    |case 10-12|一个 cpu 芯粒系统|
-    |case 13-16|一个 AI core 芯粒系统|
-- case 17-18 测试增量布线功能
-
-编译：
+### 回归测试
 
 ```bash
 xmake build regression_test
+xmake run regression_test
 ```
 
-运行：
+## 常用工具
+
+- `view2d`：加载配置并执行 P&R，展示 2D 结果
+- `view3d`：加载配置并执行 P&R，展示 3D 结果
+- `cobmap`：COB 端口映射相关工具
+
+可通过：
 
 ```bash
-xmake run regression_test
+xmake build <tool>
+xmake run <tool> [args]
 ```

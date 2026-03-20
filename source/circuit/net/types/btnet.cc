@@ -127,7 +127,7 @@ namespace kiwi::circuit {
     auto BumpToTrackNet::operator == (const Net& net) const -> bool {
     try {
         auto cast_net = dynamic_cast<const BumpToTrackNet&>(net);
-        return this->_begin_bump->coord() == cast_net._begin_bump->coord() && this->_end_track->coord() == cast_net._end_track->coord();
+        return *this->_begin_bump == *cast_net._begin_bump && *this->_end_track == *cast_net._end_track;
     }
     catch (const std::bad_cast& e) {
         return false;
@@ -135,7 +135,7 @@ namespace kiwi::circuit {
     }
 
     auto BumpToTrackNet::operator == (const BumpToTrackNet& net) const -> bool {
-        return this->_begin_bump->coord() == net._begin_bump->coord() && this->_end_track->coord() == net._end_track->coord();
+        return *this->_begin_bump == *net._begin_bump && *this->_end_track == *net._end_track;
     }
 
     auto BumpToTrackNet::track_ports() const -> std::Pair<std::HashSet<hardware::Track*>, bool> {

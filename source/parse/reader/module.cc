@@ -11,7 +11,7 @@
 
 namespace kiwi::parse {
 
-    auto read_config(const std::FilePath& config_folder, int mode)
+    auto read_config(const std::FilePath& config_folder, int mode, bool multi_mode)
         -> std::Tuple<std::Box<hardware::Interposer>, std::Box<circuit::BaseDie>>
     {
         debug::info_fmt("Read config in '{}'", config_folder.string());
@@ -19,7 +19,7 @@ namespace kiwi::parse {
         auto interposer = std::make_unique<hardware::Interposer>();
         auto basedie = std::make_unique<circuit::BaseDie>();
 
-        read_config(config_folder, interposer.get(), basedie.get(), mode);
+        read_config(config_folder, interposer.get(), basedie.get(), mode, multi_mode);
 
         debug::info("Read config done.");
         return {std::move(interposer), std::move(basedie)};
@@ -29,10 +29,11 @@ namespace kiwi::parse {
         const std::FilePath& config_folder,
         hardware::Interposer* interposer,
         circuit::BaseDie* basedie,
-        int mode
+        int mode,
+        bool multi_mode
     ) -> void
     {
-        auto config = load_config(config_folder, mode);
+        auto config = load_config(config_folder, mode, multi_mode);
         auto reader = Reader{config, interposer, basedie};
         reader.build();
     }

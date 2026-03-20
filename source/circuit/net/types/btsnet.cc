@@ -147,14 +147,16 @@ namespace kiwi::circuit {
     auto BumpToTracksNet::operator == (const Net& net) const -> bool {
     try {
         auto cast_net = dynamic_cast<const BumpToTracksNet&>(net);
-        if (this->_begin_bump->coord() == cast_net._begin_bump->coord() && this->_end_tracks.size() == cast_net._end_tracks.size()) {
-            std::HashSet<hardware::TrackCoord> coords {};
-            for (auto& track : this->_end_tracks) {
-                coords.emplace(track->coord());
-            }
-
-            for (auto& track : cast_net._end_tracks) {
-                if (!coords.contains(track->coord())) {
+        if (*this->_begin_bump == *cast_net._begin_bump && this->_end_tracks.size() == cast_net._end_tracks.size()) {
+            for (auto* track_rhs : cast_net._end_tracks) {
+                bool found = false;
+                for (auto* track_lhs : this->_end_tracks) {
+                    if (*track_lhs == *track_rhs) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
                     return false;
                 }
             }

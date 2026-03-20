@@ -74,4 +74,16 @@ namespace kiwi::circuit {
     auto TopDieInstance::add_net(Net* net) -> void {
         this->_nets.emplace_back(net);
     }
+
+    auto TopDieInstance::replace_net(Net* old_net, Net* new_net) -> void {
+        if (old_net == nullptr || new_net == nullptr || old_net == new_net) {
+            return;
+        }
+
+        for (auto& net : this->_nets) {
+            if (net == old_net) {
+                net = new_net;
+            }
+        }
+    }
 }

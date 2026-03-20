@@ -20,6 +20,7 @@ namespace kiwi::hardware {
     public:
         static auto update_bump(Bump* bump, TOB* prev_tob, TOB* next_tob) -> Bump*;
         static auto swap_bump(Bump* bump, TOB* prev_tob, TOB* next_tob) -> Bump*;
+        auto operator == (const Bump& other) const -> bool;
         auto set_connected_track(Track* track, TOBSignalDirection signal_dir) -> void;
         auto set_allocated_track(Track* track) -> void; 
         auto disconnect_track(Track* track) -> void;

@@ -27,11 +27,15 @@ namespace kiwi::algo {
     try {
         build_01_ports();
         for (auto& [mode, inner_connection]: this->_basedie->connections()) {
-            for (auto& [sync, connections] : inner_connection) {
-                if (sync == -1) {
-                    this->build_no_sync_nets(connections, -1, mode);
-                } else {
-                    this->build_sync_net(connections, sync, mode);
+            for (auto& [group, connections] : inner_connection) {
+                if (group <= -1) {
+                    this->build_no_sync_nets(connections, group, mode);
+                } 
+                else if (group == 0) {
+                    throw std::logic_error("Invalid group number 0! Group number should be non-zero.");
+                }
+                else {
+                    this->build_sync_net(connections, group, mode);
                 }
             }
             this->build_fixed_nets(mode);
@@ -52,7 +56,9 @@ namespace kiwi::algo {
             auto& output = connection->output_pin();
 
             if (output.is_fixed()) {
-                debug::exception("Fixed pin as target??");
+                debug::exception(
+                    "vdd/gnd pin cannot be an output port in connections.json with format [[input],[output]]. Please check."
+                );
             }
 
             auto end_node = this->pin_to_node(output);

@@ -20,6 +20,7 @@ namespace kiwi::hardware {
 
     public:
         auto track_path() const -> std::Vector<const Track*>;
+        auto operator == (const Track& other) const -> bool;
 
     public:
         auto adjacent_cob_coords() -> std::Vector<std::Tuple<COBDirection, COBCoord>>;

@@ -50,6 +50,10 @@ namespace kiwi::hardware {
     }
 }
 
+    auto Bump::operator == (const Bump& other) const -> bool {
+        return this->_coord == other._coord;
+    }
+
     auto Bump::disconnect_track(Track* track) -> void {
         assert(this->_signal_dir != TOBSignalDirection::DisConnected);
 

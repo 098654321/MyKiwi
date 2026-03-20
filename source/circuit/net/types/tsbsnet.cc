@@ -167,24 +167,19 @@ namespace kiwi::circuit {
 
     auto TracksToBumpsNet::operator == (const Net& net) const -> bool {
     try {
+        // for those connected to 0/1 ports
+        // becausea all the 0/1 ports are identical, we only compare the number of 0/1 ports and the coordinates of the bumps
         auto cast_net = dynamic_cast<const TracksToBumpsNet&>(net);
         if (this->_begin_tracks.size() == cast_net._begin_tracks.size() && this->_end_bumps.size() == cast_net._end_bumps.size()) {
-            std::HashSet<hardware::TrackCoord> tcoords {};
-            for (auto& track: this->_begin_tracks) {
-                tcoords.emplace(track->coord());
-            }
-            for (auto& track: cast_net._begin_tracks) {
-                if (!tcoords.contains(track->coord())) {
-                    return false;
+            for (auto* bump_rhs : cast_net._end_bumps) {
+                bool found = false;
+                for (auto* bump_lhs : this->_end_bumps) {
+                    if (*bump_lhs == *bump_rhs) {
+                        found = true;
+                        break;
+                    }
                 }
-            }
-
-            std::HashSet<hardware::BumpCoord> bcoords {};
-            for (auto& bump: this->_end_bumps) {
-                bcoords.emplace(bump->coord());
-            }
-            for (auto& bump: cast_net._end_bumps) {
-                if (!bcoords.contains(bump->coord())) {
+                if (!found) {
                     return false;
                 }
             }

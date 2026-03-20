@@ -249,7 +249,7 @@ namespace kiwi::algo {
         return necessary_index;
     }
 
-    // search bumps which are on the same tob with unrouted bumps\ 
+    // search bumps which are on the same tob with unrouted bumps
     // and are already been connected with tracks having the necessary indexes
     auto search_bumps_connected_with_track(
         const hardware::Bump* bump, RouteEngine& engine, hardware::Interposer* interposer,

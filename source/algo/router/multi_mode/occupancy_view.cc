@@ -6,7 +6,7 @@
 namespace kiwi::algo::multi_mode {
 
     OccupancyView::OccupancyView(hardware::Interposer* interposer)
-        : _interposer{interposer}, _cob_occupied{}, _tob_muxreg_occupied{}, _cob_locked{} {
+        : _interposer{interposer}, _cob_occupied{}, _tob_muxreg_occupied{}, _cob_locked{}, _tob_muxreg_locked{} {
         debug::check(this->_interposer != nullptr, "OccupancyView: interposer must not be null");
     }
 
@@ -15,7 +15,11 @@ namespace kiwi::algo::multi_mode {
         if (it_cob != this->_cob_occupied.end()) {
             std::erase_if(it_cob->second, [&](std::u64 k) { return !this->_cob_locked.contains(k); });
         }
-        this->_tob_muxreg_occupied.erase(mode);
+        
+        auto it_tob = this->_tob_muxreg_occupied.find(mode);
+        if (it_tob != this->_tob_muxreg_occupied.end()) {
+            std::erase_if(it_tob->second, [&](std::u64 k) { return !this->_tob_muxreg_locked.contains(k); });
+        }   
     }
 
     auto OccupancyView::cob_key(const hardware::COBConnector& c) const -> std::u64 {
@@ -73,11 +77,14 @@ namespace kiwi::algo::multi_mode {
         return false;
     }
 
-    auto OccupancyView::occupy_tobconnector(int mode, const hardware::TOBConnector& c) -> void {
+    auto OccupancyView::occupy_tobconnector(int mode, const hardware::TOBConnector& c, bool locked) -> void {
         auto& set = this->_tob_muxreg_occupied[mode];
         const auto keys = this->tob_key(c);
         for (auto k : keys) {
             set.emplace(k);
+        }
+        if (locked) {
+            this->_tob_muxreg_locked.insert(keys.begin(), keys.end());
         }
     }
 

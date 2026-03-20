@@ -4,6 +4,7 @@
 #include "circuit/export/export.hh"
 #include "circuit/topdie/topdie.hh"
 #include "circuit/topdieinst/topdieinst.hh"
+#include "circuit/net/types/syncnet.hh"
 #include <hardware/tob/tob.hh>
 #include "std/collection.hh"
 #include "std/memory.hh"
@@ -463,5 +464,49 @@ namespace kiwi::circuit {
                     }
             }
         }
+    }
+
+    auto BaseDie::merge_same_nonsync_nets_across_modes() -> void {
+        std::Vector<std::Rc<Net>> canonical_nets {};
+        std::usize dedup_hits = 0;
+
+        for (auto& [mode, nets_in_mode] : this->_nets) {
+            for (auto& net : nets_in_mode) {
+                if (net == nullptr) {
+                    debug::warning("merge_same_nonsync_nets_across_modes(): net is nullptr");
+                    continue;
+                }
+
+                if (dynamic_cast<SyncNet*>(net.get()) != nullptr) {
+                    continue;
+                }
+
+                std::Rc<Net> found {nullptr};
+                for (const auto& candidate : canonical_nets) {
+                    if (*net == *candidate) {
+                        found = candidate;
+                        break;
+                    }
+                }
+
+                if (found == nullptr) {
+                    canonical_nets.emplace_back(net);
+                    continue;
+                }
+
+                found->add_mode(mode);
+
+                auto* old_ptr = net.get();
+                auto* new_ptr = found.get();
+                net = found;
+                for (auto& [name, inst] : this->_topdie_insts) {
+                    (void)name;
+                    inst->replace_net(old_ptr, new_ptr);
+                }
+                ++dedup_hits;
+            }
+        }
+
+        debug::info_fmt("merge_same_nonsync_nets_across_modes() finished: dedup_hits={}", dedup_hits);
     }
 }
