@@ -2,7 +2,7 @@
 
 #include <std/integer.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     struct MultiModeParams {
         std::usize k_candidates{4};

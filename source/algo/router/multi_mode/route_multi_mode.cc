@@ -7,6 +7,7 @@
 #include <debug/debug.hh>
 #include <parse/writer/module.hh>
 #include <stdexcept>
+#include <algorithm>
 
 #include "./occupancy_view.hh"
 #include "./hungarian.hh"
@@ -21,7 +22,7 @@ namespace kiwi::algo {
         circuit::BaseDie* basedie,
         std::StringView /*config_path*/,
         const std::FilePath& output_path,
-        const kiwi::algo::multi_mode::MultiModeParams& params
+        const kiwi::algo::MultiModeParams& params
     ) -> void {
         auto& nets_map = basedie->nets();
         auto it1 = nets_map.find(1);
@@ -30,51 +31,13 @@ namespace kiwi::algo {
             debug::fatal("multi-mode routing expects mode 1 and mode 2 nets, while at least one of them is not found");
         }
 
-        auto view = kiwi::algo::multi_mode::OccupancyView{interposer};
+        auto view = kiwi::algo::OccupancyView{interposer};
         auto recorder = HardwareRecorder{interposer};
 
         auto [shared, only1, only2] = classify_nets(it1, it2);
-std::exit(-1);
+        auto shared_nets = sort_shared_nets(shared);
+        auto [shared_total_len, shared_routed] = route_shared_nets(view, recorder, interposer, shared);
 
-        // Step E: route shared nets first (non-incremental maze), lock their occupancy for both modes.
-// need to test 2: whether the routing process for shared nets is correct
-        auto maze = algo::MazeRouteStrategy{false};
-        std::usize shared_routed = 0;
-        std::usize shared_total_len = 0;
-        for (const auto& net_rc : it1->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
-            if (net->modes().size() <= 1) { continue; }
-
-            net->route(interposer, maze);
-            shared_routed += 1;
-            shared_total_len += net->length();
-
-            auto& pkg = net->pathpackage();
-            // lock COB occupancy in both modes
-            for (auto& [t, cob] : pkg._regular_path) {
-                (void)t;
-                if (cob.has_value()) {
-                    view.occupy_cobconnector(1, cob.value(), true);
-                    view.occupy_cobconnector(2, cob.value(), true);
-                }
-            }
-            // lock TOB mux occupancy in both modes
-            for (auto& [b, tob, t] : pkg._tob_to_track) {
-                (void)b; (void)t;
-                view.occupy_tobconnector(1, tob);
-                view.occupy_tobconnector(2, tob);
-            }
-            for (auto& [b, tob, t] : pkg._track_to_tob) {
-                (void)b; (void)t;
-                view.occupy_tobconnector(1, tob);
-                view.occupy_tobconnector(2, tob);
-            }
-
-            recorder.update_recorders_current(pkg, true);
-            recorder.update_recorders_history(pkg, true);
-        }
-        debug::info_fmt("shared nets routed: count={}, total_length={}", shared_routed, shared_total_len);
 
         // Step F/G: compute bounding boxes and run Hungarian matching on non-shared nets.
 // need to test 3: whether the bounding box computation is correct
@@ -157,7 +120,7 @@ std::exit(-1);
         }
 
 // need to test 4: whether the hungarian matching is correct
-        auto assign = kiwi::algo::multi_mode::hungarian_max_weight(weights);
+        auto assign = kiwi::algo::hungarian_max_weight(weights);
         std::usize paired = 0;
         std::i64 paired_weight_sum = 0;
         std::usize matched_to_dummy = 0;
@@ -233,7 +196,7 @@ std::exit(-1);
         auto failed = std::Vector<circuit::Net*>{};
         std::usize paired_success = 0;
         for (const auto& p : pairs) {
-            auto res = kiwi::algo::multi_mode::route_paired_nets_iterative(
+            auto res = kiwi::algo::route_paired_nets_iterative(
                 interposer, view, recorder,
                 *p.net1, 1,
                 *p.net2, 2,
@@ -335,53 +298,123 @@ std::exit(-1);
     // return [shared, mode1_only, mode2_only]
     auto classify_nets(
         const auto& mode1_it, const auto& mode2_it
-    ) -> std::Tuple<std::unordered_set<std::shared_ptr<circuit::Net>>, std::unordered_set<std::shared_ptr<circuit::Net>>, std::unordered_set<std::shared_ptr<circuit::Net>>> {
+    ) -> std::Tuple<std::vector<std::shared_ptr<circuit::Net>>, std::vector<std::shared_ptr<circuit::Net>>, std::vector<std::shared_ptr<circuit::Net>>> {
         debug::info_fmt("classifying nets in mode 1 and mode 2");
-        auto shared = std::unordered_set<std::shared_ptr<circuit::Net>>{};
-        auto only1 = std::unordered_set<std::shared_ptr<circuit::Net>>{};
-        auto only2 = std::unordered_set<std::shared_ptr<circuit::Net>>{};
+        auto shared = std::vector<std::shared_ptr<circuit::Net>>{};
+        auto only1 = std::vector<std::shared_ptr<circuit::Net>>{};
+        auto only2 = std::vector<std::shared_ptr<circuit::Net>>{};
         auto shared_net_name = std::String{};
         auto only1_net_name = std::String{};
         auto only2_net_name = std::String{};
 
-        for (const auto& net_rc : mode1_it->second) {
-            auto* net = net_rc.get();
+        for (const auto& net : mode1_it->second) {
             if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
 
             if (net->modes().size() > 1) {                  // shared net
-                if (!shared.contains(net)) { 
-                    shared.emplace(net);   
+                if (std::find(shared.begin(), shared.end(), net) == shared.end()) { 
+                    shared.emplace_back(net);   
                     shared_net_name += net->name() + "\n";
                 }
             }
             else {                                          // mode1_only net
-                only1.emplace(net);
+                only1.emplace_back(net);
                 only1_net_name += net->name() + "\n";
             }
         }
-        for (const auto& net_rc : mode2_it->second) {
-            auto* net = net_rc.get();
+        for (const auto& net : mode2_it->second) {
             if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
             if (net->modes().size() > 1) {                  // shared net
-                if (!shared.contains(net)) { 
-                    shared.emplace(net);   
+                if (std::find(shared.begin(), shared.end(), net) == shared.end()) { 
+                    shared.emplace_back(net);   
                     shared_net_name += net->name() + "\n";
                 }
             }
             else {                                          // mode2_only net
-                if (!only2.contains(net)) {
-                    only2.emplace(net);
+                if (std::find(only2.begin(), only2.end(), net) == only2.end()) {
+                    only2.emplace_back(net);
                     only2_net_name += net->name() + "\n";
                 }
             }
         }
 
         debug::info_fmt(
-            "multi-mode nets classified: totally {} shared nets:\n {}, {} mode1_only nets: {}, {} mode2_only nets: {}",
+            "multi-mode nets classified:\n{} shared nets:\n{}\n{} mode1_only nets:\n{}\n{} mode2_only nets:\n{}",
             shared.size(), shared_net_name, only1.size(), only1_net_name, only2.size(), only2_net_name
         );
 
         return std::make_tuple(std::move(shared), std::move(only1), std::move(only2));
+    }
+
+    auto sort_shared_nets(
+        const std::vector<std::shared_ptr<circuit::Net>>& shared_nets
+    ) -> std::vector<std::shared_ptr<circuit::Net>> {
+        debug::info_fmt("sorting shared nets");
+
+        auto shared_nets_vector = std::vector<std::shared_ptr<circuit::Net>>{shared_nets.begin(), shared_nets.end()};
+        auto compare = [] (std::shared_ptr<circuit::Net> n1, std::shared_ptr<circuit::Net> n2) -> bool {
+            return n1->priority() > n2->priority();
+        };
+
+        float max_port_num {0};
+        for (const auto& net : shared_nets) {
+            max_port_num = std::max(max_port_num, (float)net->port_number());
+        }
+        for (auto& net : shared_nets) {
+            net->update_priority(0.9 * ((float)net->port_number() / max_port_num));
+        }
+        std::sort(shared_nets_vector.begin(), shared_nets_vector.end(), compare);
+
+        return shared_nets_vector;
+    }
+
+    auto route_shared_nets(
+        OccupancyView& view,
+        HardwareRecorder& recorder,
+        hardware::Interposer* interposer,
+        const std::vector<std::shared_ptr<circuit::Net>>& shared_nets
+    ) -> std::tuple<float, float> {
+        auto maze = algo::MazeRouteStrategy{false};
+        debug::info_fmt("routing shared nets");
+
+        std::Vector<circuit::Net*> routed_nets = {};
+        std::usize shared_routed = 0;
+        std::usize shared_total_len = 0;
+
+        for (const auto& net: shared_nets) {
+            net->set_reuse_type(true);
+            net->search_related_nets(routed_nets);
+            net->route(interposer, maze);
+            shared_routed += 1;
+            shared_total_len += net->length();
+
+            auto& pkg = net->pathpackage();
+            // lock COB occupancy in both modes
+            for (auto& [t, cob] : pkg._regular_path) {
+                (void)t;
+                if (cob.has_value()) {
+                    view.occupy_cobconnector(1, cob.value(), true);
+                    view.occupy_cobconnector(2, cob.value(), true);
+                }
+            }
+            // lock TOB mux occupancy in both modes
+            for (auto& [b, tob, t] : pkg._tob_to_track) {
+                (void)b; (void)t;
+                view.occupy_tobconnector(1, tob, true);
+                view.occupy_tobconnector(2, tob, true);
+            }
+            for (auto& [b, tob, t] : pkg._track_to_tob) {
+                (void)b; (void)t;
+                view.occupy_tobconnector(1, tob, true);
+                view.occupy_tobconnector(2, tob, true);
+            }
+
+            recorder.update_recorders_history(pkg, true);
+
+            routed_nets.emplace_back(net.get());
+        }
+
+        debug::info_fmt("shared nets routed: count={}, total_length={}", shared_routed, shared_total_len);
+        return std::make_tuple(shared_total_len, shared_routed);
     }
 
 }

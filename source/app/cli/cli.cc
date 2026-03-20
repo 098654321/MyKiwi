@@ -51,9 +51,9 @@ namespace kiwi {
 
         if (multi_mode) {
             basedie->merge_same_mode_nets();
-            basedie->merge_same_nonsync_nets_across_modes();    // need to test: whether the same nonsync nets are merged correctly
+            basedie->merge_same_nonsync_nets_across_modes();    
 
-            auto params = kiwi::algo::multi_mode::MultiModeParams{};
+            auto params = kiwi::algo::MultiModeParams{};
             if (mm_k_candidates.has_value()) {
                 params.k_candidates = mm_k_candidates.value();
             }

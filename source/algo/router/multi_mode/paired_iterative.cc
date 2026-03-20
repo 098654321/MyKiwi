@@ -11,7 +11,7 @@
 #include <thread>
 #include <cmath>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     static auto build_three_segment_for_simple_net(
         hardware::Interposer* interposer,

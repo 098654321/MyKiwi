@@ -4,7 +4,7 @@
 #include <circuit/path/pathpackage.hh>
 #include <std/collection.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     using DeferredRegularPath = std::Vector<std::Tuple<hardware::TrackCoord, std::Option<circuit::COBConnectorInfo>>>;
 

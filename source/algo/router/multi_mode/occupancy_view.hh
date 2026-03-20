@@ -7,7 +7,7 @@
 #include <std/integer.hh>
 #include <std/utility.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     class OccupancyView {
     public:

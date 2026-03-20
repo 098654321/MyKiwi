@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     static auto manhattan(const hardware::Coord& a, const hardware::Coord& b) -> std::i64 {
         return std::llabs(a.row - b.row) + std::llabs(a.col - b.col);

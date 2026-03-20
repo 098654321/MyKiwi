@@ -507,6 +507,6 @@ namespace kiwi::circuit {
             }
         }
 
-        debug::info_fmt("merge_same_nonsync_nets_across_modes() finished: dedup_hits={}", dedup_hits);
+        debug::info_fmt("merge_same_nonsync_nets_across_modes() finished: merged {} nonsync nets", dedup_hits);
     }
 }

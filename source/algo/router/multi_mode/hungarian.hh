@@ -3,7 +3,7 @@
 #include <std/collection.hh>
 #include <std/integer.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     // Max-weight assignment for a square matrix.
     // weights[i][j] are non-negative integers.

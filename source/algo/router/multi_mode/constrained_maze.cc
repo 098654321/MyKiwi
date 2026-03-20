@@ -4,7 +4,7 @@
 #include <hardware/track/track.hh>
 #include <hardware/cob/cobcoord.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     static auto build_deferred(
         const std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>>& path

@@ -12,7 +12,9 @@
 
   - classify nets的时候暂时用vector存，如果之后没有影响，可以改成unordered_set
 
-  - route_multi_mode()的step E当中route shared nets少了set_reuse_type和检查已有路径的步骤（见route.cc）;最后对剩余net布线的时候也有这个问题
+  - 最后对剩余net布线的时候少了set_reuse_type和检查已有路径的步骤（见route.cc）
+
+  - shared_nets 完成布线之后打印结果
 
 --- 
 

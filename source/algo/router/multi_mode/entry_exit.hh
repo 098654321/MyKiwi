@@ -6,7 +6,7 @@
 #include <std/collection.hh>
 #include <std/integer.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     struct CobPairCandidate {
         hardware::COBCoord entry;

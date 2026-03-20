@@ -4,7 +4,7 @@
 #include <limits>
 #include <stdexcept>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     auto hungarian_max_weight(const std::Vector<std::Vector<std::i64>>& weights) -> std::Vector<std::usize> {
         const auto n = weights.size();

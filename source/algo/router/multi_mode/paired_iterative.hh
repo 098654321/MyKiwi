@@ -9,7 +9,7 @@
 #include <circuit/path/deferred_path.hh>
 #include <std/utility.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     struct PairedRouteResult {
         bool success{false};

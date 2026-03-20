@@ -3,7 +3,7 @@
 #include <hardware/track/track.hh>
 #include <debug/debug.hh>
 
-namespace kiwi::algo::multi_mode {
+namespace kiwi::algo {
 
     OccupancyView::OccupancyView(hardware::Interposer* interposer)
         : _interposer{interposer}, _cob_occupied{}, _tob_muxreg_occupied{}, _cob_locked{}, _tob_muxreg_locked{} {
