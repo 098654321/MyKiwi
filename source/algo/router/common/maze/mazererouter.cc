@@ -78,7 +78,7 @@ namespace kiwi::algo{
 
     auto MazeRerouter::bus_reroute(
         hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs,
-        std::usize max_length, bool shared
+        std::usize max_length
     ) const -> std::tuple<bool, std::usize>{
         for (std::usize i = 0; i < net_ptrs.size(); ++i){
             auto net = net_ptrs[i];
@@ -100,7 +100,7 @@ namespace kiwi::algo{
                 remove_tracks(path_ptr);
 
                 bump_length = 1;
-                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump, shared);
+                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump);
                 for (auto& [track, _]: possible_end_tracks_map){
                     if (track && !end_tracks_set.contains(track)){
                         end_tracks_set.emplace(track);

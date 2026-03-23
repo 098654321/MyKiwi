@@ -19,6 +19,7 @@ extern void test_config_main();
 extern void test_comparator_main();
 extern void test_occupancyview_main();
 extern void test_bbox_main();
+extern void test_hungarian_main();
 
 #define REGISTER_TEST(test_name)\
 functions.emplace(#test_name, & test_##test_name##_main);\
@@ -47,6 +48,7 @@ try {
     REGISTER_TEST(comparator)
     REGISTER_TEST(occupancyview)
     REGISTER_TEST(bbox)
+    REGISTER_TEST(hungarian)
 
     if (target == "all") {
         for (auto [test_name, test_func] : functions) {

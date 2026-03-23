@@ -55,9 +55,9 @@ namespace kiwi::circuit
     }
 
     auto SyncNet::incremental_route(
-        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine, bool shared
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine
     ) -> bool {
-        return strategy.route_sync_net(interposer, this, engine, shared);
+        return strategy.route_sync_net(interposer, this, engine);
     }
 
     auto SyncNet::update_priority(float bias) -> void {

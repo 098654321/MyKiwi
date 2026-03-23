@@ -38,92 +38,26 @@ namespace kiwi::algo {
         auto shared_nets = sort_shared_nets(shared);
         auto [shared_total_len, shared_routed] = route_shared_nets(view, recorder, interposer, shared);
 
-
-        // Step F/G: compute bounding boxes and run Hungarian matching on non-shared nets.
-        auto boxes1 = std::Vector<circuit::BoundingBox>{};
-        auto boxes2 = std::Vector<circuit::BoundingBox>{};
-        auto no_bbox_mode1 = std::Vector<circuit::Net*>{};
-        auto no_bbox_mode2 = std::Vector<circuit::Net*>{};
-
-        for (const auto& net_rc : it1->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
-            if (net->modes().size() > 1) { continue; } // shared already routed
-            auto bb = net->compute_bounding_box(1);
-            if (bb.has_value()) {
-                boxes1.emplace_back(bb.value());
-            } else {
-                no_bbox_mode1.emplace_back(net);
-            }
-        }
-        for (const auto& net_rc : it2->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
-            if (net->modes().size() > 1) { continue; }
-            auto bb = net->compute_bounding_box(2);
-            if (bb.has_value()) {
-                boxes2.emplace_back(bb.value());
-            } else {
-                no_bbox_mode2.emplace_back(net);
-            }
-        }
-
+        auto [boxes1, boxes2, no_bbox_mode1, no_bbox_mode2] = compute_bounding_boxes(it1, it2);
         const auto n = std::max(boxes1.size(), boxes2.size());
         if (n == 0) {
             throw std::logic_error("no non-shared nets with bounding boxes found");
         }
 
-        auto weights = std::Vector<std::Vector<std::i64>>{};
-        weights.resize(n);
-        for (std::usize i = 0; i < n; ++i) {
-            weights[i] = std::Vector<std::i64>(n, 0);
-        }
-
-        auto overlap = [](const circuit::Region& a, const circuit::Region& b) -> std::Option<circuit::Region> {
-            auto r = circuit::Region{};
-            r.row_min = std::max(a.row_min, b.row_min);
-            r.row_max = std::min(a.row_max, b.row_max);
-            r.col_min = std::max(a.col_min, b.col_min);
-            r.col_max = std::min(a.col_max, b.col_max);
-            if (r.row_min > r.row_max || r.col_min > r.col_max) {
-                return std::nullopt;
-            }
-            return r;
-        };
-
-        auto overlap_cob_count = [](circuit::Region r) -> std::i64 {
-            r.normalize();
-            r.row_min = std::max<std::i64>(0, r.row_min);
-            r.col_min = std::max<std::i64>(0, r.col_min);
-            r.row_max = std::min<std::i64>(hardware::Interposer::COB_ARRAY_HEIGHT - 1, r.row_max);
-            r.col_max = std::min<std::i64>(hardware::Interposer::COB_ARRAY_WIDTH - 1, r.col_max);
-            if (r.row_min > r.row_max || r.col_min > r.col_max) {
-                return 0;
-            }
-            return (r.row_max - r.row_min + 1) * (r.col_max - r.col_min + 1);
-        };
-
-        for (std::usize i = 0; i < n; ++i) {
-            for (std::usize j = 0; j < n; ++j) {
-                if (i >= boxes1.size() || j >= boxes2.size()) {
-                    weights[i][j] = 0; // dummy boxes
-                    continue;
-                }
-                auto ov = overlap(boxes1[i].region, boxes2[j].region);
-                if (!ov.has_value()) {
-                    weights[i][j] = 0;
-                } else {
-                    weights[i][j] = overlap_cob_count(ov.value());
-                }
-            }
-        }
-
-// need to test 4: whether the hungarian matching is correct
+        auto weights = compute_overlap_weights(boxes1, boxes2, n);
         auto assign = kiwi::algo::hungarian_max_weight(weights);
+
         std::usize paired = 0;
         std::i64 paired_weight_sum = 0;
         std::usize matched_to_dummy = 0;
         std::usize matched_no_overlap = 0;
+        auto paired_net_names = std::String{};
+        auto matched_to_dummy_names = std::String{};
+        auto matched_no_overlap_names = std::String{};
+        auto region_to_string = [](const circuit::Region& r) -> std::String {
+            return "[row:" + std::to_string(r.row_min) + ".." + std::to_string(r.row_max) +
+                ", col:" + std::to_string(r.col_min) + ".." + std::to_string(r.col_max) + "]";
+        };
 
         struct PairedNetGroup {
             circuit::Net* net1{nullptr};
@@ -135,12 +69,12 @@ namespace kiwi::algo {
         auto unpaired_mode1 = std::Vector<circuit::Net*>{};
         auto unpaired_mode2 = std::Vector<circuit::Net*>{};
 
-// need to test 5: whether the paired net groups are correct
         for (std::usize i = 0; i < boxes1.size(); ++i) {
             const auto j = assign[i];
             if (j >= boxes2.size()) {
                 ++matched_to_dummy;
                 unpaired_mode1.emplace_back(boxes1[i].net);
+                matched_to_dummy_names += boxes1[i].net->name() + " " + region_to_string(boxes1[i].region) + "\n";
                 continue; // matched to dummy
             }
             auto ov = overlap(boxes1[i].region, boxes2[j].region);
@@ -148,6 +82,9 @@ namespace kiwi::algo {
                 ++matched_no_overlap;
                 unpaired_mode1.emplace_back(boxes1[i].net);
                 unpaired_mode2.emplace_back(boxes2[j].net);
+                matched_no_overlap_names += boxes1[i].net->name() + " " + region_to_string(boxes1[i].region) +
+                    " <-> " + boxes2[j].net->name() + " " + region_to_string(boxes2[j].region) +
+                    " overlap=(none)\n";
                 continue;
             }
             paired_weight_sum += weights[i][j];
@@ -164,15 +101,26 @@ namespace kiwi::algo {
             p.overlap = ov.value();
             p.priority_sum = static_cast<double>(p.net1->priority().value()) + static_cast<double>(p.net2->priority().value());
             pairs.emplace_back(std::move(p));
+            paired_net_names += boxes1[i].net->name() + " " + region_to_string(boxes1[i].region) +
+                " <-> " + boxes2[j].net->name() + " " + region_to_string(boxes2[j].region) +
+                " overlap=" + region_to_string(ov.value()) + "\n";
         }
+
+        if (paired_net_names.empty()) { paired_net_names = "(none)"; }
+        if (matched_to_dummy_names.empty()) { matched_to_dummy_names = "(none)"; }
+        if (matched_no_overlap_names.empty()) { matched_no_overlap_names = "(none)"; }
 
         debug::info_fmt(
             "hungarian matching done: mode1_boxes={}, mode2_boxes={}, paired={}, matched_to_dummy={}, matched_no_overlap={}",
             boxes1.size(), boxes2.size(), paired, matched_to_dummy, matched_no_overlap
         );
+        debug::info_fmt("hungarian paired net names:\n{}", paired_net_names);
+        debug::info_fmt("hungarian matched_to_dummy net names:\n{}", matched_to_dummy_names);
+        debug::info_fmt("hungarian matched_no_overlap net pairs:\n{}", matched_no_overlap_names);
         if (paired > 0) {
             debug::info_fmt("matching avg_overlap_weight={}", static_cast<double>(paired_weight_sum) / static_cast<double>(paired));
         }
+// the above functions are already tested and correct
 
         debug::info_fmt(
             "multi-mode params: k_candidates={}, converge_threshold={}",
@@ -180,7 +128,6 @@ namespace kiwi::algo {
         );
 
         // Step 6: build paired net groups (sorted by priority sum, lower is higher priority).
-// need to test 6: whether the paired net groups are sorted correctly
         std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) {
             return a.priority_sum < b.priority_sum;
         });
@@ -212,7 +159,6 @@ namespace kiwi::algo {
                 auto pkg1 = circuit::PathPackage{res.net1_history, interposer};
                 pkg1.occupy_all();
                 p.net1->set_pathpackage(pkg1);
-                recorder.update_recorders_current(pkg1, false);
                 recorder.update_recorders_history(pkg1, false);
                 for (auto& [t, cob] : pkg1._regular_path) {
                     (void)t;
@@ -225,7 +171,6 @@ namespace kiwi::algo {
                 auto pkg2 = circuit::PathPackage{res.net2_history, interposer};
                 pkg2.occupy_all();
                 p.net2->set_pathpackage(pkg2);
-                recorder.update_recorders_current(pkg2, false);
                 recorder.update_recorders_history(pkg2, false);
                 for (auto& [t, cob] : pkg2._regular_path) {
                     (void)t;
@@ -248,7 +193,7 @@ namespace kiwi::algo {
         remaining2.insert(remaining2.end(), no_bbox_mode2.begin(), no_bbox_mode2.end());
         remaining2.insert(remaining2.end(), unpaired_mode2.begin(), unpaired_mode2.end());
 
-        // De-dup (best-effort).
+        // De-duplicate remaining nets, as some nets may appear in both no_bbox and unpaired lists.
         auto dedup = [](std::Vector<circuit::Net*>& v) {
             std::sort(v.begin(), v.end());
             v.erase(std::unique(v.begin(), v.end()), v.end());
@@ -268,7 +213,6 @@ namespace kiwi::algo {
             }
             for (auto& [b, tob, t] : pkg._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(1, tob); }
             for (auto& [b, tob, t] : pkg._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(1, tob); }
-            recorder.update_recorders_current(pkg, false);
             recorder.update_recorders_history(pkg, false);
         }
         for (auto* net : remaining2) {
@@ -282,7 +226,6 @@ namespace kiwi::algo {
             }
             for (auto& [b, tob, t] : pkg._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(2, tob); }
             for (auto& [b, tob, t] : pkg._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(2, tob); }
-            recorder.update_recorders_current(pkg, false);
             recorder.update_recorders_history(pkg, false);
         }
 
@@ -414,6 +357,98 @@ namespace kiwi::algo {
 
         debug::info_fmt("shared nets routed: count={}, total_length={}", shared_routed, shared_total_len);
         return std::make_tuple(shared_total_len, shared_routed);
+    }
+
+    auto compute_bounding_boxes(
+        const auto& mode1_it, const auto& mode2_it
+    ) -> std::tuple<std::Vector<circuit::BoundingBox>, std::Vector<circuit::BoundingBox>, std::Vector<circuit::Net*>, std::Vector<circuit::Net*>> {
+        debug::info_fmt("computing bounding boxes");
+
+        // Step F/G: compute bounding boxes and run Hungarian matching on non-shared nets.
+        auto boxes1 = std::Vector<circuit::BoundingBox>{};
+        auto boxes2 = std::Vector<circuit::BoundingBox>{};
+        auto no_bbox_mode1 = std::Vector<circuit::Net*>{};
+        auto no_bbox_mode2 = std::Vector<circuit::Net*>{};
+
+        for (const auto& net_rc : mode1_it->second) {
+            auto* net = net_rc.get();
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
+            if (net->modes().size() > 1) { continue; } // shared already routed
+            auto bb = net->compute_bounding_box(1);
+            if (bb.has_value()) {
+                boxes1.emplace_back(bb.value());
+            } else {
+                no_bbox_mode1.emplace_back(net);
+            }
+        }
+        for (const auto& net_rc : mode2_it->second) {
+            auto* net = net_rc.get();
+            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
+            if (net->modes().size() > 1) { continue; }
+            auto bb = net->compute_bounding_box(2);
+            if (bb.has_value()) {
+                boxes2.emplace_back(bb.value());
+            } else {
+                no_bbox_mode2.emplace_back(net);
+            }
+        }
+
+        return std::make_tuple(std::move(boxes1), std::move(boxes2), std::move(no_bbox_mode1), std::move(no_bbox_mode2));
+    }
+
+    auto overlap(const circuit::Region& a, const circuit::Region& b) -> std::Option<circuit::Region> {
+        auto r = circuit::Region{};
+        r.row_min = std::max(a.row_min, b.row_min);
+        r.row_max = std::min(a.row_max, b.row_max);
+        r.col_min = std::max(a.col_min, b.col_min);
+        r.col_max = std::min(a.col_max, b.col_max);
+        if (r.row_min > r.row_max || r.col_min > r.col_max) {
+            return std::nullopt;
+        }
+        return r;
+    }
+
+    auto compute_overlap_weights(
+        const std::Vector<circuit::BoundingBox>& boxes1,
+        const std::Vector<circuit::BoundingBox>& boxes2,
+        const std::usize n
+    ) -> std::Vector<std::Vector<std::i64>> {
+        debug::info_fmt("computing overlap weights");
+
+        auto weights = std::Vector<std::Vector<std::i64>>{};
+        weights.resize(n);
+        for (std::usize i = 0; i < n; ++i) {
+            weights[i] = std::Vector<std::i64>(n, 0);
+        }
+
+        auto overlap_cob_count = [](circuit::Region r) -> std::i64 {
+            r.normalize();
+            r.row_min = std::max<std::i64>(0, r.row_min);
+            r.col_min = std::max<std::i64>(0, r.col_min);
+            r.row_max = std::min<std::i64>(hardware::Interposer::COB_ARRAY_HEIGHT - 1, r.row_max);
+            r.col_max = std::min<std::i64>(hardware::Interposer::COB_ARRAY_WIDTH - 1, r.col_max);
+            if (r.row_min > r.row_max || r.col_min > r.col_max) {
+                return 0;
+            }
+            return (r.row_max - r.row_min + 1) * (r.col_max - r.col_min + 1);
+        };
+
+        for (std::usize i = 0; i < n; ++i) {
+            for (std::usize j = 0; j < n; ++j) {
+                if (i >= boxes1.size() || j >= boxes2.size()) {
+                    weights[i][j] = 0; // dummy boxes
+                    continue;
+                }
+                auto ov = overlap(boxes1[i].region, boxes2[j].region);
+                if (!ov.has_value()) {
+                    weights[i][j] = 0;
+                } else {
+                    weights[i][j] = overlap_cob_count(ov.value());
+                }
+            }
+        }
+
+        return weights;
     }
 
 }

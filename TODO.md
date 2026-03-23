@@ -2,10 +2,6 @@
 
 - 增量布线算法调整：
 
-  - 目前的迭代在case21当中无法收敛，需要检查无法收敛的原因，调整收敛条件**（看一下incremental_route.cc的iterate_routing里面的clear_history_records这一步是否必要）**
-
-- bugs
-
   - 完善各个单元模块的测试
 
   - 完善try-catch 异常收集机制
@@ -16,7 +12,15 @@
 
   - shared_nets 完成布线之后打印结果
 
+  - 配对nets布线结束之后三段路径里面要把cob to cob的路径以reuse_type=true设置一下
+
+  - build three segment 还没查完，没有包含同步线
+
+  - bfz_maze没有用到cost
+
 --- 
+
+- 当前hardware底层的数据结构不是很安全，最好查一下怎么给指针包装一层，放置上层使用的时候直接操作指针
 
 - 把 vpr 针对 high-fanout 的优化加上
 

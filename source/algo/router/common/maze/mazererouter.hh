@@ -100,7 +100,7 @@ namespace kiwi::algo{
         MazeRerouter(bool incremental = false): _incremental{incremental}, _recorder{nullptr} {}
 
         auto bus_reroute(       // reroute through pointer path_ptrs
-            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs, std::usize max_length, bool shared = false
+            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs, std::usize max_length
         ) const -> std::tuple<bool, std::usize>;
         auto set_recorder(HardwareRecorder* recorder) -> void {this->_recorder = recorder;}
     

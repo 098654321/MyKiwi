@@ -143,7 +143,7 @@ auto Incre_route::iterate_routing(hardware::Interposer* interposer, RouteEngine&
             net->search_related_nets(routed_nets);
             
             // route
-            auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine, false);    
+            auto res = net->incremental_route(interposer, engine.incre_route_strategy(), engine);    
             if (!res) {
                 return cycle == 0 ? false : true;
             }

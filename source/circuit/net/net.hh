@@ -41,7 +41,7 @@ namespace kiwi::circuit {
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void = 0;
         virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void = 0;
-        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&, bool) -> bool = 0;
+        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&) -> bool = 0;
         virtual auto update_priority(float bias) -> void = 0;
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> = 0;

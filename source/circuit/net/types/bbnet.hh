@@ -24,7 +24,7 @@ namespace kiwi::circuit {
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void override;
         virtual auto swap_tob_position(hardware::TOB* tob1, hardware::TOB* tob2) -> void override;
         virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void override;
-        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&, bool) -> bool override;
+        virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&) -> bool override;
         virtual auto update_priority(float bias) -> void override;
         virtual auto coords() const -> std::Vector<hardware::Coord> override;
         virtual auto check_accessable_cobunit() -> void override;

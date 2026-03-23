@@ -22,7 +22,7 @@ namespace kiwi::algo {
         const hardware::COBCoord& exit
     ) -> std::Option<circuit::ThreeSegmentDeferredPath> {
         // Currently supports 2-pin nets via coords() heuristic:
-        // - If endpoint is bump, prefer TOB available tracks (shared=true) then filter by OccupancyView.
+        // - If endpoint is bump, query TOB available tracks then filter by OccupancyView.
         // - If endpoint is track, use that track.
 
         auto coords = net.coords();
@@ -56,7 +56,7 @@ namespace kiwi::algo {
         auto track_to_tob_info = std::Option<std::Tuple<hardware::BumpCoord, circuit::TOBConnectorInfo, hardware::TrackCoord>>{std::nullopt};
 
         if (begin_bump != nullptr) {
-            auto map = interposer->available_tracks_bump_to_track(const_cast<hardware::Bump*>(begin_bump), true);
+            auto map = interposer->available_tracks_bump_to_track(const_cast<hardware::Bump*>(begin_bump));
             for (auto& [t, _] : map) {
                 if (view.is_idle_track(mode, t)) {
                     begin_tracks.emplace_back(t);
@@ -84,7 +84,7 @@ namespace kiwi::algo {
         }
 
         if (end_bump != nullptr) {
-            auto map = interposer->available_tracks_track_to_bump(const_cast<hardware::Bump*>(end_bump), true);
+            auto map = interposer->available_tracks_track_to_bump(const_cast<hardware::Bump*>(end_bump));
             for (auto& [t, _] : map) {
                 if (view.is_idle_track(mode, t)) {
                     end_tracks.emplace(t);
@@ -226,7 +226,7 @@ namespace kiwi::algo {
                     local_recorder.update_recorders_history(pkg, false);
                 }
 
-                const auto cost_now = recorder_total_cost(local_recorder);
+                const auto [_, cost_now] = local_recorder.show_cost();
                 if (last_cost.has_value() && std::fabs(cost_now - last_cost.value()) < params.converge_threshold) {
                     // Converged: assign results to (net1, net2) order.
                     PairedRouteResult r{};

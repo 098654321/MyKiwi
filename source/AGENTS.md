@@ -97,7 +97,7 @@ Pin/Connection（`source/circuit/connection/`）：
 Net（`source/circuit/net/net.hh`）是布线抽象接口，核心职责：
 
 - `route(interposer, strategy)`：非增量布线
-- `incremental_route(interposer, incre_strategy, engine, shared)`：增量布线
+- `incremental_route(interposer, incre_strategy, engine)`：增量布线
 - `check_accessable_cobunit()` / `accessable_cobunit()`：资源可达性分析（用于资源管理与匹配）
 - `coords()`：用于布局评估的坐标集合（HPWL）
 - `pathpackage()`：保存当前路由结果（见下一节）

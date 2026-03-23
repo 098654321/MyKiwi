@@ -46,7 +46,7 @@ namespace kiwi::hardware {
         auto available_connectors_bump_to_track(std::usize bump_index) -> std::Vector<TOBConnector>;
         auto available_connectors_track_to_bump(std::usize bump_index) -> std::Vector<TOBConnector>;
 
-        auto available_connectors(std::usize bump_index, TOBSignalDirection dir, bool shared = false) -> std::Vector<TOBConnector>;
+        auto available_connectors(std::usize bump_index, TOBSignalDirection dir) -> std::Vector<TOBConnector>;
         auto bump_track_connectors_chain(std::usize bump_index, std::usize track_index, hardware::TOBBumpDirection direc) -> TOBConnector;
         auto reset_regs() -> void;
 

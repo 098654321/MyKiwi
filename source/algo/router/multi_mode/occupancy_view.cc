@@ -22,6 +22,20 @@ namespace kiwi::algo {
         }   
     }
 
+    auto OccupancyView::clear_occupied_in_path(const circuit::HistoryPathPackage& history_pathpackage, int mode) -> void {
+        for (const auto& [t, cob] : history_pathpackage._regular_path) {
+            if (cob.has_value()) {
+                this->clear_occupied_cobconnector(mode, cob.value());
+            }
+        }
+        for (auto& [b, tob, t] : history_pathpackage._tob_to_track) {
+            this->clear_occupied_tobconnector(mode, tob);
+        }
+        for (const auto& [b, tob, t] : history_pathpackage._track_to_tob) {
+            this->clear_occupied_tobconnector(mode, tob);
+        }
+    }
+
     auto OccupancyView::cob_key(const hardware::COBConnector& c) const -> std::u64 {
         // Pack into 64-bit: [coord(row:8)(col:8)][from_dir:4][to_dir:4][from_idx:10][to_idx:10][pad]
         const auto coord = c.coord();
@@ -35,6 +49,10 @@ namespace kiwi::algo {
         return (row << 56) | (col << 48) | (from_dir << 44) | (to_dir << 40) | (from_idx << 30) | (to_idx << 20);
     }
 
+    auto OccupancyView::cob_key(const circuit::COBConnectorInfo& cob_info) const -> std::u64 {
+        return this->cob_key(cob_info.create_cobconnector(this->_interposer));
+    }
+
     auto OccupancyView::tob_key(const hardware::TOBConnector& c) const -> std::HashSet<std::u64> {
         // Use TOBMuxRegister pointer identities as conflict keys.
         auto regs = c.check_mux_pregister();
@@ -44,6 +62,10 @@ namespace kiwi::algo {
             keys.emplace(static_cast<std::u64>(reinterpret_cast<std::uintptr_t>(r)));
         }
         return keys;
+    }
+
+    auto OccupancyView::tob_key(const circuit::TOBConnectorInfo& tob_info) const -> std::HashSet<std::u64> {
+        return this->tob_key(tob_info.create_tobconnector(this->_interposer));
     }
 
     auto OccupancyView::is_cobconnector_occupied(int mode, const hardware::COBConnector& c) const -> bool {
@@ -61,6 +83,12 @@ namespace kiwi::algo {
         if (locked) {
             this->_cob_locked.emplace(key);
         }
+    }
+
+    auto OccupancyView::clear_occupied_cobconnector(int mode, const circuit::COBConnectorInfo& cob_info) -> void {
+        auto& set = this->_cob_occupied[mode];
+        const auto key = this->cob_key(cob_info);
+        set.erase(key);
     }
 
     auto OccupancyView::is_tobconnector_occupied(int mode, const hardware::TOBConnector& c) const -> bool {
@@ -85,6 +113,14 @@ namespace kiwi::algo {
         }
         if (locked) {
             this->_tob_muxreg_locked.insert(keys.begin(), keys.end());
+        }
+    }
+
+    auto OccupancyView::clear_occupied_tobconnector(int mode, const circuit::TOBConnectorInfo& tob_info) -> void {
+        auto& set = this->_tob_muxreg_occupied[mode];
+        const auto keys = this->tob_key(tob_info);
+        for (auto k : keys) {
+            set.erase(k);
         }
     }
 

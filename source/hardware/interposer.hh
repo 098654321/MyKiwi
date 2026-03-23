@@ -41,9 +41,9 @@ namespace kiwi::hardware {
         void clear();
 
     public:
-        auto available_tracks(Bump* bump, TOBSignalDirection dir, bool shared = false) -> std::HashMap<Track*, TOBConnector>;    
-        auto available_tracks_bump_to_track(Bump* bump, bool shared = false) -> std::HashMap<Track*, TOBConnector>;              
-        auto available_tracks_track_to_bump(Bump* bump, bool shared = false) -> std::HashMap<Track*, TOBConnector>;   
+        auto available_tracks(Bump* bump, TOBSignalDirection dir) -> std::HashMap<Track*, TOBConnector>;    
+        auto available_tracks_bump_to_track(Bump* bump) -> std::HashMap<Track*, TOBConnector>;              
+        auto available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector>;   
 
     public:
         auto adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>>;           

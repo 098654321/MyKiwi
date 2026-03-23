@@ -43,5 +43,18 @@ namespace kiwi::algo {
         hardware::Interposer* interposer,
         const std::vector<std::shared_ptr<circuit::Net>>& shared_nets
     ) -> std::tuple<float, float>;
+
+    auto compute_bounding_boxes(
+        const auto&, const auto&
+    ) -> std::tuple<std::Vector<circuit::BoundingBox>, std::Vector<circuit::BoundingBox>, std::Vector<circuit::Net*>, std::Vector<circuit::Net*>>;
+
+    auto overlap(const circuit::Region& a, const circuit::Region& b) -> std::Option<circuit::Region>;
+
+    auto compute_overlap_weights(
+        const std::Vector<circuit::BoundingBox>& boxes1,
+        const std::Vector<circuit::BoundingBox>& boxes2,
+        const std::usize n
+    ) -> std::Vector<std::Vector<std::i64>>;
+
 }
 

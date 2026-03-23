@@ -30,9 +30,9 @@ namespace kiwi::circuit {
     }
 
     auto TracksToBumpsNet::incremental_route(
-        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine, bool shared
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine
     ) -> bool {
-        return strategy.route_tracks_to_bumps_net(interposer, this, engine, shared);
+        return strategy.route_tracks_to_bumps_net(interposer, this, engine);
     }
 
     auto TracksToBumpsNet::update_priority(float bias) -> void {

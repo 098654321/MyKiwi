@@ -34,9 +34,9 @@ namespace kiwi::circuit {
     }
 
     auto BumpToBumpNet::incremental_route(
-        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine, bool shared
+        hardware::Interposer* interposer, const algo::IncreRouting& strategy, algo::RouteEngine& engine
     ) -> bool {
-        return strategy.route_bump_to_bump_net(interposer, this, engine, shared);
+        return strategy.route_bump_to_bump_net(interposer, this, engine);
     }
 
     auto BumpToBumpNet::update_priority(float bias) -> void {

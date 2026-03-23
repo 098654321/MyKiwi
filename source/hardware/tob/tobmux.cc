@@ -59,35 +59,22 @@ namespace kiwi::hardware {
         }
     }
 
-    auto TOBMux::available_connectors(std::usize input_index, bool shared) -> std::Vector<TOBMuxConnector> {
-        if (!shared) {
-            auto& reg = this->_registers.at(input_index);   // source
-            if (reg.get().has_value() || reg.is_given_out()) {
-                return {};
-            }
-        
-            auto connectors = std::Vector<TOBMuxConnector>{};
-            for (const auto output_index : this->available_output_indexes()) {
-                connectors.emplace_back(
-                    input_index,    // source, [0, 7]
-                    output_index,   // target, [0, 7]
-                    &this->_registers.at(input_index)
-                );
-            }
+    auto TOBMux::available_connectors(std::usize input_index) -> std::Vector<TOBMuxConnector> {
+        auto& reg = this->_registers.at(input_index);   // source
+        if (reg.get().has_value() || reg.is_given_out()) {
+            return {};
+        }
+    
+        auto connectors = std::Vector<TOBMuxConnector>{};
+        for (const auto output_index : this->available_output_indexes()) {
+            connectors.emplace_back(
+                input_index,    // source, [0, 7]
+                output_index,   // target, [0, 7]
+                &this->_registers.at(input_index)
+            );
+        }
 
-            return connectors;
-        }
-        else {
-            auto connectors = std::Vector<TOBMuxConnector>{};
-            for (auto output_index: std::views::iota(0, (int)this->_mux_size)){
-                connectors.emplace_back(
-                    input_index,
-                    output_index,
-                    &this->_registers.at(input_index)
-                );
-            }
-            return connectors;
-        }
+        return connectors;
     }
 
     auto TOBMux::available_output_indexes() const -> std::Vector<std::usize> {

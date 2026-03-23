@@ -3,6 +3,7 @@
 #include <hardware/interposer.hh>
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace kiwi::algo {
 
@@ -14,13 +15,22 @@ namespace kiwi::algo {
         return std::llabs(a.row - b.row) + std::llabs(a.col - b.col);
     }
 
-    static auto net_endpoints_cost(const circuit::Net& net) -> std::Option<std::Pair<hardware::Coord, hardware::Coord>> {
-        // For now, use the first/last coords as (start,end). For SyncNet, this will be refined later.
+    static auto net_endpoints(const circuit::Net& net) -> std::Option<std::Pair<hardware::Coord, hardware::Coord>> {
+        // currently only support 2-pin nets or syncnet, where syncnet should have only 2 different endpoints when treated as a whole net
         auto coords = net.coords();
         if (coords.size() < 2) {
-            return std::nullopt;
+            throw std::runtime_error(std::format("net {} has less than 2 coords", net.name()));
         }
-        return std::Pair<hardware::Coord, hardware::Coord>{coords.front(), coords.back()};
+
+        std::unordered_set<hardware::Coord> unique_coords;
+        for (const auto& coord : coords) {
+            unique_coords.emplace(coord);
+        }
+        if (unique_coords.size() != 2) {
+            throw std::runtime_error(std::format("net {} has more than 2 unique coords", net.name()));
+        }
+        auto it = unique_coords.begin();
+        return std::Pair<hardware::Coord, hardware::Coord>{*it, *(++it)};
     }
 
     auto select_entry_exit_candidates(
@@ -29,10 +39,10 @@ namespace kiwi::algo {
         const circuit::Region& overlap_region,
         std::usize k
     ) -> std::Vector<CobPairCandidate> {
-        auto ep1 = net_endpoints_cost(net1);
-        auto ep2 = net_endpoints_cost(net2);
+        auto ep1 = net_endpoints(net1);
+        auto ep2 = net_endpoints(net2);
         if (!ep1.has_value() || !ep2.has_value()) {
-            return {};
+            throw std::runtime_error(std::format("net {} or net {} got empty endpoints", net1.name(), net2.name()));
         }
 
         const auto [s1, t1] = ep1.value();
@@ -41,14 +51,8 @@ namespace kiwi::algo {
         const auto distance_net = manhattan(s1, t1) + manhattan(s2, t2);
 
         auto r = overlap_region;
-        r.normalize();
-        // Clamp to COB array range.
-        r.row_min = std::max<std::i64>(0, r.row_min);
-        r.col_min = std::max<std::i64>(0, r.col_min);
-        r.row_max = std::min<std::i64>(hardware::Interposer::COB_ARRAY_HEIGHT - 1, r.row_max);
-        r.col_max = std::min<std::i64>(hardware::Interposer::COB_ARRAY_WIDTH - 1, r.col_max);
         if (r.row_min > r.row_max || r.col_min > r.col_max) {
-            return {};
+            throw std::runtime_error(std::format("overlap region is empty"));
         }
 
         auto candidates = std::Vector<CobPairCandidate>{};
@@ -61,7 +65,7 @@ namespace kiwi::algo {
                         const auto cob_to_cob = manhattan(hardware::Coord{entry.row, entry.col}, hardware::Coord{exit.row, exit.col});
 
         const auto distance_cob =
-                            cob_to_cob +
+                            2*cob_to_cob +
                             manhattan_to_cob(s1, entry) + manhattan_to_cob(s2, entry) +
                             manhattan_to_cob(t1, exit) + manhattan_to_cob(t2, exit);
 
@@ -81,6 +85,10 @@ namespace kiwi::algo {
         if (candidates.size() > k) {
             candidates.resize(k);
         }
+        if (candidates.empty()) {
+            throw std::runtime_error(std::format("no entry exit candidates found for net {} and net {}", net1.name(), net2.name()));
+        }
+        
         return candidates;
     }
 

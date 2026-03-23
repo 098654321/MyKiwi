@@ -11,10 +11,6 @@ namespace kiwi::circuit {
     PathPackage::PathPackage(const HistoryPathPackage& history_pathpackage, hardware::Interposer* pinterposer) {
         this->_length = history_pathpackage._length;
 
-// for debug
-auto preg_set = std::unordered_set<const hardware::TOBMuxRegister*> {};
-//
-
         // create regular path
         std::Vector<std::Tuple<hardware::Track*, std::Option<hardware::COBConnector>>> regular_path {};
         for (const auto& [trackcoord, cobconnectorinfo]: history_pathpackage._regular_path) {
@@ -49,18 +45,6 @@ auto preg_set = std::unordered_set<const hardware::TOBMuxRegister*> {};
 
             auto tob_connector = tobconnectorinfo.create_tobconnector(pinterposer);
             tob_to_track.emplace_back(bump.value(), tob_connector, track.value());
-
-// for debug
-auto pregs = tob_connector.check_mux_pregister();
-for (auto& preg: pregs) {
-    if (preg_set.contains(preg)) {
-        debug::exception("create Pathpackage by History: TOBMuxRegister in TOBConnector is not unique");
-    }
-    else {
-        preg_set.emplace(preg);
-    }
-}
-//
         }
         this->_tob_to_track = tob_to_track;
 
@@ -79,18 +63,6 @@ for (auto& preg: pregs) {
 
             auto tob_connector = tobconnectorinfo.create_tobconnector(pinterposer);
             track_to_tob.emplace_back(bump.value(), tob_connector, track.value());
-
-// for debug
-auto pregs = tob_connector.check_mux_pregister();
-for (auto& preg: pregs) {
-    if (preg_set.contains(preg)) {
-        debug::exception("create Pathpackage by History: TOBMuxRegister in TOBConnector is not unique");
-    }
-    else {
-        preg_set.emplace(preg);
-    }
-}
-//
         }
         this->_track_to_tob = track_to_tob;
     }

@@ -132,7 +132,7 @@ namespace kiwi::hardware {
         }
     }
 
-    auto Interposer::available_tracks(Bump* bump, TOBSignalDirection dir, bool shared) -> std::HashMap<Track*, TOBConnector> {
+    auto Interposer::available_tracks(Bump* bump, TOBSignalDirection dir) -> std::HashMap<Track*, TOBConnector> {
         auto tob = bump->tob();
         auto& coord = Interposer::TOB_COORD_MAP.at(tob->coord());
 
@@ -140,7 +140,7 @@ namespace kiwi::hardware {
 
         auto result = std::HashMap<Track*, TOBConnector>{};
 
-        for (auto& connector : tob->available_connectors(bump->index(), dir, shared)) {
+        for (auto& connector : tob->available_connectors(bump->index(), dir)) {
             // check cobunit
             std::usize index = connector.track_index();
             std::usize bank_size = COB::INDEX_SIZE/2;
@@ -156,12 +156,12 @@ namespace kiwi::hardware {
         return result;
     }  
 
-    auto Interposer::available_tracks_bump_to_track(Bump* bump, bool shared) -> std::HashMap<Track*, TOBConnector> {
-        return this->available_tracks(bump, TOBSignalDirection::BumpToTrack, shared);
+    auto Interposer::available_tracks_bump_to_track(Bump* bump) -> std::HashMap<Track*, TOBConnector> {
+        return this->available_tracks(bump, TOBSignalDirection::BumpToTrack);
     }
 
-    auto Interposer::available_tracks_track_to_bump(Bump* bump, bool shared) -> std::HashMap<Track*, TOBConnector> {
-        return this->available_tracks(bump, TOBSignalDirection::TrackToBump, shared);
+    auto Interposer::available_tracks_track_to_bump(Bump* bump) -> std::HashMap<Track*, TOBConnector> {
+        return this->available_tracks(bump, TOBSignalDirection::TrackToBump);
     }
 
     auto Interposer::adjacent_idle_tracks(Track* track) -> std::Vector<std::Tuple<Track*, COBConnector>> {
