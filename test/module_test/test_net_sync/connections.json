@@ -1,0 +1,74 @@
+{
+    "1": {
+        "4": [
+            [
+                "muyan_5.rd1",
+                "muyan_6.rd1"
+            ],
+            [
+                "muyan_5.s_rx_rplyPkgID",
+                "muyan_6.s_rx_rplyPkgID"
+            ],
+            [
+                "muyan_5.s_rx_flit_b6",
+                "muyan_6.s_rx_flit_b6"
+            ],
+            [
+                "muyan_5.s_rx_flit_b7",
+                "muyan_6.s_rx_flit_b7"
+            ],
+            [
+                "muyan_5.s_rx_flit_b8",
+                "muyan_6.s_rx_flit_b8"
+            ],
+            [
+                "muyan_5.s_rx_clk",
+                "muyan_6.s_rx_clk"
+            ],
+            [
+                "muyan_5.s_rx_flit_b9",
+                "muyan_6.s_rx_flit_b9"
+            ],
+            [
+                "muyan_5.s_rx_flit_b10",
+                "muyan_6.s_rx_flit_b10"
+            ]
+        ]
+    },
+    "2": {
+        "5": [
+            [
+                "muyan_2.rd1",
+                "muyan_9.rd1"
+            ],
+            [
+                "muyan_2.s_rx_rplyPkgID",
+                "muyan_9.s_rx_rplyPkgID"
+            ],
+            [
+                "muyan_2.s_rx_flit_b6",
+                "muyan_9.s_rx_flit_b6"
+            ],
+            [
+                "muyan_2.s_rx_flit_b7",
+                "muyan_9.s_rx_flit_b7"
+            ],
+            [
+                "muyan_2.s_rx_flit_b8",
+                "muyan_9.s_rx_flit_b8"
+            ],
+            [
+                "muyan_2.s_rx_clk",
+                "muyan_9.s_rx_clk"
+            ],
+            [
+                "muyan_2.s_rx_flit_b9",
+                "muyan_9.s_rx_flit_b9"
+            ],
+            [
+                "muyan_2.s_rx_flit_b10",
+                "muyan_9.s_rx_flit_b10"
+            ]
+        ]
+    }
+}

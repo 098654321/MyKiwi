@@ -235,4 +235,28 @@ namespace kiwi::circuit {
         }
         return false;
     }
+
+    auto TracksToBumpsNet::port_length() const -> std::usize {
+        throw std::logic_error("TracksToBumpsNet::port_length(): not implemented");
+    }
+
+    auto TracksToBumpsNet::manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 {
+        throw std::logic_error("TracksToBumpsNet::manhattan_to_net_begin_point(): not implemented");
+    }
+
+    auto TracksToBumpsNet::manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 {
+        throw std::logic_error("TracksToBumpsNet::manhattan_to_net_end_point(): not implemented");
+    }
+
+    auto TracksToBumpsNet::manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 {
+        throw std::logic_error("TracksToBumpsNet::manhattan_cob_to_cob(): not implemented");
+    }
+
+    auto TracksToBumpsNet::net_begin_cob() const -> const hardware::COBCoord {
+        throw std::logic_error("TracksToBumpsNet::net_begin_cob(): not implemented");
+    }
+
+    auto TracksToBumpsNet::net_end_cob() const -> const hardware::COBCoord {
+        throw std::logic_error("TracksToBumpsNet::net_end_cob(): not implemented");
+    }
 }

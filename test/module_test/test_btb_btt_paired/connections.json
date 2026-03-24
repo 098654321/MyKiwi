@@ -1,0 +1,18 @@
+{
+    "1": {
+        "-1": [
+            [
+                "muyan_5.s_tx_flit_b6",
+                "muyan_6.s_tx_flit_b6"
+            ]
+        ]
+    },
+    "2": {
+        "-2": [
+            [
+                "muyan_2.s_tx_flit_b1",
+                "xinzhai_spi_s_csn_1"
+            ]
+        ]
+    }
+}

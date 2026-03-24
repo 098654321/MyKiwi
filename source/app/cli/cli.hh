@@ -5,7 +5,7 @@
 #include "std/file.hh"
 #include "std/integer.hh"
 #include <vector>
-
+#include <algo/router/multi_mode/params.hh>
 
 namespace kiwi::hardware {
     class Interposer;
@@ -33,5 +33,12 @@ namespace kiwi {
         kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*,
         std::StringView,  const std::FilePath&,
         int mode, std::optional<int> compare
+    ) -> void;
+
+    auto route_multi_mode(
+        kiwi::hardware::Interposer* interposer,
+        kiwi::circuit::BaseDie* basedie,
+        const std::FilePath&,
+        const algo::MultiModeParams& params
     ) -> void;
 }

@@ -63,9 +63,16 @@ namespace kiwi::circuit {
         virtual auto clear_current_package() -> void override;
         virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool override;
         virtual auto compute_bounding_box(int mode) -> std::Option<BoundingBox> override;
-
+        virtual auto port_length() const -> std::usize override;
+        virtual auto manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 override;
+        virtual auto manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 override;
+        virtual auto manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 override;
+        virtual auto net_begin_cob() const -> const hardware::COBCoord override;
+        virtual auto net_end_cob() const -> const hardware::COBCoord override;
+        
         // mode for sync net is determined by _mode itself, not the _modes in net-members
         
+        auto check_net_illegal() const -> bool;
         auto show_path() const -> void override;
         auto length() const -> std::usize override;
         auto sync_length() const -> std::Tuple<std::usize, std::usize> override;

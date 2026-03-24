@@ -238,4 +238,52 @@ namespace kiwi::circuit {
         return this->_bounding_box;
     }
 
+    auto BumpToBumpNet::port_length() const -> std::usize {
+        return 2;
+    }
+
+    auto BumpToBumpNet::manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 {
+        return std::min(
+            std::llabs(point.row - this->_begin_bump->coord().row) + std::llabs(point.col - this->_begin_bump->coord().col),
+            std::llabs(point.row - (this->_begin_bump->coord().row - 1)) + std::llabs(point.col - this->_begin_bump->coord().col)
+        );
+    }
+
+    auto BumpToBumpNet::manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 {
+        return std::min(
+            std::llabs(point.row - this->_end_bump->coord().row) + std::llabs(point.col - this->_end_bump->coord().col),
+            std::llabs(point.row - (this->_end_bump->coord().row - 1)) + std::llabs(point.col - this->_end_bump->coord().col)
+        );
+    }
+
+    auto BumpToBumpNet::manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 {
+        auto cob_to_cob = std::llabs(entry.row - exit.row) + std::llabs(entry.col - exit.col);
+        auto s = this->_begin_bump->coord();
+        auto t = this->_end_bump->coord();
+        auto s_bottom = hardware::Coord{s.row - 1, s.col};
+        auto t_bottom = hardware::Coord{t.row - 1, t.col};
+
+        const auto entry_exit_row_min = std::min(entry.row, exit.row);
+        const auto entry_exit_row_max = std::max(entry.row, exit.row);
+        const auto entry_exit_col_min = std::min(entry.col, exit.col);
+        const auto entry_exit_col_max = std::max(entry.col, exit.col);
+        auto check_point_in_box = [&](auto& s) -> bool {
+            return s.row >= entry_exit_row_min && s.row <= entry_exit_row_max && s.col >= entry_exit_col_min && s.col <= entry_exit_col_max;
+        };
+
+        if (check_point_in_box(s) && check_point_in_box(s_bottom) || check_point_in_box(t) && check_point_in_box(t_bottom)) {
+            cob_to_cob -= 1;
+        }
+
+        return cob_to_cob;
+    }
+
+    auto BumpToBumpNet::net_begin_cob() const -> const hardware::COBCoord {
+        return hardware::COBCoord{this->_begin_bump->coord().row, this->_begin_bump->coord().col};
+    }
+
+    auto BumpToBumpNet::net_end_cob() const -> const hardware::COBCoord {
+        return hardware::COBCoord{this->_end_bump->coord().row, this->_end_bump->coord().col};
+    }
+
 }

@@ -8,283 +8,249 @@
 #include <parse/writer/module.hh>
 #include <stdexcept>
 #include <algorithm>
+#include <std/format.hh>
 
 #include "./occupancy_view.hh"
 #include "./hungarian.hh"
 #include "./params.hh"
 #include "./entry_exit.hh"
 #include "./paired_iterative.hh"
+#include <circuit/net/types/syncnet.hh>
 
 namespace kiwi::algo {
 
-    auto route_multi_mode(
+    static auto commit_paired_net_result(
         hardware::Interposer* interposer,
-        circuit::BaseDie* basedie,
-        std::StringView /*config_path*/,
-        const std::FilePath& output_path,
-        const kiwi::algo::MultiModeParams& params
+        OccupancyView& view,
+        HardwareRecorder& recorder,
+        int mode,
+        circuit::Net* net,
+        const NetRouteHistoryResult& result
     ) -> void {
-        auto& nets_map = basedie->nets();
-        auto it1 = nets_map.find(1);
-        auto it2 = nets_map.find(2);
-        if (it1 == nets_map.end() || it2 == nets_map.end()) {
-            debug::fatal("multi-mode routing expects mode 1 and mode 2 nets, while at least one of them is not found");
+        if (net == nullptr) {
+            throw std::logic_error("commit_paired_net_result(): net is nullptr");
+        }
+        if (result.subnet_histories.empty()) {
+            throw std::logic_error(std::format(
+                "commit_paired_net_result(): empty subnet histories for net='{}'",
+                net->name()
+            ));
         }
 
-        auto view = kiwi::algo::OccupancyView{interposer};
-        auto recorder = HardwareRecorder{interposer};
-
-        auto [shared, only1, only2] = classify_nets(it1, it2);
-        auto shared_nets = sort_shared_nets(shared);
-        auto [shared_total_len, shared_routed] = route_shared_nets(view, recorder, interposer, shared);
-
-        auto [boxes1, boxes2, no_bbox_mode1, no_bbox_mode2] = compute_bounding_boxes(it1, it2);
-        const auto n = std::max(boxes1.size(), boxes2.size());
-        if (n == 0) {
-            throw std::logic_error("no non-shared nets with bounding boxes found");
-        }
-
-        auto weights = compute_overlap_weights(boxes1, boxes2, n);
-        auto assign = kiwi::algo::hungarian_max_weight(weights);
-
-        std::usize paired = 0;
-        std::i64 paired_weight_sum = 0;
-        std::usize matched_to_dummy = 0;
-        std::usize matched_no_overlap = 0;
-        auto paired_net_names = std::String{};
-        auto matched_to_dummy_names = std::String{};
-        auto matched_no_overlap_names = std::String{};
-        auto region_to_string = [](const circuit::Region& r) -> std::String {
-            return "[row:" + std::to_string(r.row_min) + ".." + std::to_string(r.row_max) +
-                ", col:" + std::to_string(r.col_min) + ".." + std::to_string(r.col_max) + "]";
-        };
-
-        struct PairedNetGroup {
-            circuit::Net* net1{nullptr};
-            circuit::Net* net2{nullptr};
-            circuit::Region overlap{};
-            double priority_sum{0.0};
-        };
-        auto pairs = std::Vector<PairedNetGroup>{};
-        auto unpaired_mode1 = std::Vector<circuit::Net*>{};
-        auto unpaired_mode2 = std::Vector<circuit::Net*>{};
-
-        for (std::usize i = 0; i < boxes1.size(); ++i) {
-            const auto j = assign[i];
-            if (j >= boxes2.size()) {
-                ++matched_to_dummy;
-                unpaired_mode1.emplace_back(boxes1[i].net);
-                matched_to_dummy_names += boxes1[i].net->name() + " " + region_to_string(boxes1[i].region) + "\n";
-                continue; // matched to dummy
+        if (auto* sync_net = dynamic_cast<circuit::SyncNet*>(net)) {
+            const auto expected = sync_net->btbnets().size() + sync_net->ttbnets().size() + sync_net->bttnets().size();
+            if (result.subnet_histories.size() != expected) {
+                throw std::logic_error(std::format(
+                    "commit_paired_net_result(): sync subnet count mismatch for net='{}', expect={}, got={}",
+                    net->name(),
+                    expected,
+                    result.subnet_histories.size()
+                ));
             }
-            auto ov = overlap(boxes1[i].region, boxes2[j].region);
-            if (!ov.has_value()) {
-                ++matched_no_overlap;
-                unpaired_mode1.emplace_back(boxes1[i].net);
-                unpaired_mode2.emplace_back(boxes2[j].net);
-                matched_no_overlap_names += boxes1[i].net->name() + " " + region_to_string(boxes1[i].region) +
-                    " <-> " + boxes2[j].net->name() + " " + region_to_string(boxes2[j].region) +
-                    " overlap=(none)\n";
-                continue;
+            std::usize idx = 0;
+            auto apply_next = [&](circuit::Net* sub_net) {
+                if (idx >= result.subnet_histories.size()) {
+                    throw std::logic_error("commit_paired_net_result(): insufficient subnet histories");
+                }
+                auto sub_pkg = circuit::PathPackage{result.subnet_histories[idx], interposer};
+                sub_net->set_pathpackage(sub_pkg);
+                idx += 1;
+            };
+            for (auto& sub : sync_net->btbnets()) { apply_next(sub.get()); }
+            for (auto& sub : sync_net->ttbnets()) { apply_next(sub.get()); }
+            for (auto& sub : sync_net->bttnets()) { apply_next(sub.get()); }
+            if (idx != result.subnet_histories.size()) {
+                throw std::logic_error("commit_paired_net_result(): unexpected extra subnet histories");
             }
-            paired_weight_sum += weights[i][j];
-            // record on Net objects for next phase
-            boxes1[i].matched_net = boxes2[j].net;
-            boxes1[i].overlap_region = ov;
-            boxes2[j].matched_net = boxes1[i].net;
-            boxes2[j].overlap_region = ov;
-            ++paired;
-
-            auto p = PairedNetGroup{};
-            p.net1 = boxes1[i].net;
-            p.net2 = boxes2[j].net;
-            p.overlap = ov.value();
-            p.priority_sum = static_cast<double>(p.net1->priority().value()) + static_cast<double>(p.net2->priority().value());
-            pairs.emplace_back(std::move(p));
-            paired_net_names += boxes1[i].net->name() + " " + region_to_string(boxes1[i].region) +
-                " <-> " + boxes2[j].net->name() + " " + region_to_string(boxes2[j].region) +
-                " overlap=" + region_to_string(ov.value()) + "\n";
+            sync_net->collect_package();
+        } else {
+            if (result.subnet_histories.size() != 1) {
+                throw std::logic_error(std::format(
+                    "commit_paired_net_result(): non-sync net='{}' expects one subnet history, got={}",
+                    net->name(),
+                    result.subnet_histories.size()
+                ));
+            }
+            auto pkg = circuit::PathPackage{result.subnet_histories.front(), interposer};
+            net->set_pathpackage(pkg);
         }
 
-        if (paired_net_names.empty()) { paired_net_names = "(none)"; }
-        if (matched_to_dummy_names.empty()) { matched_to_dummy_names = "(none)"; }
-        if (matched_no_overlap_names.empty()) { matched_no_overlap_names = "(none)"; }
-
-        debug::info_fmt(
-            "hungarian matching done: mode1_boxes={}, mode2_boxes={}, paired={}, matched_to_dummy={}, matched_no_overlap={}",
-            boxes1.size(), boxes2.size(), paired, matched_to_dummy, matched_no_overlap
-        );
-        debug::info_fmt("hungarian paired net names:\n{}", paired_net_names);
-        debug::info_fmt("hungarian matched_to_dummy net names:\n{}", matched_to_dummy_names);
-        debug::info_fmt("hungarian matched_no_overlap net pairs:\n{}", matched_no_overlap_names);
-        if (paired > 0) {
-            debug::info_fmt("matching avg_overlap_weight={}", static_cast<double>(paired_weight_sum) / static_cast<double>(paired));
+        auto& pkg = net->pathpackage();
+        pkg.occupy_all();
+        net->show_path();
+        recorder.update_recorders_history(pkg, false);
+        for (auto& [t, cob] : pkg._regular_path) {
+            (void)t;
+            if (cob.has_value()) { view.occupy_cobconnector(mode, cob.value(), false); }
         }
-// the above functions are already tested and correct
+        for (auto& [b, tob, t] : pkg._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(mode, tob); }
+        for (auto& [b, tob, t] : pkg._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(mode, tob); }
+    }
 
-        debug::info_fmt(
-            "multi-mode params: k_candidates={}, converge_threshold={}",
-            params.k_candidates, params.converge_threshold
+    static auto format_region(const circuit::Region& region) -> std::String {
+        return std::format(
+            "rows=[{},{}], cols=[{},{}]",
+            region.row_min,
+            region.row_max,
+            region.col_min,
+            region.col_max
         );
+    }
 
-        // Step 6: build paired net groups (sorted by priority sum, lower is higher priority).
-        std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) {
-            return a.priority_sum < b.priority_sum;
-        });
+    auto route_shared_nets(
+        OccupancyView& view,
+        HardwareRecorder& recorder,
+        hardware::Interposer* interposer,
+        const std::vector<std::shared_ptr<circuit::Net>>& shared
+    ) -> void {
+        try {
+            auto sorted_shared = sort_shared_nets(shared);
+            auto [shared_total_len, shared_routed] = route_shared(view, recorder, interposer, sorted_shared);
+            (void)shared_total_len;
+            (void)shared_routed;
+        }
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format(
+                "route_shared_nets() failed: shared_count={}, reason={}",
+                shared.size(),
+                err.what()
+            ));
+        }
+    }
 
-        debug::info_fmt(
-            "paired net groups prepared: pairs={}, no_bbox_mode1={}, no_bbox_mode2={}",
-            pairs.size(), no_bbox_mode1.size(), no_bbox_mode2.size()
-        );
-
-        // Step 7: route paired groups with k-parallel iterative solver and commit winner.
-// need to test 7: whether the paired routing is correct
-        auto failed = std::Vector<circuit::Net*>{};
-        std::usize paired_success = 0;
-        for (const auto& p : pairs) {
-            auto res = kiwi::algo::route_paired_nets_iterative(
-                interposer, view, recorder,
-                *p.net1, 1,
-                *p.net2, 2,
-                p.overlap, params
+    auto route_mode_only_nets(
+        OccupancyView& view,
+        HardwareRecorder& recorder,
+        hardware::Interposer* interposer,
+        const NetsMapConstIter& it1,
+        const NetsMapConstIter& it2,
+        const MultiModeParams& params
+    ) -> void {
+        try {
+            auto [boxes1, boxes2, no_bbox_mode1, no_bbox_mode2] = compute_bounding_boxes(it1, it2);
+            const auto n = std::max(boxes1.size(), boxes2.size());
+            if (n == 0) {
+                throw std::logic_error(std::format(
+                    "route_mode_only_nets(): no non-shared nets with bounding boxes; mode1_total_nets={}, mode2_total_nets={}, mode1_no_bbox={}, mode2_no_bbox={}",
+                    it1->second.size(),
+                    it2->second.size(),
+                    no_bbox_mode1.size(),
+                    no_bbox_mode2.size()
+                ));
+            }
+            auto weights = compute_overlap_weights(boxes1, boxes2, n);
+            auto assign = kiwi::algo::hungarian_max_weight(weights);
+            auto [pairs, unpaired_mode1, unpaired_mode2] = match_nets(boxes1, boxes2, assign, weights);
+            debug::info_fmt(
+                "multi-mode params: k_candidates={}, converge_threshold={}",
+                params.k_candidates, params.converge_threshold
             );
-            if (!res.success) {
-                failed.emplace_back(p.net1);
-                failed.emplace_back(p.net2);
-                continue;
+
+            std::sort(pairs.begin(), pairs.end(), [](const auto& a, const auto& b) {
+                return a.priority_sum < b.priority_sum;
+            });
+            debug::info_fmt(
+                "paired net groups prepared: pairs={}, no_bbox_mode1={}, no_bbox_mode2={}",
+                pairs.size(), no_bbox_mode1.size(), no_bbox_mode2.size()
+            );
+            auto [paired_success, failed] = route_paired(interposer, view, recorder, pairs, params);
+            if (!failed.empty()) {
+                debug::warning_fmt(
+                    "route_mode_only_nets(): paired routing fallback pending for {} nets after paired_success={}.",
+                    failed.size(),
+                    paired_success
+                );
             }
 
-            // Commit to hardware/pathpackage in main thread.
-            {
-                auto pkg1 = circuit::PathPackage{res.net1_history, interposer};
-                pkg1.occupy_all();
-                p.net1->set_pathpackage(pkg1);
-                recorder.update_recorders_history(pkg1, false);
-                for (auto& [t, cob] : pkg1._regular_path) {
-                    (void)t;
-                    if (cob.has_value()) { view.occupy_cobconnector(1, cob.value(), false); }
-                }
-                for (auto& [b, tob, t] : pkg1._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(1, tob); }
-                for (auto& [b, tob, t] : pkg1._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(1, tob); }
-            }
-            {
-                auto pkg2 = circuit::PathPackage{res.net2_history, interposer};
-                pkg2.occupy_all();
-                p.net2->set_pathpackage(pkg2);
-                recorder.update_recorders_history(pkg2, false);
-                for (auto& [t, cob] : pkg2._regular_path) {
-                    (void)t;
-                    if (cob.has_value()) { view.occupy_cobconnector(2, cob.value(), false); }
-                }
-                for (auto& [b, tob, t] : pkg2._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(2, tob); }
-                for (auto& [b, tob, t] : pkg2._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(2, tob); }
-            }
-            paired_success += 1;
+            // route remaining nets
+            auto remaining1 = collect_remaining_nets(no_bbox_mode1, unpaired_mode1);
+            auto remaining2 = collect_remaining_nets(no_bbox_mode2, unpaired_mode2);
+            auto maze2 = algo::MazeRouteStrategy{false};
+            route_remaining_nets(interposer, view, recorder, 1, remaining1, maze2);
+            route_remaining_nets(interposer, view, recorder, 2, remaining2, maze2);
         }
-        debug::info_fmt("paired routing done: success={}, failed_pairs={}", paired_success, pairs.size() - paired_success);
-
-        // Step 8: route remaining nets (unpaired + no-bbox + paired-failed) using existing non-incremental maze.
-// need to test 8: whether the remaining routing is correct
-        auto remaining1 = std::Vector<circuit::Net*>{};
-        remaining1.insert(remaining1.end(), no_bbox_mode1.begin(), no_bbox_mode1.end());
-        remaining1.insert(remaining1.end(), unpaired_mode1.begin(), unpaired_mode1.end());
-
-        auto remaining2 = std::Vector<circuit::Net*>{};
-        remaining2.insert(remaining2.end(), no_bbox_mode2.begin(), no_bbox_mode2.end());
-        remaining2.insert(remaining2.end(), unpaired_mode2.begin(), unpaired_mode2.end());
-
-        // De-duplicate remaining nets, as some nets may appear in both no_bbox and unpaired lists.
-        auto dedup = [](std::Vector<circuit::Net*>& v) {
-            std::sort(v.begin(), v.end());
-            v.erase(std::unique(v.begin(), v.end()), v.end());
-        };
-        dedup(remaining1);
-        dedup(remaining2);
-
-        auto maze2 = algo::MazeRouteStrategy{false};
-        for (auto* net : remaining1) {
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
-            if (net->modes().size() > 1) { continue; }
-            net->route(interposer, maze2);
-            auto& pkg = net->pathpackage();
-            for (auto& [t, cob] : pkg._regular_path) {
-                (void)t;
-                if (cob.has_value()) { view.occupy_cobconnector(1, cob.value(), false); }
-            }
-            for (auto& [b, tob, t] : pkg._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(1, tob); }
-            for (auto& [b, tob, t] : pkg._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(1, tob); }
-            recorder.update_recorders_history(pkg, false);
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format(
+                "route_mode_only_nets() failed: mode1_nets={}, mode2_nets={}, reason={}",
+                it1->second.size(),
+                it2->second.size(),
+                err.what()
+            ));
         }
-        for (auto* net : remaining2) {
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
-            if (net->modes().size() > 1) { continue; }
-            net->route(interposer, maze2);
-            auto& pkg = net->pathpackage();
-            for (auto& [t, cob] : pkg._regular_path) {
-                (void)t;
-                if (cob.has_value()) { view.occupy_cobconnector(2, cob.value(), false); }
-            }
-            for (auto& [b, tob, t] : pkg._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(2, tob); }
-            for (auto& [b, tob, t] : pkg._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(2, tob); }
-            recorder.update_recorders_history(pkg, false);
-        }
+    }
 
-        // Step 7: output both modes.
-        debug::info_fmt(
-            "multi-mode stats: shared_count={}, shared_total_length={}, paired_total={}, paired_success={}, remaining_mode1={}, remaining_mode2={}",
-            shared_routed, shared_total_len, pairs.size(), paired_success, remaining1.size(), remaining2.size()
-        );
-        parse::output_two_modes_from_routing_results(interposer, output_path, basedie, 1, 2);
+    auto set_resources(
+        const NetsMapConstIter& it1,
+        const NetsMapConstIter& it2
+    ) -> void {
+        for (const auto& net : it1->second) {
+            net->check_accessable_cobunit();
+        }
+        for (const auto& net : it2->second) {
+            net->check_accessable_cobunit();
+        }
     }
 
     // return [shared, mode1_only, mode2_only]
     auto classify_nets(
-        const auto& mode1_it, const auto& mode2_it
+        const NetsMapConstIter& mode1_it,
+        const NetsMapConstIter& mode2_it
     ) -> std::Tuple<std::vector<std::shared_ptr<circuit::Net>>, std::vector<std::shared_ptr<circuit::Net>>, std::vector<std::shared_ptr<circuit::Net>>> {
-        debug::info_fmt("classifying nets in mode 1 and mode 2");
-        auto shared = std::vector<std::shared_ptr<circuit::Net>>{};
-        auto only1 = std::vector<std::shared_ptr<circuit::Net>>{};
-        auto only2 = std::vector<std::shared_ptr<circuit::Net>>{};
-        auto shared_net_name = std::String{};
-        auto only1_net_name = std::String{};
-        auto only2_net_name = std::String{};
+        try {
+            debug::info_fmt("classifying nets in mode 1 and mode 2");
+            auto shared = std::vector<std::shared_ptr<circuit::Net>>{};
+            auto only1 = std::vector<std::shared_ptr<circuit::Net>>{};
+            auto only2 = std::vector<std::shared_ptr<circuit::Net>>{};
+            auto shared_net_name = std::String{};
+            auto only1_net_name = std::String{};
+            auto only2_net_name = std::String{};
 
-        for (const auto& net : mode1_it->second) {
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
+            for (std::usize i = 0; i < mode1_it->second.size(); ++i) {
+                const auto& net = mode1_it->second[i];
+                if (net == nullptr) {
+                    throw std::logic_error(std::format("classify_nets(): nullptr net in mode 1 at index {}", i));
+                }
 
-            if (net->modes().size() > 1) {                  // shared net
-                if (std::find(shared.begin(), shared.end(), net) == shared.end()) { 
-                    shared.emplace_back(net);   
-                    shared_net_name += net->name() + "\n";
+                if (net->modes().size() > 1) {
+                    if (std::find(shared.begin(), shared.end(), net) == shared.end()) {
+                        shared.emplace_back(net);
+                        shared_net_name += net->name() + "\n";
+                    }
+                }
+                else {
+                    only1.emplace_back(net);
+                    only1_net_name += net->name() + "\n";
                 }
             }
-            else {                                          // mode1_only net
-                only1.emplace_back(net);
-                only1_net_name += net->name() + "\n";
+            for (std::usize i = 0; i < mode2_it->second.size(); ++i) {
+                const auto& net = mode2_it->second[i];
+                if (net == nullptr) {
+                    throw std::logic_error(std::format("classify_nets(): nullptr net in mode 2 at index {}", i));
+                }
+                if (net->modes().size() > 1) {
+                    if (std::find(shared.begin(), shared.end(), net) == shared.end()) {
+                        shared.emplace_back(net);
+                        shared_net_name += net->name() + "\n";
+                    }
+                }
+                else {
+                    if (std::find(only2.begin(), only2.end(), net) == only2.end()) {
+                        only2.emplace_back(net);
+                        only2_net_name += net->name() + "\n";
+                    }
+                }
             }
+
+            debug::info_fmt(
+                "multi-mode nets classified:\n{} shared nets:\n{}\n{} mode1_only nets:\n{}\n{} mode2_only nets:\n{}",
+                shared.size(), shared_net_name, only1.size(), only1_net_name, only2.size(), only2_net_name
+            );
+
+            return std::make_tuple(std::move(shared), std::move(only1), std::move(only2));
         }
-        for (const auto& net : mode2_it->second) {
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
-            if (net->modes().size() > 1) {                  // shared net
-                if (std::find(shared.begin(), shared.end(), net) == shared.end()) { 
-                    shared.emplace_back(net);   
-                    shared_net_name += net->name() + "\n";
-                }
-            }
-            else {                                          // mode2_only net
-                if (std::find(only2.begin(), only2.end(), net) == only2.end()) {
-                    only2.emplace_back(net);
-                    only2_net_name += net->name() + "\n";
-                }
-            }
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format("classify_nets() failed: {}", err.what()));
         }
-
-        debug::info_fmt(
-            "multi-mode nets classified:\n{} shared nets:\n{}\n{} mode1_only nets:\n{}\n{} mode2_only nets:\n{}",
-            shared.size(), shared_net_name, only1.size(), only1_net_name, only2.size(), only2_net_name
-        );
-
-        return std::make_tuple(std::move(shared), std::move(only1), std::move(only2));
     }
 
     auto sort_shared_nets(
@@ -309,91 +275,118 @@ namespace kiwi::algo {
         return shared_nets_vector;
     }
 
-    auto route_shared_nets(
+    auto route_shared(
         OccupancyView& view,
         HardwareRecorder& recorder,
         hardware::Interposer* interposer,
         const std::vector<std::shared_ptr<circuit::Net>>& shared_nets
     ) -> std::tuple<float, float> {
-        auto maze = algo::MazeRouteStrategy{false};
-        debug::info_fmt("routing shared nets");
+        try {
+            auto maze = algo::MazeRouteStrategy{false};
+            debug::info_fmt("routing shared nets");
 
-        std::Vector<circuit::Net*> routed_nets = {};
-        std::usize shared_routed = 0;
-        std::usize shared_total_len = 0;
+            std::Vector<circuit::Net*> routed_nets = {};
+            std::usize shared_routed = 0;
+            std::usize shared_total_len = 0;
 
-        for (const auto& net: shared_nets) {
-            net->set_reuse_type(true);
-            net->search_related_nets(routed_nets);
-            net->route(interposer, maze);
-            shared_routed += 1;
-            shared_total_len += net->length();
+            for (const auto& net: shared_nets) {
+                try {
+                    if (net == nullptr) {
+                        throw std::logic_error("route_shared(): encountered nullptr shared net");
+                    }
 
-            auto& pkg = net->pathpackage();
-            // lock COB occupancy in both modes
-            for (auto& [t, cob] : pkg._regular_path) {
-                (void)t;
-                if (cob.has_value()) {
-                    view.occupy_cobconnector(1, cob.value(), true);
-                    view.occupy_cobconnector(2, cob.value(), true);
+                    net->set_reuse_type(true);
+                    net->search_related_nets(routed_nets);
+                    net->route(interposer, maze);
+                    shared_routed += 1;
+                    shared_total_len += net->length();
+
+                    auto& pkg = net->pathpackage();
+                    for (auto& [t, cob] : pkg._regular_path) {
+                        (void)t;
+                        if (cob.has_value()) {
+                            view.occupy_cobconnector(1, cob.value(), true);
+                            view.occupy_cobconnector(2, cob.value(), true);
+                        }
+                    }
+                    for (auto& [b, tob, t] : pkg._tob_to_track) {
+                        (void)b; (void)t;
+                        view.occupy_tobconnector(1, tob, true);
+                        view.occupy_tobconnector(2, tob, true);
+                    }
+                    for (auto& [b, tob, t] : pkg._track_to_tob) {
+                        (void)b; (void)t;
+                        view.occupy_tobconnector(1, tob, true);
+                        view.occupy_tobconnector(2, tob, true);
+                    }
+
+                    recorder.update_recorders_history(pkg, true);
+
+                    routed_nets.emplace_back(net.get());
+                }
+                catch (const std::exception& err) {
+                    throw std::runtime_error(std::format(
+                        "route_shared(): failed on net='{}', reason={}",
+                        net == nullptr ? std::String{"<null>"} : net->name(),
+                        err.what()
+                    ));
                 }
             }
-            // lock TOB mux occupancy in both modes
-            for (auto& [b, tob, t] : pkg._tob_to_track) {
-                (void)b; (void)t;
-                view.occupy_tobconnector(1, tob, true);
-                view.occupy_tobconnector(2, tob, true);
-            }
-            for (auto& [b, tob, t] : pkg._track_to_tob) {
-                (void)b; (void)t;
-                view.occupy_tobconnector(1, tob, true);
-                view.occupy_tobconnector(2, tob, true);
-            }
 
-            recorder.update_recorders_history(pkg, true);
-
-            routed_nets.emplace_back(net.get());
+            debug::info_fmt("shared nets routed: count={}, total_length={}", shared_routed, shared_total_len);
+            return std::make_tuple(shared_total_len, shared_routed);
         }
-
-        debug::info_fmt("shared nets routed: count={}, total_length={}", shared_routed, shared_total_len);
-        return std::make_tuple(shared_total_len, shared_routed);
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format("route_shared() failed: {}", err.what()));
+        }
     }
 
     auto compute_bounding_boxes(
-        const auto& mode1_it, const auto& mode2_it
+        const NetsMapConstIter& mode1_it,
+        const NetsMapConstIter& mode2_it
     ) -> std::tuple<std::Vector<circuit::BoundingBox>, std::Vector<circuit::BoundingBox>, std::Vector<circuit::Net*>, std::Vector<circuit::Net*>> {
-        debug::info_fmt("computing bounding boxes");
+        try {
+            debug::info_fmt("computing bounding boxes");
 
-        // Step F/G: compute bounding boxes and run Hungarian matching on non-shared nets.
-        auto boxes1 = std::Vector<circuit::BoundingBox>{};
-        auto boxes2 = std::Vector<circuit::BoundingBox>{};
-        auto no_bbox_mode1 = std::Vector<circuit::Net*>{};
-        auto no_bbox_mode2 = std::Vector<circuit::Net*>{};
+            auto boxes1 = std::Vector<circuit::BoundingBox>{};
+            auto boxes2 = std::Vector<circuit::BoundingBox>{};
+            auto no_bbox_mode1 = std::Vector<circuit::Net*>{};
+            auto no_bbox_mode2 = std::Vector<circuit::Net*>{};
 
-        for (const auto& net_rc : mode1_it->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 1"); }
-            if (net->modes().size() > 1) { continue; } // shared already routed
-            auto bb = net->compute_bounding_box(1);
-            if (bb.has_value()) {
-                boxes1.emplace_back(bb.value());
-            } else {
-                no_bbox_mode1.emplace_back(net);
+            for (std::usize i = 0; i < mode1_it->second.size(); ++i) {
+                const auto& net_rc = mode1_it->second[i];
+                auto* net = net_rc.get();
+                if (net == nullptr) {
+                    throw std::logic_error(std::format("compute_bounding_boxes(): nullptr net in mode 1 at index {}", i));
+                }
+                if (net->modes().size() > 1) { continue; }
+                auto bb = net->compute_bounding_box(1);
+                if (bb.has_value()) {
+                    boxes1.emplace_back(bb.value());
+                } else {
+                    no_bbox_mode1.emplace_back(net);
+                }
             }
-        }
-        for (const auto& net_rc : mode2_it->second) {
-            auto* net = net_rc.get();
-            if (net == nullptr) { throw std::logic_error("net is nullptr in mode 2"); }
-            if (net->modes().size() > 1) { continue; }
-            auto bb = net->compute_bounding_box(2);
-            if (bb.has_value()) {
-                boxes2.emplace_back(bb.value());
-            } else {
-                no_bbox_mode2.emplace_back(net);
+            for (std::usize i = 0; i < mode2_it->second.size(); ++i) {
+                const auto& net_rc = mode2_it->second[i];
+                auto* net = net_rc.get();
+                if (net == nullptr) {
+                    throw std::logic_error(std::format("compute_bounding_boxes(): nullptr net in mode 2 at index {}", i));
+                }
+                if (net->modes().size() > 1) { continue; }
+                auto bb = net->compute_bounding_box(2);
+                if (bb.has_value()) {
+                    boxes2.emplace_back(bb.value());
+                } else {
+                    no_bbox_mode2.emplace_back(net);
+                }
             }
-        }
 
-        return std::make_tuple(std::move(boxes1), std::move(boxes2), std::move(no_bbox_mode1), std::move(no_bbox_mode2));
+            return std::make_tuple(std::move(boxes1), std::move(boxes2), std::move(no_bbox_mode1), std::move(no_bbox_mode2));
+        }
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format("compute_bounding_boxes() failed: {}", err.what()));
+        }
     }
 
     auto overlap(const circuit::Region& a, const circuit::Region& b) -> std::Option<circuit::Region> {
@@ -449,6 +442,203 @@ namespace kiwi::algo {
         }
 
         return weights;
+    }
+
+    auto match_nets(
+        std::Vector<circuit::BoundingBox>& boxes1,
+        std::Vector<circuit::BoundingBox>& boxes2,
+        const std::Vector<std::usize>& assign,
+        const std::Vector<std::Vector<std::i64>>& weights
+    ) -> std::tuple<std::Vector<PairedNetGroup>, std::Vector<circuit::Net*>, std::Vector<circuit::Net*>> {
+        std::usize paired = 0;
+        std::i64 paired_weight_sum = 0;
+        std::usize matched_to_dummy = 0;
+        std::usize matched_no_overlap = 0;
+        auto paired_net_names = std::String{};
+        auto matched_to_dummy_names = std::String{};
+        auto matched_no_overlap_names = std::String{};
+
+        auto pairs = std::Vector<PairedNetGroup>{};
+        auto unpaired_mode1 = std::Vector<circuit::Net*>{};
+        auto unpaired_mode2 = std::Vector<circuit::Net*>{};
+
+        for (std::usize i = 0; i < boxes1.size(); ++i) {
+            const auto j = assign[i];
+            if (j >= boxes2.size()) {
+                ++matched_to_dummy;
+                unpaired_mode1.emplace_back(boxes1[i].net);
+                matched_to_dummy_names += boxes1[i].net->name() + " " + "\n";
+                continue; // matched to dummy
+            }
+            auto ov = overlap(boxes1[i].region, boxes2[j].region);
+            if (!ov.has_value()) {
+                ++matched_no_overlap;
+                unpaired_mode1.emplace_back(boxes1[i].net);
+                unpaired_mode2.emplace_back(boxes2[j].net);
+                matched_no_overlap_names += boxes1[i].net->name() + " " + 
+                    " <-> " + boxes2[j].net->name() + " " + 
+                    " overlap=(none)\n";
+                continue;
+            }
+            paired_weight_sum += weights[i][j];
+            // record on Net objects for next phase
+            boxes1[i].matched_net = boxes2[j].net;
+            boxes1[i].overlap_region = ov;
+            boxes2[j].matched_net = boxes1[i].net;
+            boxes2[j].overlap_region = ov;
+            ++paired;
+
+            auto p = PairedNetGroup{};
+            p.net1 = boxes1[i].net;
+            p.net2 = boxes2[j].net;
+            p.overlap = ov.value();
+            p.priority_sum = static_cast<double>(p.net1->priority().value()) + static_cast<double>(p.net2->priority().value());
+            pairs.emplace_back(std::move(p));
+            paired_net_names += boxes1[i].net->name() + " " + 
+                " <-> " + boxes2[j].net->name() + " " + 
+                " overlap=" + "\n";
+        }
+
+        if (paired_net_names.empty()) { paired_net_names = "(none)"; }
+        if (matched_to_dummy_names.empty()) { matched_to_dummy_names = "(none)"; }
+        if (matched_no_overlap_names.empty()) { matched_no_overlap_names = "(none)"; }
+
+        debug::info_fmt(
+            "hungarian matching done: mode1_boxes={}, mode2_boxes={}, paired={}, matched_to_dummy={}, matched_no_overlap={}",
+            boxes1.size(), boxes2.size(), paired, matched_to_dummy, matched_no_overlap
+        );
+        debug::info_fmt("hungarian paired net names:\n{}", paired_net_names);
+        debug::info_fmt("hungarian matched_to_dummy net names:\n{}", matched_to_dummy_names);
+        debug::info_fmt("hungarian matched_no_overlap net pairs:\n{}", matched_no_overlap_names);
+
+        return std::make_tuple(std::move(pairs), std::move(unpaired_mode1), std::move(unpaired_mode2));
+    }
+
+    auto route_paired(
+        hardware::Interposer* interposer,
+        OccupancyView& view,
+        HardwareRecorder& recorder,
+        const std::Vector<PairedNetGroup>& pairs,
+        const MultiModeParams& params
+    ) -> std::tuple<std::usize, std::Vector<circuit::Net*>> {
+        try {
+            auto failed = std::Vector<circuit::Net*>{};
+            std::usize paired_success = 0;
+
+            for (const auto& p : pairs) {
+                try {
+                    if (p.net1 == nullptr || p.net2 == nullptr) {
+                        throw std::logic_error("route_paired(): null net in paired group");
+                    }
+
+                    auto res = kiwi::algo::route_paired_nets_iterative(
+                        interposer, view, recorder,
+                        p.net1, 1,
+                        p.net2, 2,
+                        p.overlap, params
+                    );
+                    if (!res.success) {
+                        debug::warning_fmt(
+                            "route_paired(): failed pair net1='{}', net2='{}', overlap={}, k_candidates={}, converge_threshold={}",
+                            p.net1->name(),
+                            p.net2->name(),
+                            format_region(p.overlap),
+                            params.k_candidates,
+                            params.converge_threshold
+                        );
+                        failed.emplace_back(p.net1);
+                        failed.emplace_back(p.net2);
+                        continue;
+                    }
+
+                    // Commit to hardware/pathpackage in main thread.
+                    commit_paired_net_result(interposer, view, recorder, 1, p.net1, res.net1_result);
+                    commit_paired_net_result(interposer, view, recorder, 2, p.net2, res.net2_result);
+                    paired_success += 1;
+                }
+                catch (const std::exception& err) {
+                    throw std::runtime_error(std::format(
+                        "route_paired(): failed while processing pair net1='{}', net2='{}', overlap={}, reason={}",
+                        p.net1 == nullptr ? std::String{"<null>"} : p.net1->name(),
+                        p.net2 == nullptr ? std::String{"<null>"} : p.net2->name(),
+                        format_region(p.overlap),
+                        err.what()
+                    ));
+                }
+            }
+            debug::info_fmt("paired routing done: success={}, failed_pairs={}", paired_success, pairs.size() - paired_success);
+
+            return std::make_tuple(paired_success, failed);
+        }
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format("route_paired() failed: {}", err.what()));
+        }
+    }
+
+    auto collect_remaining_nets(
+        const std::Vector<circuit::Net*>& no_bbox,
+        const std::Vector<circuit::Net*>& unpaired
+    ) -> std::Vector<circuit::Net*> {
+        auto remaining = std::Vector<circuit::Net*>{};
+        remaining.insert(remaining.end(), no_bbox.begin(), no_bbox.end());
+        remaining.insert(remaining.end(), unpaired.begin(), unpaired.end());
+
+        std::sort(remaining.begin(), remaining.end());
+        remaining.erase(std::unique(remaining.begin(), remaining.end()), remaining.end());
+        
+        return remaining;
+    }
+
+    auto route_remaining_nets(
+        hardware::Interposer* interposer,
+        OccupancyView& view,
+        HardwareRecorder& recorder,
+        int mode,
+        const std::Vector<circuit::Net*>& remaining,
+        const algo::MazeRouteStrategy& maze
+    ) -> void {
+        try {
+            for (auto* net : remaining) {
+                try {
+                    if (net == nullptr) {
+                        throw std::logic_error(std::format("route_remaining_nets(): nullptr net in mode {}", mode));
+                    }
+                    if (net->modes().size() > 1) { continue; }
+
+                    const auto net_modes = net->modes();
+                    if (std::find(net_modes.begin(), net_modes.end(), mode) == net_modes.end()) {
+                        continue;
+                    }
+
+                    net->set_reuse_type(false);
+                    net->route(interposer, maze);
+                    auto& pkg = net->pathpackage();
+                    for (auto& [t, cob] : pkg._regular_path) {
+                        (void)t;
+                        if (cob.has_value()) { view.occupy_cobconnector(mode, cob.value(), false); }
+                    }
+                    for (auto& [b, tob, t] : pkg._tob_to_track) { (void)b; (void)t; view.occupy_tobconnector(mode, tob); }
+                    for (auto& [b, tob, t] : pkg._track_to_tob) { (void)b; (void)t; view.occupy_tobconnector(mode, tob); }
+                    recorder.update_recorders_history(pkg, false);
+                }
+                catch (const std::exception& err) {
+                    throw std::runtime_error(std::format(
+                        "route_remaining_nets(): mode={}, net='{}', reason={}",
+                        mode,
+                        net == nullptr ? std::String{"<null>"} : net->name(),
+                        err.what()
+                    ));
+                }
+            }
+        }
+        catch (const std::exception& err) {
+            throw std::runtime_error(std::format(
+                "route_remaining_nets() failed: mode={}, remaining_count={}, reason={}",
+                mode,
+                remaining.size(),
+                err.what()
+            ));
+        }
     }
 
 }

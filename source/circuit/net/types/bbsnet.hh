@@ -37,7 +37,13 @@ namespace kiwi::circuit {
         virtual auto name() const -> const std::String& override;
         virtual auto path_in_order() const -> std::Vector<PathInOrder> override;
         virtual auto has_tob_in_ports(hardware::TOB* tob) const -> bool override;
-    
+        virtual auto port_length() const -> std::usize override;
+        virtual auto manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 override;
+        virtual auto manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 override;
+        virtual auto manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 override;
+        virtual auto net_begin_cob() const -> const hardware::COBCoord override;
+        virtual auto net_end_cob() const -> const hardware::COBCoord override;
+        
     public:
         virtual auto operator == (const Net& net) const -> bool override;
 

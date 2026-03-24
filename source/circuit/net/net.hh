@@ -71,6 +71,16 @@ namespace kiwi::circuit {
         virtual auto connection_state() const -> std::Tuple<std::Vector<const hardware::Bump*>, std::Vector<const hardware::Bump*>, std::Vector<const hardware::Track*>> = 0;
         // swap the position of two TOBs in this net
         virtual auto swap_tob_position(hardware::TOB* tob1, hardware::TOB* tob2) -> void = 0;
+        // return port length, which is +1 if has a bump in ports
+        virtual auto port_length() const -> std::usize = 0;
+        // return the manhattan distance to net_point, not including the bump_length
+        virtual auto manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 = 0;
+        virtual auto manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 = 0;
+        // for multi_mode routing, return the manhattan distance from entry cob to exit cob
+        virtual auto manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 = 0;
+        // return the begin and end point of the net
+        virtual auto net_begin_cob() const -> const hardware::COBCoord = 0;
+        virtual auto net_end_cob() const -> const hardware::COBCoord = 0;
         
     public:
         virtual auto clear_related_nets() -> void;

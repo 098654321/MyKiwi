@@ -251,4 +251,47 @@ namespace kiwi::circuit {
         this->_bounding_box.emplace(BoundingBox{region, mode, this, nullptr, std::nullopt});
         return this->_bounding_box;
     }
+
+    auto BumpToTrackNet::port_length() const -> std::usize {
+        return 1;
+    }
+
+    auto BumpToTrackNet::manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 {
+        return std::min(
+            std::llabs(point.row - this->_begin_bump->coord().row) + std::llabs(point.col - this->_begin_bump->coord().col),
+            std::llabs(point.row - (this->_begin_bump->coord().row - 1)) + std::llabs(point.col - this->_begin_bump->coord().col)
+        );
+    }
+    
+    auto BumpToTrackNet::manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 {
+        return std::llabs(point.row - this->_end_track->coord().row) + std::llabs(point.col - this->_end_track->coord().col);
+    }
+
+    auto BumpToTrackNet::manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 {
+        auto cob_to_cob = std::llabs(entry.row - exit.row) + std::llabs(entry.col - exit.col);
+        auto s = this->_begin_bump->coord();
+        auto s_bottom = hardware::Coord{s.row - 1, s.col};
+
+        const auto entry_exit_row_min = std::min(entry.row, exit.row);
+        const auto entry_exit_row_max = std::max(entry.row, exit.row);
+        const auto entry_exit_col_min = std::min(entry.col, exit.col);
+        const auto entry_exit_col_max = std::max(entry.col, exit.col);
+        auto check_point_in_box = [&](auto& s) -> bool {
+            return s.row >= entry_exit_row_min && s.row <= entry_exit_row_max && s.col >= entry_exit_col_min && s.col <= entry_exit_col_max;
+        };
+
+        if (check_point_in_box(s) && check_point_in_box(s_bottom)) {
+            cob_to_cob -= 1;
+        }
+
+        return cob_to_cob;
+    }
+
+    auto BumpToTrackNet::net_begin_cob() const -> const hardware::COBCoord {
+        return hardware::COBCoord{this->_begin_bump->coord().row, this->_begin_bump->coord().col};
+    }
+
+    auto BumpToTrackNet::net_end_cob() const -> const hardware::COBCoord {
+        return hardware::COBCoord{this->_end_track->coord().row, this->_end_track->coord().col};
+    }
 }

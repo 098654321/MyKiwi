@@ -4,20 +4,19 @@
 
   - 完善各个单元模块的测试
 
-  - 完善try-catch 异常收集机制
+  - 确定 entry/exit cob 的方法还需要优化，目前对于路径的预估不是很准确
 
-  - classify nets的时候暂时用vector存，如果之后没有影响，可以改成unordered_set
-
-  - 最后对剩余net布线的时候少了set_reuse_type和检查已有路径的步骤（见route.cc）
+  - 最后对剩余net布线的时候少了检查已有路径的步骤（见route.cc）
 
   - shared_nets 完成布线之后打印结果
 
+  - 当前打印的结果当中，有很多update信息是不需要的，然后没有清楚的展示出paired nets布线成功/失败的原因
+
   - 配对nets布线结束之后三段路径里面要把cob to cob的路径以reuse_type=true设置一下
 
-  - build three segment 还没查完，没有包含同步线
+  - 完整检查bus_reroute的调整是否有问题
 
-  - bfz_maze没有用到cost
-
+  - 收敛条件需要改。当前只考虑了 non_reuse 占用的变化，没有考虑两个 mode 在 entry/exit cob 之间的路径有没有真实的走到一起
 --- 
 
 - 当前hardware底层的数据结构不是很安全，最好查一下怎么给指针包装一层，放置上层使用的时候直接操作指针

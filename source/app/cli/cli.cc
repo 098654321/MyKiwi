@@ -11,7 +11,7 @@
 #include <algo/placer/placestrategy.hh>
 #include <algo/placer/sa/saplacestrategy.hh>
 #include <algo/router/multi_mode/route_multi_mode.hh>
-
+#include <algo/router/single_mode/incremental/recorders/hardware_recorder.hh>
 #include <parse/reader/module.hh>
 #include <parse/writer/module.hh>
 #include <parse/comparator/controlbits_parser.hh>
@@ -21,6 +21,7 @@
 #include <std/string.hh>
 #include <debug/debug.hh>
 #include <std/algorithm.hh>
+#include <std/format.hh>
 
 namespace kiwi {
 
@@ -61,7 +62,7 @@ namespace kiwi {
                 params.converge_threshold = mm_converge_threshold.value();
             }
 
-            algo::route_multi_mode(interposer.get(), basedie.get(), config_path, output_file, params);
+            route_multi_mode(interposer.get(), basedie.get(), output_file, params);
         } else {
             route_single_mode(interposer.get(), basedie.get(), config_path, output_file, mode, compare);
         }
@@ -125,5 +126,40 @@ namespace kiwi {
         }
     }
     
+    auto route_multi_mode(
+        kiwi::hardware::Interposer* interposer, 
+        kiwi::circuit::BaseDie* basedie,
+        const std::FilePath& output_file,
+        const kiwi::algo::MultiModeParams& params
+    ) -> void {
+        try {
+            auto& nets_map = basedie->nets();
+            auto it1 = nets_map.find(1);
+            auto it2 = nets_map.find(2);
+            if (it1 == nets_map.end() || it2 == nets_map.end()) {
+                debug::fatal("multi-mode routing expects mode 1 and mode 2 nets, while at least one of them is not found");
+            }
 
+            auto view = kiwi::algo::OccupancyView{interposer};
+            auto recorder = algo::HardwareRecorder{interposer};
+
+            algo::set_resources(it1, it2);
+            auto [shared, only1, only2] = algo::classify_nets(it1, it2);
+            debug::info_fmt(
+                "route_multi_mode(): classified nets summary: shared={}, mode1_only={}, mode2_only={}",
+                shared.size(),
+                only1.size(),
+                only2.size()
+            );
+
+            route_shared_nets(view, recorder, interposer, shared);
+            algo::route_mode_only_nets(view, recorder, interposer, it1, it2, params);
+
+            parse::output_two_modes_from_routing_results(interposer, output_file, basedie, 1, 2);
+        }
+        catch (const std::exception& err) {
+            debug::error_fmt("route_multi_mode() failed: {}", err.what());
+            throw std::runtime_error(std::format("route_multi_mode() failed: {}", err.what()));
+        }
+    }
 }

@@ -6,6 +6,7 @@
 #include <std/utility.hh>
 #include <std/integer.hh>
 #include <std/memory.hh>
+#include <algo/router/common/maze/track_comparator.hh>
 
 
 namespace kiwi::circuit {
@@ -30,11 +31,6 @@ using routed_path = std::Vector<std::Tuple<kiwi::hardware::Track*, std::Option<k
 class RouteEngine;
 class HardwareRecorder;
 
-struct CompareTrack {
-    bool operator()(std::Pair<hardware::Track*, float> e1, std::Pair<hardware::Track*, float> e2) const {
-        return e1.second > e2.second;
-    }
-};
 
 struct IncreRouting {
     IncreRouting(): _rerouter{std::make_unique<MazeRerouter>(true)} {}

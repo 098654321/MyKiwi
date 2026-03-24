@@ -15,8 +15,8 @@ namespace kiwi::algo {
     };
 
     auto select_entry_exit_candidates(
-        const circuit::Net& net1,
-        const circuit::Net& net2,
+        circuit::Net* net1,
+        circuit::Net* net2,
         const circuit::Region& overlap_region,
         std::usize k
     ) -> std::Vector<CobPairCandidate>;

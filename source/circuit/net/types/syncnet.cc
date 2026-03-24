@@ -606,6 +606,119 @@ namespace kiwi::circuit
         return this->_bounding_box;
     }
 
+    auto SyncNet::check_net_illegal() const -> bool {
+        if (
+            this->_btbnets.size() > 0 && (this->_bttnets.size() != 0 || this->_ttbnets.size() != 0) ||
+            this->_bttnets.size() > 0 && (this->_btbnets.size() != 0 || this->_ttbnets.size() != 0) ||
+            this->_ttbnets.size() > 0 && (this->_btbnets.size() != 0 || this->_bttnets.size() != 0) ||
+            this->_btbnets.size() == 0 && this->_bttnets.size() == 0 && this->_ttbnets.size() == 0
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    auto SyncNet::port_length() const -> std::usize {
+        if (!this->check_net_illegal()) {
+            throw std::logic_error("SyncNet::port_length(): this type of syncnet is not supported, which contains different types of nets");
+        }
+        else {
+            if (this->_btbnets.size() > 0) {
+                return 2;
+            }
+            else if (this->_bttnets.size() > 0) {
+                return 1;
+            }
+            else if (this->_ttbnets.size() > 0) {
+                return 1;
+            }
+        }
+    }
+
+    auto SyncNet::manhattan_to_net_begin_point(const hardware::Coord& point) const -> std::i64 {
+        if (!this->check_net_illegal()) {
+            throw std::logic_error("SyncNet::manhattan_to_net_begin_point(): this type of syncnet is not supported, which contains different types of nets");
+        }
+        else {
+            if (this->_btbnets.size() > 0) {
+                return this->_btbnets[0]->manhattan_to_net_begin_point(point);
+            }
+            else if(this->_bttnets.size() > 0) {
+                return this->_bttnets[0]->manhattan_to_net_begin_point(point);
+            }
+            else if(this->_ttbnets.size() > 0) {
+                return this->_ttbnets[0]->manhattan_to_net_begin_point(point);
+            }
+        }
+    }
+
+    auto SyncNet::manhattan_to_net_end_point(const hardware::Coord& point) const -> std::i64 {
+        if (!this->check_net_illegal()) {
+            throw std::logic_error("SyncNet::manhattan_to_net_end_point(): this type of syncnet is not supported, which contains different types of nets");
+        }
+        else {
+            if (this->_btbnets.size() > 0) {
+                return this->_btbnets[0]->manhattan_to_net_end_point(point);
+            }
+            else if(this->_bttnets.size() > 0) {
+                return this->_bttnets[0]->manhattan_to_net_end_point(point);
+            }
+            else if(this->_ttbnets.size() > 0) {
+                return this->_ttbnets[0]->manhattan_to_net_end_point(point);
+            }
+        }
+    }
+
+    auto SyncNet::manhattan_cob_to_cob(const hardware::COBCoord& entry, const hardware::COBCoord& exit) const -> std::i64 {
+        if (!this->check_net_illegal()) {
+            throw std::logic_error("SyncNet::manhattan_cob_to_cob(): this type of syncnet is not supported, which contains different types of nets");
+        }
+        else {
+            if (this->_btbnets.size() > 0) {
+                return this->_btbnets[0]->manhattan_cob_to_cob(entry, exit);
+            }
+            else if(this->_bttnets.size() > 0) {
+                return this->_bttnets[0]->manhattan_cob_to_cob(entry, exit);
+            }
+            else if(this->_ttbnets.size() > 0) {
+                return this->_ttbnets[0]->manhattan_cob_to_cob(entry, exit);
+            }
+        }
+    }
+
+    auto SyncNet::net_begin_cob() const -> const hardware::COBCoord {
+        if (!this->check_net_illegal()) {
+            throw std::logic_error("SyncNet::net_begin_cob(): this type of syncnet is not supported, which contains different types of nets");
+        }
+        else {
+            if (this->_btbnets.size() > 0) {
+                return this->_btbnets[0]->net_begin_cob();
+            }
+            else if(this->_bttnets.size() > 0) {
+                return this->_bttnets[0]->net_begin_cob();
+            }
+            else if(this->_ttbnets.size() > 0) {
+                return this->_ttbnets[0]->net_begin_cob();
+            }
+        }
+    }
+
+    auto SyncNet::net_end_cob() const -> const hardware::COBCoord {
+        if (!this->check_net_illegal()) {
+            throw std::logic_error("SyncNet::net_end_cob(): this type of syncnet is not supported, which contains different types of nets");
+        }
+        else {
+            if (this->_btbnets.size() > 0) {
+                return this->_btbnets[0]->net_end_cob();
+            }
+            else if(this->_bttnets.size() > 0) {
+                return this->_bttnets[0]->net_end_cob();
+            }
+            else if(this->_ttbnets.size() > 0) {
+                return this->_ttbnets[0]->net_end_cob();
+            }
+        }
+    }
 }
 
 

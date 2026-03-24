@@ -1,6 +1,7 @@
 #include "./mazererouter.hh"
 #include "../../routeerror.hh"
 #include "./path_length.hh"
+#include "../thread_log_buffer.hh"
 #include <algo/router/single_mode/incremental/recorders/hardware_recorder.hh>
 #include <circuit/net/nets.hh>
 
@@ -76,6 +77,72 @@ namespace kiwi::algo{
         this->_max_level = std::max(this->_max_level, level);
     }
 
+// to be checked
+auto MazeRerouter::bus_reroute(
+    hardware::Interposer* interposer, circuit::PathPackage* path_ptr, std::usize max_length, bool reuse_type
+) const -> std::tuple<bool, std::usize>{
+    hardware::Bump* end_bump {nullptr};
+    std::usize bump_length = 0; // end bump
+
+    std::HashSet<hardware::Track*> end_tracks_set {};
+    std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> possible_end_tracks_map{};
+
+    // if there is an end bump, then the tob state will be updated after removing end track
+    // --> possible end tracks will be changed
+    if (!path_ptr->_track_to_tob.empty()){
+        end_bump = std::get<0>(path_ptr->_track_to_tob.at(0));
+        remove_tracks(path_ptr);
+
+        bump_length = 1;
+        possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump);
+        for (auto& [track, _]: possible_end_tracks_map){
+            if (track && !end_tracks_set.contains(track)){
+                end_tracks_set.emplace(track);
+            }
+        }
+    }
+    else{
+        end_tracks_set.emplace(std::get<0>(path_ptr->_regular_path.back()));
+        remove_tracks(path_ptr);
+    }
+
+    // if failed, then routing failed  
+    if (end_tracks_set.size() <= 0){
+        throw FinalError("bus_reroute: end_tracks_set is empty");
+    }
+
+    // construct a path-tree for reroute
+    auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value(), reuse_type), reuse_type)};
+    auto [success, ml] = refind_path(interposer, tree, path_ptr, max_length, end_tracks_set, bump_length);
+    max_length = ml;
+
+    // connect end bump to end track
+    if (end_bump != nullptr){
+        auto end_track {std::get<0>(path_ptr->_regular_path.back())};
+        if (!check_found(end_tracks_set, end_track)){
+            throw FinalError("bus_reroute: end track not found");
+        }
+        
+        // notice: the following "for" loop cannot be replaced by "possible_end_tracks_map.find(end_track)->second.connect();"
+        // there will be unexpected behaviour during "find(end_track)"
+        // for there are some other members not related to coordinates in value "end_track"
+        // use "if (track->coord() == end_track->coord())" is safer
+        for (auto& t: possible_end_tracks_map){
+            auto& [track, connector] = t;
+            if (track->coord() == end_track->coord()){
+                path_ptr->_track_to_tob.emplace_back(
+                    std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, connector, end_track)
+                );
+                connector.give_out();
+                break;
+            }
+        }
+    }
+
+    return {success, max_length};
+}
+//
+
     auto MazeRerouter::bus_reroute(
         hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs,
         std::usize max_length
@@ -87,63 +154,64 @@ namespace kiwi::algo{
                 throw std::logic_error("bus_reroute: net reuse type should not be nullopt when routing");
             }
             auto path_ptr = &net->pathpackage();
-            hardware::Bump* end_bump {nullptr};
-            std::usize bump_length = 0; // end bump
+auto [success, ml] = this->bus_reroute(interposer, path_ptr, max_length, reuse_type.value());
+            // hardware::Bump* end_bump {nullptr};
+            // std::usize bump_length = 0; // end bump
 
-            std::HashSet<hardware::Track*> end_tracks_set {};
-            std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> possible_end_tracks_map{};
+            // std::HashSet<hardware::Track*> end_tracks_set {};
+            // std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> possible_end_tracks_map{};
 
-            // if there is an end bump, then the tob state will be updated after removing end track
-            // --> possible end tracks will be changed
-            if (!path_ptr->_track_to_tob.empty()){
-                end_bump = std::get<0>(path_ptr->_track_to_tob.at(0));
-                remove_tracks(path_ptr);
+            // // if there is an end bump, then the tob state will be updated after removing end track
+            // // --> possible end tracks will be changed
+            // if (!path_ptr->_track_to_tob.empty()){
+            //     end_bump = std::get<0>(path_ptr->_track_to_tob.at(0));
+            //     remove_tracks(path_ptr);
 
-                bump_length = 1;
-                possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump);
-                for (auto& [track, _]: possible_end_tracks_map){
-                    if (track && !end_tracks_set.contains(track)){
-                        end_tracks_set.emplace(track);
-                    }
-                }
-            }
-            else{
-                end_tracks_set.emplace(std::get<0>(path_ptr->_regular_path.back()));
-                remove_tracks(path_ptr);
-            }
+            //     bump_length = 1;
+            //     possible_end_tracks_map = interposer->available_tracks_track_to_bump(end_bump);
+            //     for (auto& [track, _]: possible_end_tracks_map){
+            //         if (track && !end_tracks_set.contains(track)){
+            //             end_tracks_set.emplace(track);
+            //         }
+            //     }
+            // }
+            // else{
+            //     end_tracks_set.emplace(std::get<0>(path_ptr->_regular_path.back()));
+            //     remove_tracks(path_ptr);
+            // }
 
-            // if failed, then routing failed  
-            if (end_tracks_set.size() <= 0){
-                throw FinalError("bus_reroute: end_tracks_set is empty");
-            }
+            // // if failed, then routing failed  
+            // if (end_tracks_set.size() <= 0){
+            //     throw FinalError("bus_reroute: end_tracks_set is empty");
+            // }
 
-            // construct a path-tree for reroute
-            auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value(), reuse_type.value()), reuse_type.value())};
-            auto [success, ml] = refind_path(interposer, tree, path_ptr, max_length, end_tracks_set, bump_length);
+            // // construct a path-tree for reroute
+            // auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value(), reuse_type.value()), reuse_type.value())};
+            // auto [success, ml] = refind_path(interposer, tree, path_ptr, max_length, end_tracks_set, bump_length);
             max_length = ml;
 
-            // connect end bump to end track
-            if (end_bump != nullptr){
-                auto end_track {std::get<0>(path_ptr->_regular_path.back())};
-                if (!check_found(end_tracks_set, end_track)){
-                    throw FinalError("bus_reroute: end track not found");
-                }
+            // // connect end bump to end track
+            // if (end_bump != nullptr){
+            //     auto end_track {std::get<0>(path_ptr->_regular_path.back())};
+            //     if (!check_found(end_tracks_set, end_track)){
+            //         throw FinalError("bus_reroute: end track not found");
+            //     }
                 
-                // notice: the following "for" loop cannot be replaced by "possible_end_tracks_map.find(end_track)->second.connect();"
-                // there will be unexpected behaviour during "find(end_track)"
-                // for there are some other members not related to coordinates in value "end_track"
-                // use "if (track->coord() == end_track->coord())" is safer
-                for (auto& t: possible_end_tracks_map){
-                    auto& [track, connector] = t;
-                    if (track->coord() == end_track->coord()){
-                        path_ptr->_track_to_tob.emplace_back(
-                            std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, connector, end_track)
-                        );
-                        connector.give_out();
-                        break;
-                    }
-                }
-            }
+            //     // notice: the following "for" loop cannot be replaced by "possible_end_tracks_map.find(end_track)->second.connect();"
+            //     // there will be unexpected behaviour during "find(end_track)"
+            //     // for there are some other members not related to coordinates in value "end_track"
+            //     // use "if (track->coord() == end_track->coord())" is safer
+            //     for (auto& t: possible_end_tracks_map){
+            //         auto& [track, connector] = t;
+            //         if (track->coord() == end_track->coord()){
+            //             path_ptr->_track_to_tob.emplace_back(
+            //                 std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, connector, end_track)
+            //             );
+            //             connector.give_out();
+            //             break;
+            //         }
+            //     }
+            // }
 
             if (!success){
                 return {false, max_length};
@@ -294,7 +362,7 @@ namespace kiwi::algo{
         hardware::Interposer* interposer, Tree& tree, circuit::PathPackage* path_ptr,\
         std::usize max_length, const std::HashSet<hardware::Track*>& end_tracks, std::usize bump_length
     ) const -> std::tuple<bool, std::usize>{
-        debug::info("Refinding path ...");
+        log_info_fmt("Refinding path ...");
         std::Vector<std::Rc<Node>> queue {tree._root};
         std::make_heap(queue.begin(), queue.end(), Node::CompareNodes);
 
