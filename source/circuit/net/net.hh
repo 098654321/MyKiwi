@@ -11,7 +11,8 @@
 #include <variant>
 #include <cassert>
 #include <type_traits>
-
+#include <algo/router/multi_mode/occupancy_view.hh>
+#include <algo/router/single_mode/incremental/recorders/hardware_recorder.hh>
 
 
 
@@ -41,6 +42,7 @@ namespace kiwi::circuit {
     public:
         virtual auto update_tob_postion(hardware::TOB* prev_tob, hardware::TOB* next_tob) -> void = 0;
         virtual auto route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void = 0;
+        virtual auto route_multi_mode(hardware::Interposer* interposer, algo::OccupancyView& view, algo::HardwareRecorder& recorder, int mode) -> void = 0;
         virtual auto incremental_route(hardware::Interposer*, const algo::IncreRouting&, algo::RouteEngine&) -> bool = 0;
         virtual auto update_priority(float bias) -> void = 0;
         virtual auto coords() const -> std::Vector<hardware::Coord> = 0;

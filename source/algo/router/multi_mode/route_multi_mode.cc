@@ -297,7 +297,7 @@ namespace kiwi::algo {
 
                     net->set_reuse_type(true);
                     net->search_related_nets(routed_nets);
-                    net->route(interposer, maze);
+                    net->route_multi_mode(interposer, view, recorder, 1);
                     shared_routed += 1;
                     shared_total_len += net->length();
 
@@ -613,7 +613,7 @@ namespace kiwi::algo {
                     
                     net->set_reuse_type(false);
                     net->search_related_nets(routed_nets);
-                    net->route(interposer, maze);
+                    net->route_multi_mode(interposer, view, recorder, mode);
                     routed_nets.emplace_back(net);
 
                     auto& pkg = net->pathpackage();

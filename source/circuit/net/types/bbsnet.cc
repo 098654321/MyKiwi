@@ -4,6 +4,7 @@
 #include <hardware/bump/bump.hh>
 #include <algorithm>
 #include <algo/router/single_mode/incremental/maze/routing.hh>
+#include <algo/router/multi_mode/maze/routing.hh>
 
 
 namespace kiwi::circuit {
@@ -35,6 +36,10 @@ namespace kiwi::circuit {
 
     auto BumpToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {
         strategy.route_bump_to_bumps_net(interposer, this);
+    }
+
+    auto BumpToBumpsNet::route_multi_mode(hardware::Interposer* interposer, algo::OccupancyView& view, algo::HardwareRecorder& recorder, int mode) -> void {
+        algo::route_bump_to_bumps_net_multi_mode(interposer, this, view, recorder, mode);
     }
 
     auto BumpToBumpsNet::incremental_route(

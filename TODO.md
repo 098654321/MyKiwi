@@ -17,6 +17,12 @@
   - 收敛条件需要改。当前只考虑了 non_reuse 占用的变化，没有考虑两个 mode 在 entry/exit cob 之间的路径有没有真实的走到一起
 
   - 以前的availab_tracks_track_to-bump在获取track的时候好像没有考虑track是否是idle
+
+  - 多线程情况下的paired route还有点问题
+
+  - **多模式下bus_reroute和普通route的过程也要加入occupancy_view，然后remaining nets的布线过程要加入recorders以便让cost起作用。要看一下是在原来的基础上修改还是重新写一遍所有的route函数**
+
+  - shared_nets的布线不需要recorder，单独写一个maze；然后把cob/tob connector的设置从route_multi_mode.cc移到maze里面
 --- 
 
 - 当前hardware底层的数据结构不是很安全，最好查一下怎么给指针包装一层，放置上层使用的时候直接操作指针

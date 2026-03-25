@@ -3,6 +3,7 @@
 #include <hardware/track/track.hh>
 #include <algorithm>
 #include <algo/router/single_mode/incremental/maze/routing.hh>
+#include <algo/router/multi_mode/maze/routing.hh>
 
 
 namespace kiwi::circuit {
@@ -28,6 +29,10 @@ namespace kiwi::circuit {
         for (auto& bump : this->_end_bumps) {
             bump = hardware::Bump::swap_bump(bump, tob1, tob2);
         }
+    }
+
+    auto TrackToBumpsNet::route_multi_mode(hardware::Interposer* interposer, algo::OccupancyView& view, algo::HardwareRecorder& recorder, int mode) -> void {
+        algo::route_track_to_bumps_net_multi_mode(interposer, this, view, recorder, mode);
     }
 
     auto TrackToBumpsNet::route(hardware::Interposer* interposer, const algo::RouteStrategy& strategy) -> void {

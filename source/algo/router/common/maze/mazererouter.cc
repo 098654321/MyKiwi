@@ -220,6 +220,81 @@ auto [success, ml] = this->bus_reroute(interposer, path_ptr, max_length, reuse_t
         return {true, max_length};
     }
 
+    auto MazeRerouter::bus_reroute(
+        hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs,
+        std::usize max_length, algo::OccupancyView& view, int mode
+    ) const -> std::tuple<bool, std::usize>{
+        for (std::usize i = 0; i < net_ptrs.size(); ++i){
+            auto net = net_ptrs[i];
+            auto reuse_type = net->reuse_type();
+            if (!reuse_type.has_value()) {
+                throw std::logic_error("bus_reroute: net reuse type should not be nullopt when routing");
+            }
+            auto path_ptr = &net->pathpackage();
+            hardware::Bump* end_bump {nullptr};
+            std::usize bump_length = 0; // end bump
+
+            std::HashSet<hardware::Track*> end_tracks_set {};
+            std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> possible_end_tracks_map{};
+
+            // if there is an end bump, then the tob state will be updated after removing end track
+            // --> possible end tracks will be changed
+            if (!path_ptr->_track_to_tob.empty()){
+                end_bump = std::get<0>(path_ptr->_track_to_tob.at(0));
+                remove_tracks(path_ptr);
+
+                bump_length = 1;
+                possible_end_tracks_map = view.available_tracks_track_to_bump(end_bump, mode);
+                for (auto& [track, _]: possible_end_tracks_map){
+                    if (track && !end_tracks_set.contains(track)){
+                        end_tracks_set.emplace(track);
+                    }
+                }
+            }
+            else{
+                end_tracks_set.emplace(std::get<0>(path_ptr->_regular_path.back()));
+                remove_tracks(path_ptr);
+            }
+
+            // if failed, then routing failed  
+            if (end_tracks_set.size() <= 0){
+                throw FinalError("bus_reroute: end_tracks_set is empty");
+            }
+
+            // construct a path-tree for reroute
+            auto tree {Tree(_node_track_interface.track_rootify(std::get<0>(path_ptr->_regular_path.back()), std::get<1>(path_ptr->_regular_path.back()).value(), reuse_type.value()), reuse_type.value())};
+            auto [success, ml] = refind_path(interposer, tree, path_ptr, max_length, end_tracks_set, bump_length);
+            max_length = ml;
+
+            // connect end bump to end track
+            if (end_bump != nullptr){
+                auto end_track {std::get<0>(path_ptr->_regular_path.back())};
+                if (!check_found(end_tracks_set, end_track)){
+                    throw FinalError("bus_reroute: end track not found");
+                }
+                
+                // notice: the following "for" loop cannot be replaced by "possible_end_tracks_map.find(end_track)->second.connect();"
+                // there will be unexpected behaviour during "find(end_track)"
+                // for there are some other members not related to coordinates in value "end_track"
+                // use "if (track->coord() == end_track->coord())" is safer
+                for (auto& t: possible_end_tracks_map){
+                    auto& [track, connector] = t;
+                    if (track->coord() == end_track->coord()){
+                        path_ptr->_track_to_tob.emplace_back(
+                            std::Tuple<hardware::Bump*, hardware::TOBConnector, hardware::Track*>(end_bump, connector, end_track)
+                        );
+                        break;
+                    }
+                }
+            }
+
+            if (!success){
+                return {false, max_length};
+            }
+        }
+        return {true, max_length};
+    }
+
     auto MazeRerouter::remove_tracks(
         circuit::PathPackage* path_ptr, float cut_rate
     ) const -> void{

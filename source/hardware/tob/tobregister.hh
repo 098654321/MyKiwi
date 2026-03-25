@@ -7,6 +7,11 @@
 #include <std/format.hh>
 #include <debug/debug.hh>
 
+#include <chrono>
+#include <fstream>
+#include <cstdint>
+#include <thread>
+
 
 
 namespace kiwi::hardware {
@@ -42,6 +47,41 @@ namespace kiwi::hardware {
 
         auto give_out(std::usize output_index) -> void {
             auto& [reg_state, reg_output] = this->_state;
+            // #region agent log
+            if (reg_state == TOBMuxRegState::Given_out && reg_output.has_value() && reg_output.value() != output_index) {
+                try {
+                    static constexpr auto log_path = "/Users/jiaheng/FDU_files/Tao_group/kiwi/MyKiwi/.cursor/debug-50769d.log";
+                    static constexpr auto session_id = "50769d";
+                    static constexpr auto run_id = "initial";
+                    static constexpr auto hypothesis_id = "H2";
+
+                    const auto ts = static_cast<std::u64>(
+                        std::chrono::duration_cast<std::chrono::milliseconds>(
+                            std::chrono::system_clock::now().time_since_epoch()
+                        ).count()
+                    );
+                    const auto id = std::format("log_{}_tobreg_give_out_overwrite", ts);
+                    const auto reg_ptr = reinterpret_cast<std::uintptr_t>(this);
+                    const auto thread_id = static_cast<std::u64>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+
+                    std::ofstream ofs{log_path, std::ios::app};
+                    ofs << std::format(
+                        "{{\"sessionId\":\"{}\",\"id\":\"{}\",\"timestamp\":{},\"location\":\"tobregister.hh:give_out\",\"message\":\"TOBMuxRegister give_out overwrite\",\"runId\":\"{}\",\"hypothesisId\":\"{}\",\"data\":{{\"reg_ptr\":{},\"old_output\":{},\"new_output\":{},\"thread\":{}}}}}\n",
+                        session_id,
+                        id,
+                        ts,
+                        run_id,
+                        hypothesis_id,
+                        reg_ptr,
+                        reg_output.value(),
+                        output_index,
+                        thread_id
+                    );
+                } catch (...) {
+                    // ignore debug logging failures
+                }
+            }
+            // #endregion
             reg_state = TOBMuxRegState::Given_out;
             reg_output = output_index;
         }
@@ -68,10 +108,73 @@ namespace kiwi::hardware {
 
             if (reg_state == TOBMuxRegState::Given_out) {
                 if (!reg_output.has_value()) {
+                    // #region agent log
+                    try {
+                        static constexpr auto log_path = "/Users/jiaheng/FDU_files/Tao_group/kiwi/MyKiwi/.cursor/debug-50769d.log";
+                        static constexpr auto session_id = "50769d";
+                        static constexpr auto run_id = "initial";
+                        static constexpr auto hypothesis_id = "H2";
+
+                        const auto ts = static_cast<std::u64>(
+                            std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now().time_since_epoch()
+                            ).count()
+                        );
+                        const auto id = std::format("log_{}_tobreg_check_nullopt", ts);
+                        const auto reg_ptr = reinterpret_cast<std::uintptr_t>(this);
+
+                        std::ofstream ofs{log_path, std::ios::app};
+                        ofs << std::format(
+                            "{{\"sessionId\":\"{}\",\"id\":\"{}\",\"timestamp\":{},\"location\":\"tobregister.hh:check_consistency\",\"message\":\"TOBMuxRegister Given_out with null output\",\"runId\":\"{}\",\"hypothesisId\":\"{}\",\"data\":{{\"reg_ptr\":{},\"expected_index\":{}}}}}\n",
+                            session_id,
+                            id,
+                            ts,
+                            run_id,
+                            hypothesis_id,
+                            reg_ptr,
+                            index
+                        );
+                    } catch (...) {
+                        // ignore
+                    }
+                    // #endregion
                     std::String message("TOBMuxRegister::check_consistency() failed. reg is given out but has nullopt value");
                     throw std::runtime_error(message);
                 }
                 else if(reg_output.has_value() && reg_output.value() != index) {
+                    // #region agent log
+                    try {
+                        static constexpr auto log_path = "/Users/jiaheng/FDU_files/Tao_group/kiwi/MyKiwi/.cursor/debug-50769d.log";
+                        static constexpr auto session_id = "50769d";
+                        static constexpr auto run_id = "initial";
+                        static constexpr auto hypothesis_id = "H2";
+
+                        const auto ts = static_cast<std::u64>(
+                            std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::system_clock::now().time_since_epoch()
+                            ).count()
+                        );
+                        const auto id = std::format("log_{}_tobreg_check_mismatch", ts);
+                        const auto reg_ptr = reinterpret_cast<std::uintptr_t>(this);
+                        const auto thread_id = static_cast<std::u64>(std::hash<std::thread::id>{}(std::this_thread::get_id()));
+
+                        std::ofstream ofs{log_path, std::ios::app};
+                        ofs << std::format(
+                            "{{\"sessionId\":\"{}\",\"id\":\"{}\",\"timestamp\":{},\"location\":\"tobregister.hh:check_consistency\",\"message\":\"TOBMuxRegister output_index mismatch\",\"runId\":\"{}\",\"hypothesisId\":\"{}\",\"data\":{{\"reg_ptr\":{},\"reg_output\":{},\"expected_index\":{},\"thread\":{}}}}}\n",
+                            session_id,
+                            id,
+                            ts,
+                            run_id,
+                            hypothesis_id,
+                            reg_ptr,
+                            reg_output.value(),
+                            index,
+                            thread_id
+                        );
+                    } catch (...) {
+                        // ignore
+                    }
+                    // #endregion
                     std::String message(std::format("TOBMuxRegister::check_consistency() failed. reg is given out, but reg_value {} != output index {}", reg_output.value(), index));
                     throw std::runtime_error(message);
                 }

@@ -7,6 +7,7 @@
 #include <std/utility.hh>
 #include <global/debug/debug.hh>
 #include <circuit/path/pathpackage.hh>
+#include <algo/router/multi_mode/occupancy_view.hh>
 
 
 namespace kiwi::hardware {
@@ -103,9 +104,13 @@ namespace kiwi::algo{
             hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs, std::usize max_length
         ) const -> std::tuple<bool, std::usize>;
 
-auto bus_reroute(
-    hardware::Interposer* interposer, circuit::PathPackage* path_ptr, std::usize max_length, bool reuse_type
-) const -> std::tuple<bool, std::usize>;
+        auto bus_reroute(       
+            hardware::Interposer* interposer, std::Vector<circuit::Net*>& net_ptrs, std::usize max_length, algo::OccupancyView& view, int mode
+        ) const -> std::tuple<bool, std::usize>;
+
+        auto bus_reroute(
+            hardware::Interposer* interposer, circuit::PathPackage* path_ptr, std::usize max_length, bool reuse_type
+        ) const -> std::tuple<bool, std::usize>;
 
         auto set_recorder(HardwareRecorder* recorder) -> void {this->_recorder = recorder;}
     
