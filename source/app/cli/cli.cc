@@ -152,10 +152,10 @@ namespace kiwi {
                 only2.size()
             );
 
-            route_shared_nets(view, recorder, interposer, shared);
+            algo::route_shared_nets(view, recorder, interposer, shared);
             algo::route_mode_only_nets(view, recorder, interposer, it1, it2, params);
 
-            parse::output_two_modes_from_routing_results(interposer, output_file, basedie, 1, 2);
+            parse::output_two_modes_from_routing_results(interposer, output_file, basedie, only1, only2, 1, 2);
         }
         catch (const std::exception& err) {
             debug::error_fmt("route_multi_mode() failed: {}", err.what());

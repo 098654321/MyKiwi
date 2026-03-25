@@ -76,19 +76,6 @@ namespace kiwi::algo {
         if (begin_tracks.empty()) {
             return std::nullopt;
         }
-        auto* head = begin_tracks.front();
-        auto begin_it = begin_map.find(head);
-        if (begin_it != begin_map.end()) {
-            const auto& c = begin_it->second;
-            tob_to_track_info.emplace(std::Tuple{
-                begin_bump->coord(),
-                circuit::TOBConnectorInfo{
-                    c.bump_index(), c.hori_index(), c.vert_index(), c.track_index(),
-                    c.single_direction(), begin_bump->tob()->coord()
-                },
-                head->coord()
-            });
-        }
 
         auto end_map = interposer->available_tracks_track_to_bump(end_bump);
         for (auto& [t, _] : end_map) {
@@ -99,32 +86,64 @@ namespace kiwi::algo {
         if (end_tracks.empty()) {
             return std::nullopt;
         }
-        auto* tail = *end_tracks.begin();
-        auto end_it = end_map.find(tail);
-        if (end_it != end_map.end()) {
-            const auto& c = end_it->second;
+
+        // route first segment
+        auto seg1 = maze_search_to_cob(view, recorder, reuse_type, mode, begin_tracks, entry, occupied_tracks);
+        if (seg1.empty()) { return std::nullopt; }
+        auto last1_coord = std::get<0>(seg1.back());
+        auto last1 = interposer->get_track(last1_coord).value();
+
+        // segment1 first track to begin bump
+        auto first_track1_coord = std::get<0>(seg1.front());
+        auto first_track1 = interposer->get_track(first_track1_coord).value();
+        if (begin_map.find(first_track1) != begin_map.end()) {
+            const auto& c = begin_map.find(first_track1)->second;
+            tob_to_track_info.emplace(std::Tuple{
+                begin_bump->coord(),
+                circuit::TOBConnectorInfo{
+                    c.bump_index(), c.hori_index(), c.vert_index(), c.track_index(),
+                    c.single_direction(), begin_bump->tob()->coord()
+                },
+                first_track1->coord()
+            });
+        }
+        else {
+            throw std::runtime_error(std::format(
+                "build_three_segment_for_btb_net(): first_track1 not found in begin_map, first_track1_coord: ({}, {}, dir={}, index={}), begin_map_size={}",
+                first_track1_coord.row, first_track1_coord.col, static_cast<int>(first_track1_coord.dir), first_track1_coord.index, begin_map.size()
+            ));
+        }
+
+        // route second segment
+        auto seg2 = maze_search_to_cob(view, recorder, reuse_type, mode, std::Vector<hardware::Track*>{last1}, exit, occupied_tracks);
+        if (seg2.empty()) { return std::nullopt; }
+        auto last2_coord = std::get<0>(seg2.back());
+        auto last2 = interposer->get_track(last2_coord).value();
+
+        // route third segment
+        auto seg3 = maze_search_to_tracks(view, recorder, reuse_type, mode, std::Vector<hardware::Track*>{last2}, end_tracks, occupied_tracks);
+        if (seg3.empty()) { return std::nullopt; }
+
+        // set segment3 last track to end bump
+        auto last3_coord = std::get<0>(seg3.back());
+        auto last3 = interposer->get_track(last3_coord).value();
+        if (end_map.find(last3) != end_map.end()) {
+            const auto& c = end_map.find(last3)->second;
             track_to_tob_info.emplace(std::Tuple{
                 end_bump->coord(),
                 circuit::TOBConnectorInfo{
                     c.bump_index(), c.hori_index(), c.vert_index(), c.track_index(),
                     c.single_direction(), end_bump->tob()->coord()
                 },
-                tail->coord()
+                last3->coord()
             });
         }
-
-        auto seg1 = maze_search_to_cob(view, recorder, reuse_type, mode, begin_tracks, entry, occupied_tracks);
-        if (seg1.empty()) { return std::nullopt; }
-        auto last1_coord = std::get<0>(seg1.back());
-        auto last1 = interposer->get_track(last1_coord).value();
-
-        auto seg2 = maze_search_to_cob(view, recorder, reuse_type, mode, std::Vector<hardware::Track*>{last1}, exit, occupied_tracks);
-        if (seg2.empty()) { return std::nullopt; }
-        auto last2_coord = std::get<0>(seg2.back());
-        auto last2 = interposer->get_track(last2_coord).value();
-
-        auto seg3 = maze_search_to_tracks(view, recorder, reuse_type, mode, std::Vector<hardware::Track*>{last2}, end_tracks, occupied_tracks);
-        if (seg3.empty()) { return std::nullopt; }
+        else {
+            throw std::runtime_error(std::format(
+                "build_three_segment_for_btb_net(): last3 not found in end_map, last3_coord: ({}, {}, dir={}, index={}), end_map_size={}",
+                last3_coord.row, last3_coord.col, static_cast<int>(last3_coord.dir), last3_coord.index, end_map.size()
+            ));
+        }
 
         return finalize_three_segment_path(
             tob_to_track_info,
@@ -165,19 +184,6 @@ namespace kiwi::algo {
         if (end_tracks.empty()) {
             return std::nullopt;
         }
-        auto* tail = *end_tracks.begin();
-        auto end_it = end_map.find(tail);
-        if (end_it != end_map.end()) {
-            const auto& c = end_it->second;
-            track_to_tob_info.emplace(std::Tuple{
-                end_bump->coord(),
-                circuit::TOBConnectorInfo{
-                    c.bump_index(), c.hori_index(), c.vert_index(), c.track_index(),
-                    c.single_direction(), end_bump->tob()->coord()
-                },
-                tail->coord()
-            });
-        }
 
         auto seg1 = maze_search_to_cob(view, recorder, reuse_type, mode, begin_tracks, entry, occupied_tracks);
         if (seg1.empty()) { return std::nullopt; }
@@ -191,6 +197,27 @@ namespace kiwi::algo {
 
         auto seg3 = maze_search_to_tracks(view, recorder, reuse_type, mode, std::Vector<hardware::Track*>{last2}, end_tracks, occupied_tracks);
         if (seg3.empty()) { return std::nullopt; }
+
+        // set segment3 last track to end bump
+        auto last3_coord = std::get<0>(seg3.back());
+        auto last3 = interposer->get_track(last3_coord).value();
+        if (end_map.find(last3) != end_map.end()) {
+            const auto& c = end_map.find(last3)->second;
+            track_to_tob_info.emplace(std::Tuple{
+                end_bump->coord(),
+                circuit::TOBConnectorInfo{
+                    c.bump_index(), c.hori_index(), c.vert_index(), c.track_index(),
+                    c.single_direction(), end_bump->tob()->coord()
+                },
+                last3->coord()
+            });
+        }
+        else {
+            throw std::runtime_error(std::format(
+                "build_three_segment_for_ttb_net(): last3 not found in end_map, last3_coord: ({}, {}, dir={}, index={}), end_map_size={}",
+                last3_coord.row, last3_coord.col, static_cast<int>(last3_coord.dir), last3_coord.index, end_map.size()
+            ));
+        }
 
         return finalize_three_segment_path(
             std::nullopt,
@@ -231,24 +258,32 @@ namespace kiwi::algo {
         if (begin_tracks.empty()) {
             return std::nullopt;
         }
-        auto* head = begin_tracks.front();
-        auto begin_it = begin_map.find(head);
-        if (begin_it != begin_map.end()) {
-            const auto& c = begin_it->second;
+
+        auto seg1 = maze_search_to_cob(view, recorder, reuse_type, mode, begin_tracks, entry, occupied_tracks);
+        if (seg1.empty()) { return std::nullopt; }
+        auto last1_coord = std::get<0>(seg1.back());
+        auto last1 = interposer->get_track(last1_coord).value();
+
+        // segment1 first track to begin bump
+        auto first_track1_coord = std::get<0>(seg1.front());
+        auto first_track1 = interposer->get_track(first_track1_coord).value();
+        if (begin_map.find(first_track1) != begin_map.end()) {
+            const auto& c = begin_map.find(first_track1)->second;
             tob_to_track_info.emplace(std::Tuple{
                 begin_bump->coord(),
                 circuit::TOBConnectorInfo{
                     c.bump_index(), c.hori_index(), c.vert_index(), c.track_index(),
                     c.single_direction(), begin_bump->tob()->coord()
                 },
-                head->coord()
+                first_track1->coord()
             });
         }
-
-        auto seg1 = maze_search_to_cob(view, recorder, reuse_type, mode, begin_tracks, entry, occupied_tracks);
-        if (seg1.empty()) { return std::nullopt; }
-        auto last1_coord = std::get<0>(seg1.back());
-        auto last1 = interposer->get_track(last1_coord).value();
+        else {
+            throw std::runtime_error(std::format(
+                "build_three_segment_for_btt_net(): first_track1 not found in begin_map, first_track1_coord: ({}, {}, dir={}, index={}), begin_map_size={}",
+                first_track1_coord.row, first_track1_coord.col, static_cast<int>(first_track1_coord.dir), first_track1_coord.index, begin_map.size()
+            ));
+        }
 
         auto seg2 = maze_search_to_cob(view, recorder, reuse_type, mode, std::Vector<hardware::Track*>{last1}, exit, occupied_tracks);
         if (seg2.empty()) { return std::nullopt; }

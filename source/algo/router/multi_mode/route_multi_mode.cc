@@ -76,7 +76,7 @@ namespace kiwi::algo {
         }
 
         auto& pkg = net->pathpackage();
-        pkg.occupy_all();
+        // pkg.occupy_all();
         net->show_path();
         recorder.update_recorders_history(pkg, false);
         for (auto& [t, cob] : pkg._regular_path) {
@@ -598,6 +598,7 @@ namespace kiwi::algo {
         const algo::MazeRouteStrategy& maze
     ) -> void {
         try {
+            std::Vector<circuit::Net*> routed_nets = {};
             for (auto* net : remaining) {
                 try {
                     if (net == nullptr) {
@@ -609,9 +610,13 @@ namespace kiwi::algo {
                     if (std::find(net_modes.begin(), net_modes.end(), mode) == net_modes.end()) {
                         continue;
                     }
-
+                    
                     net->set_reuse_type(false);
+                    net->search_related_nets(routed_nets);
                     net->route(interposer, maze);
+                    routed_nets.emplace_back(net);
+
+                    net->reset_pathpackage();
                     auto& pkg = net->pathpackage();
                     for (auto& [t, cob] : pkg._regular_path) {
                         (void)t;
