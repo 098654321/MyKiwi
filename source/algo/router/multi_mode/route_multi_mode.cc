@@ -616,7 +616,6 @@ namespace kiwi::algo {
                     net->route(interposer, maze);
                     routed_nets.emplace_back(net);
 
-                    net->reset_pathpackage();
                     auto& pkg = net->pathpackage();
                     for (auto& [t, cob] : pkg._regular_path) {
                         (void)t;

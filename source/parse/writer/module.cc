@@ -11,32 +11,25 @@ namespace kiwi::parse {
         write_control_bits(interposer, output_path, mode);
     }
 
-    auto reset_registers(hardware::Interposer* interposer, std::Vector<std::shared_ptr<circuit::Net>> nets) -> void {
-        for (auto& net : nets) {
-            net->reset_pathpackage();
-        }
+    auto reset_registers(hardware::Interposer* interposer) -> void {
+        interposer->reset_regs();
+        interposer->reset_connectivity();
     }
 
     auto output_two_modes_from_routing_results(
         hardware::Interposer* interposer,
         const std::FilePath& output_path,
         circuit::BaseDie* basedie,
-        std::Vector<std::shared_ptr<circuit::Net>> nets1,
-        std::Vector<std::shared_ptr<circuit::Net>> nets2,
         int mode1,
         int mode2
     ) -> void {
-        for (auto& net : nets1) {
-            net->pathpackage().occupy_all();
-        }
+        reset_registers(interposer);
+        occupy_all_registers(interposer, basedie, mode1);
         output_from_routing_results(interposer, output_path, basedie, mode1);
-        reset_registers(interposer, nets1);
-
-        for (auto& net : nets2) {
-            net->pathpackage().occupy_all();
-        }
+        
+        reset_registers(interposer);
+        occupy_all_registers(interposer, basedie, mode2);
         output_from_routing_results(interposer, output_path, basedie, mode2);
-        reset_registers(interposer, nets2);
     }
 
     auto write_control_bits(hardware::Interposer* interposer, const std::FilePath& output_path, int mode) -> void {
@@ -67,6 +60,15 @@ namespace kiwi::parse {
             // else {
             //     net->pathpackage().reset_all();
             // }
+        }
+    }
+
+    auto occupy_all_registers(hardware::Interposer* interposer, circuit::BaseDie* basedie, int mode) -> void {
+        auto nets = basedie->nets_to_vector();
+        for (auto& net : nets) {
+            if (net->modes().contains(mode)) {
+                net->pathpackage().occupy_all();
+            }
         }
     }
 

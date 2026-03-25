@@ -144,5 +144,29 @@ namespace kiwi::algo {
         return result;
     }
 
+    auto OccupancyView::available_tracks_bump_to_track(hardware::Bump* bump, int mode) const -> std::HashMap<hardware::Track*, hardware::TOBConnector> {
+        auto result = std::HashMap<hardware::Track*, hardware::TOBConnector>{};
+
+        auto tracks = this->_interposer->available_tracks_bump_to_track(bump);
+        for (auto [t, connector] : tracks) {
+            if (this->is_idle_track(mode, t) && !this->is_tobconnector_occupied(mode, connector)) {
+                result.emplace(t, connector);
+            }
+        }
+        return result;
+    }
+
+    auto OccupancyView::available_tracks_track_to_bump(hardware::Bump* bump, int mode) const -> std::HashMap<hardware::Track*, hardware::TOBConnector> {
+        auto result = std::HashMap<hardware::Track*, hardware::TOBConnector>{};
+
+        auto tracks = this->_interposer->available_tracks_track_to_bump(bump);
+        for (auto [t, connector] : tracks) {
+            if (this->is_idle_track(mode, t) && !this->is_tobconnector_occupied(mode, connector)) {
+                result.emplace(t, connector);
+            }
+        }
+        return result;
+    }
+
 }
 

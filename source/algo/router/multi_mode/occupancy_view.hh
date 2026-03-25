@@ -28,6 +28,9 @@ namespace kiwi::algo {
         auto is_idle_track(int mode, hardware::Track* track) const -> bool;
         auto adjacent_idle_tracks(int mode, hardware::Track* track) const -> std::Vector<std::Tuple<hardware::Track*, hardware::COBConnector>>;
 
+        auto available_tracks_bump_to_track(hardware::Bump* bump, int mode) const -> std::HashMap<hardware::Track*, hardware::TOBConnector>;
+        auto available_tracks_track_to_bump(hardware::Bump* bump, int mode) const -> std::HashMap<hardware::Track*, hardware::TOBConnector>;
+
         // Exposed for module tests that validate key uniqueness/collision behavior.
         auto cob_key(const hardware::COBConnector& c) const -> std::u64;
         auto cob_key(const circuit::COBConnectorInfo& cob_info) const -> std::u64;

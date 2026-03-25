@@ -67,9 +67,9 @@ namespace kiwi::algo {
         auto tob_to_track_info = std::Option<ConnectorInfoTuple>{std::nullopt};
         auto track_to_tob_info = std::Option<ConnectorInfoTuple>{std::nullopt};
 
-        auto begin_map = interposer->available_tracks_bump_to_track(begin_bump);
+        auto begin_map = view.available_tracks_bump_to_track(begin_bump, mode);
         for (auto& [t, _] : begin_map) {
-            if (view.is_idle_track(mode, t) && !occupied_tracks.contains(t)) {
+            if (!occupied_tracks.contains(t)) {
                 begin_tracks.emplace_back(t);
             }
         }
@@ -77,9 +77,9 @@ namespace kiwi::algo {
             return std::nullopt;
         }
 
-        auto end_map = interposer->available_tracks_track_to_bump(end_bump);
+        auto end_map = view.available_tracks_track_to_bump(end_bump, mode);
         for (auto& [t, _] : end_map) {
-            if (view.is_idle_track(mode, t) && !occupied_tracks.contains(t)) {
+            if (!occupied_tracks.contains(t)) {
                 end_tracks.emplace(t);
             }
         }
@@ -175,9 +175,9 @@ namespace kiwi::algo {
 
         auto track_to_tob_info = std::Option<ConnectorInfoTuple>{std::nullopt};
 
-        auto end_map = interposer->available_tracks_track_to_bump(end_bump);
+        auto end_map = view.available_tracks_track_to_bump(end_bump, mode);
         for (auto& [t, _] : end_map) {
-            if (view.is_idle_track(mode, t) && !occupied_tracks.contains(t)) {
+            if (!occupied_tracks.contains(t)) {
                 end_tracks.emplace(t);
             }
         }
@@ -249,9 +249,9 @@ namespace kiwi::algo {
 
         auto tob_to_track_info = std::Option<ConnectorInfoTuple>{std::nullopt};
 
-        auto begin_map = interposer->available_tracks_bump_to_track(begin_bump);
+        auto begin_map = view.available_tracks_bump_to_track(begin_bump, mode);
         for (auto& [t, _] : begin_map) {
-            if (view.is_idle_track(mode, t) && !occupied_tracks.contains(t)) {
+            if (!occupied_tracks.contains(t)) {
                 begin_tracks.emplace_back(t);
             }
         }
