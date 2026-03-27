@@ -4,8 +4,6 @@
 
   - 确定 entry/exit cob 的方法还需要优化，目前对于路径的预估不是很准确
 
-  - 最后对剩余net布线的时候少了检查已有路径的步骤（见route.cc）
-
   - shared_nets 完成布线之后打印结果
 
   - 当前打印的结果当中，有很多update信息是不需要的，然后没有清楚的展示出paired nets布线成功/失败的原因
@@ -20,9 +18,9 @@
 
   - 多线程情况下的paired route还有点问题
 
-  - **多模式下bus_reroute和普通route的过程也要加入occupancy_view，然后remaining nets的布线过程要加入recorders以便让cost起作用。要看一下是在原来的基础上修改还是重新写一遍所有的route函数**
+  - 把cob/tob connector的设置从route_multi_mode.cc移到maze里面，不然同步线的布线结果不太对
 
-  - shared_nets的布线不需要recorder，单独写一个maze；然后把cob/tob connector的设置从route_multi_mode.cc移到maze里面
+  - 输出的controlbits的时候还是有问题，目前的controlbits无法正确解析出路径
 --- 
 
 - 当前hardware底层的数据结构不是很安全，最好查一下怎么给指针包装一层，放置上层使用的时候直接操作指针
