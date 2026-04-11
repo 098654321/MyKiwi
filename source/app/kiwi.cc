@@ -49,11 +49,11 @@ namespace kiwi {
         console::print_with_color("\t-v, --verbose               ", Color::Cyan);
         console::println("Print lots of verbose information for users.");
 
+        console::print_with_color("\t-p, --placement             ", Color::Cyan);
+        console::println("Work in placement mode.");
+
         console::print_with_color("\t-i, --incremental           ", Color::Cyan);
         console::println("Work in incremental routing mode.");
-
-        console::print_with_color("\t-c, --compare               ", Color::Cyan);
-        console::println("Compare the controlbits between the current mode and the given mode.");
     }
 
     auto print_verion() -> void {

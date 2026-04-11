@@ -69,7 +69,7 @@ namespace kiwi::hardware {
         auto bump_to_hori_info = TOB::bump_to_hori_mux_info(bump_index);    // [mux, index_in_mux]
         
         for (auto& bump_to_hori_cs : this->_bump_to_hori_muxs.at(std::get<0>(bump_to_hori_info))->available_connectors(std::get<1>(bump_to_hori_info), shared)) {
-
+            
             auto hori_index = TOB::bump_to_hori_mux_info_and_output_to_index(bump_to_hori_info, bump_to_hori_cs.output_index());    // within range [0, 127]
             auto hori_to_vert_info = TOB::hori_to_vert_mux_info(hori_index);    // [vert_group, vert_index_in_group]
 

@@ -211,17 +211,123 @@ Pin 名的解析规则（`Reader::parse_connection_pin`）：
 
 当前策略：`SAPlaceStrategy`（`source/algo/placer/sa/saplacestrategy.cc`）
 
-算法要点：
+算法要点（按当前 `SAPlaceStrategy` 实现整理的伪代码）：
 
-- 状态：每个 `TopDieInstance` 绑定一个 `hardware::TOB*`
-- move：随机选一个 topdieinst 移动到随机 idle TOB
-- swap：随机选两个 topdieinst 交换 TOB
-- 代价：
-  - 线长：对每条 net 计算 HPWL（`Net::coords()` → bbox）
-  - 热/功耗：对高功耗芯粒施加距离惩罚（实现目前主要用 thermal_cost）
-- 约束：
-  - TOB 不能被多个 chip 占用
-  - `SAPlaceStrategy::is_changable` 禁止把某个 inst 放到其线网端口已包含的 TOB 上
+```text
+Input:
+  interposer, topdies
+Hyper-parameters (默认值):
+  T_init = 100.0                // 初始温度
+  T_freeze = 0.5                // 停止温度
+  alpha = 0.95                  // 冷却速率（几何降温）
+  solve_num = 50                // 每个温度下尝试扰动次数
+  max_no_improvement = 50       // 最优解连续未改进上限
+  w_wire = 1.0, w_thermal = 0.3 // 当前总代价只用这两项
+
+Cost definitions:
+  net_cost(net):
+    coords = net.coords()
+    if coords empty: return 0
+    HPWL = (max_row - min_row) + (max_col - min_col)
+    return HPWL
+
+  total_net_cost(nets) = Σ net_cost(net)
+
+  thermal_cost(topdies):
+    high_power_chips = {chip | get_topdie_power(chip) > 0.8}
+    // get_topdie_power(chip) = chip.nets().size() / 10.0
+    cost = 0
+    for each unordered pair (i, j) in high_power_chips:
+      d = Manhattan(chip_i.tob.coord, chip_j.tob.coord)
+      if d < 3:
+        cost += (3 - d) * 10
+    return cost
+
+  total_cost = w_wire * total_net_cost(all_nets) + w_thermal * thermal_cost(topdies)
+  // congestion/power 在当前 place() 中未计入
+
+State:
+  每个 TopDieInstance 绑定一个 TOB
+  best_solution = 当前 placement 快照
+  best_cost = total_cost
+  T = T_init
+  no_improvement_count = 0
+  iteration = 0
+
+while T > T_freeze and no_improvement_count < max_no_improvement:
+  improved = false
+
+  repeat solve_num times:
+    new_total_cost = total_cost
+
+    // 扰动类型选择（温度相关）
+    // p_swap = 0.7 - 0.2 * (T_init - T) / T_init
+    // 因此温度从高到低时，swap 概率约从 0.7 线性降到 0.5
+    if random(0,1) < p_swap:
+      // --- swap 扰动 ---
+      随机选两个不同 topdie inst: a, b
+      若任一为空 -> continue
+      tob_a = a.tob, tob_b = b.tob，若任一为空 -> continue
+      若 !is_changable(a, tob_b) 或 !is_changable(b, tob_a) -> continue
+      若 tob_a 或 tob_b 被第三方 chip 占用 -> continue
+
+      changed_nets = nets(a) ∪ nets(b)
+      new_total_cost -= w_wire * Σ net_cost(net), net in changed_nets
+      new_total_cost -= w_thermal * thermal_cost(topdies)
+
+      执行 a 与 b 的 TOB 交换
+
+      new_total_cost += w_wire * Σ net_cost(net), net in changed_nets
+      new_total_cost += w_thermal * thermal_cost(topdies)
+
+      delta = new_total_cost - total_cost
+      if delta <= 0:
+        接受该解，total_cost = new_total_cost，improved = true
+      else if random(0,1) <= exp(-delta / T):
+        按 Metropolis 准则接受，total_cost = new_total_cost
+      else:
+        拒绝，交换回退到原状态
+
+    else:
+      // --- move 扰动 ---
+      随机选一个 topdie inst: a；随机选一个 idle TOB: tob_new
+      若任一不存在 -> continue
+      若 !is_changable(a, tob_new) -> continue
+      若 tob_new 已被其他 chip 占用 -> continue
+
+      tob_old = a.tob
+      new_total_cost -= w_wire * Σ net_cost(net), net in nets(a)
+      new_total_cost -= w_thermal * thermal_cost(topdies)
+
+      执行 a 从 tob_old 移到 tob_new
+
+      new_total_cost += w_wire * Σ net_cost(net), net in nets(a)
+      new_total_cost += w_thermal * thermal_cost(topdies)
+
+      delta = new_total_cost - total_cost
+      if delta <= 0:
+        接受该解，total_cost = new_total_cost，improved = true
+      else if random(0,1) <= exp(-delta / T):
+        按 Metropolis 准则接受，total_cost = new_total_cost
+      else:
+        拒绝，a 回退到 tob_old
+
+  // 温度层结束后更新全局最优
+  if total_cost < best_cost:
+    best_cost = total_cost
+    best_solution = 当前 placement 快照
+    no_improvement_count = 0
+  else:
+    no_improvement_count += 1
+
+  T = T * alpha
+  iteration += 1
+
+循环结束后：restore_placement(best_solution)
+
+约束函数 is_changable(inst, target_tob):
+  若 inst 的任意 net 已经包含 target_tob 端口，则返回 false；否则 true
+```
 
 ---
 

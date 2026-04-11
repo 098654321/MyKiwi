@@ -107,11 +107,13 @@ namespace kiwi::parse
             "vertical", [](FETCH_FUNCTION_PARAMS params) -> void
             {
                 auto [ptob, tob_value, tobcoord] = params;
-                for (std::usize index = 0; index < 128; ++index) {
-                    auto value = ptob->vert_mux_reg_value(index);
+                for (std::usize index = 0; index < 128; ++index) {      // index of horizontal line
+                    auto converted_index = (index/64)*64 + (index%8)*8 + (index - (index/64)*64)/8;
+                    auto value = ptob->vert_mux_reg_value(converted_index);  // get the connected vertical line index at converted_index
+                                                                                                            // see TOB::available_connectors for more details
                     if (!value.has_value())
                         throw std::runtime_error(std::format("horizontal register value is null optional at index = {}", index));
-                    tob_value.vctrl[index] = value.value();
+                    tob_value.vctrl[converted_index] = value.value();   // store the connected vertical line index at converted_index
                 }
             }
         },

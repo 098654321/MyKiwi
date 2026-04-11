@@ -57,6 +57,8 @@ namespace kiwi {
 
     auto place(kiwi::hardware::Interposer* interposer, kiwi::circuit::BaseDie* basedie, std::vector<kiwi::circuit::TopDieInstance*>& topdies) -> void {
         debug::debug("Start layout ...");
+// start time
+auto start_time = std::chrono::high_resolution_clock::now();
         auto strategy = algo::SAPlaceStrategy();
         place(interposer, topdies, basedie, strategy);
         assert(strategy.is_valid_placement(interposer, topdies));
@@ -70,6 +72,10 @@ namespace kiwi {
                 debug::warning_fmt("Chip {} has not been assigned a TOB", topdie->name());
             }
         }
+// end time
+auto end_time = std::chrono::high_resolution_clock::now();
+auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+debug::info_fmt("Layout time: {} milliseconds", duration.count());
     }
 
     auto route(

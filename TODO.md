@@ -1,8 +1,26 @@
 ## TODO
 
-- 增量布线算法调整：
+- 修改输出问题
 
-  - 目前的迭代在case21当中无法收敛，需要检查无法收敛的原因，调整收敛条件
+  * TOB的选择器计算方式（旧版getfreetrackindex和当前的计算方式一样）
+
+  * COB的端口变换与选择器计算方式（手动举例分析没有问题）
+
+  * TOB/COB connector 内部存储的数据是否被改变过(没检查，暂时认为没错)
+  * **TOB寄存器数值的计算方式**（已修改）
+    * bumptohctrl存了某一个bump_index连接到的hctrl在hctrl组内的编号（0～7）
+    * **hctrltovctrl**存了hctrl转换成vtrcl的组号编排方式后，对应的index连接到的vctrl在vctrl组内的编号（0～7）
+      这一项有修改见TobRegister::fetch_methods->"vertical"，修改前出现converted_index的地方全部用的index
+    * vctrltotrack存的是0/1
+
+  * COB寄存器数值的计算方式(对照parse controlbits工具检查过)
+
+  * padctrl寄存器数值的计算方式（没检查，暂时认为没错）
+
+  * 寄存器数据写出到文件的规则（没检查，暂时认为没错）
+
+  * 配置文件的端口编号是否正确（没检查，暂时认为没错）
+
 
 --- 
 
