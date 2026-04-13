@@ -1,666 +1,130 @@
 {
-    "xinzhai_spi_s_sck_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 0
-        }
-    },
-    "xinzhai_spi_s_csn_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 9
-        }
-    },
-    "xinzhai_spi_s_dout_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 18
-        }
-    },
-    "xinzhai_spi_s_din_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 27
-        }
-    },
-    "xinzhai_spi_miso": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 36
-        }
-    },
-    "xinzhai_spi_csn": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 45
-        }
-    },
-    "xinzhai_spi_sck": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 54
-        }
-    },
-    "xinzhai_spi_mosi": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 63
-        }
-    },
-    "xinzhai_jtag_trstn": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 120
-        }
-    },
-    "xinzhai_jtag_tdi": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 113
-        }
-    },
-    "xinzhai_jtag_tck": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 106
-        }
-    },
-    "xinzhai_jtag_tms": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 99
-        }
-    },
-    "xinzhai_uart_txd": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 92
-        }
-    },
-    "xinzhai_jtag_tdo": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 85
-        }
-    },
-    "xinzhai_uart_rxd": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 5,
-            "index": 78
-        }
-    },
-    "xinzhai_spi_s_sck_2": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 8,
-            "index": 71
-        }
-    },
-    "xinzhai_spi_s_csn_2": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 8,
-            "index": 78
-        }
-    },
-    "xinzhai_spi_s_dout_2": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 8,
-            "index": 85
-        }
-    },
-    "xinzhai_spi_s_din_2": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 8,
-            "index": 92
-        }
-    },
-    "xinzhai_muyan_0_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 0
-        }
-    },
-    "xinzhai_muyan_1_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 9
-        }
-    },
-    "xinzhai_muyan_6_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 18
-        }
-    },
-    "xinzhai_muyan_7_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 27
-        }
-    },
-    "xinzhai_muyan_0_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 36
-        }
-    },
-    "xinzhai_muyan_1_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 45
-        }
-    },
-    "xinzhai_muyan_6_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 54
-        }
-    },
-    "xinzhai_muyan_7_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 1,
-            "index": 63
-        }
-    },
-    "xinzhai_muyan_2_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 0
-        }
-    },
-    "xinzhai_muyan_3_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 9
-        }
-    },
-    "xinzhai_muyan_4_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 18
-        }
-    },
-    "xinzhai_muyan_5_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 27
-        }
-    },
-    "xinzhai_muyan_2_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 36
-        }
-    },
-    "xinzhai_muyan_3_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 45
-        }
-    },
-    "xinzhai_muyan_4_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 54
-        }
-    },
-    "xinzhai_muyan_5_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 2,
-            "index": 63
-        }
-    },
-    "xinzhai_muyan_8_interrupt_0": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 0
-        }
-    },
-    "xinzhai_muyan_9_interrupt_0": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 9
-        }
-    },
-    "xinzhai_muyan_14_interrupt_0": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 18
-        }
-    },
-    "xinzhai_muyan_15_interrupt_0": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 27
-        }
-    },
-    "xinzhai_muyan_8_interrupt_1": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 36
-        }
-    },
-    "xinzhai_muyan_9_interrupt_1": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 45
-        }
-    },
-    "xinzhai_muyan_14_interrupt_1": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 54
-        }
-    },
-    "xinzhai_muyan_15_interrupt_1": {
-        "coord": {
-            "dir": "hori",
-            "row": 7,
-            "col": 12,
-            "index": 63
-        }
-    },
-    "xinzhai_muyan_10_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 0
-        }
-    },
-    "xinzhai_muyan_11_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 9
-        }
-    },
-    "xinzhai_muyan_12_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 18
-        }
-    },
-    "xinzhai_muyan_13_interrupt_0": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 27
-        }
-    },
-    "xinzhai_muyan_10_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 36
-        }
-    },
-    "xinzhai_muyan_11_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 45
-        }
-    },
-    "xinzhai_muyan_12_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 54
-        }
-    },
-    "xinzhai_muyan_13_interrupt_1": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 10,
-            "index": 63
-        }
-    },
-    "xinzhai_muyan_0_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 0
-        }
-    },
-    "xinzhai_muyan_1_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 9
-        }
-    },
-    "xinzhai_muyan_2_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 18
-        }
-    },
-    "xinzhai_muyan_3_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 27
-        }
-    },
-    "xinzhai_muyan_4_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 36
-        }
-    },
-    "xinzhai_muyan_5_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 45
-        }
-    },
-    "xinzhai_muyan_6_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 54
-        }
-    },
-    "xinzhai_muyan_7_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 63
-        }
-    },
-    "xinzhai_muyan_8_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 120
-        }
-    },
-    "xinzhai_muyan_9_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 113
-        }
-    },
-    "xinzhai_muyan_10_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 106
-        }
-    },
-    "xinzhai_muyan_11_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 99
-        }
-    },
-    "xinzhai_muyan_12_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 92
-        }
-    },
-    "xinzhai_muyan_13_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 85
-        }
-    },
-    "xinzhai_muyan_14_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 78
-        }
-    },
-    "xinzhai_muyan_15_Test_mode": {
-        "coord": {
-            "dir": "vert",
-            "row": 0,
-            "col": 7,
-            "index": 71
-        }
-    },
-    "xinzhai_muyan_0_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 0
-        }
-    },
-    "xinzhai_muyan_1_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 9
-        }
-    },
-    "xinzhai_muyan_2_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 18
-        }
-    },
-    "xinzhai_muyan_3_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 27
-        }
-    },
-    "xinzhai_muyan_4_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 36
-        }
-    },
-    "xinzhai_muyan_5_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 45
-        }
-    },
-    "xinzhai_muyan_6_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 54
-        }
-    },
-    "xinzhai_muyan_7_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 63
-        }
-    },
-    "xinzhai_muyan_8_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 120
-        }
-    },
-    "xinzhai_muyan_9_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 113
-        }
-    },
-    "xinzhai_muyan_10_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 106
-        }
-    },
-    "xinzhai_muyan_11_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 99
-        }
-    },
-    "xinzhai_muyan_12_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 92
-        }
-    },
-    "xinzhai_muyan_13_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 85
-        }
-    },
-    "xinzhai_muyan_14_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 78
-        }
-    },
-    "xinzhai_muyan_15_POR": {
-        "coord": {
-            "dir": "vert",
-            "row": 9,
-            "col": 7,
-            "index": 71
+    "IO_0_0_0_0" : {
+        "coord" : {
+            "row" : 9,
+            "index" : 0,
+            "col" : 0,
+            "dir" : "vert"
+        }
+    },
+    "IO_1_2_13_5" : {
+        "coord" : {
+            "row" : 7,
+            "index" : 45,
+            "col" : 12,
+            "dir" : "hori"
+        }
+    },
+    "IO_0_0_0_8" : {
+        "coord" : {
+            "row" : 9,
+            "index" : 120,
+            "col" : 0,
+            "dir" : "vert"
+        }
+    },
+    "IO_0_0_9_1" : {
+        "coord" : {
+            "row" : 9,
+            "index" : 9,
+            "col" : 9,
+            "dir" : "vert"
+        }
+    },
+    "IO_0_0_9_9" : {
+        "coord" : {
+            "row" : 9,
+            "index" : 113,
+            "col" : 9,
+            "dir" : "vert"
+        }
+    },
+    "IO_0_9_0_2" : {
+        "coord" : {
+            "row" : 0,
+            "index" : 18,
+            "col" : 0,
+            "dir" : "vert"
+        }
+    },
+    "IO_0_9_9_3" : {
+        "coord" : {
+            "row" : 0,
+            "index" : 27,
+            "col" : 9,
+            "dir" : "vert"
+        }
+    },
+    "IO_0_9_0_10" : {
+        "coord" : {
+            "row" : 0,
+            "index" : 106,
+            "col" : 0,
+            "dir" : "vert"
+        }
+    },
+    "IO_0_9_9_11" : {
+        "coord" : {
+            "row" : 0,
+            "index" : 99,
+            "col" : 9,
+            "dir" : "vert"
+        }
+    },
+    "IO_1_2_0_4" : {
+        "coord" : {
+            "row" : 7,
+            "index" : 36,
+            "col" : 0,
+            "dir" : "hori"
+        }
+    },
+    "IO_1_2_0_12" : {
+        "coord" : {
+            "row" : 7,
+            "index" : 92,
+            "col" : 0,
+            "dir" : "hori"
+        }
+    },
+    "IO_1_2_13_13" : {
+        "coord" : {
+            "row" : 7,
+            "index" : 85,
+            "col" : 12,
+            "dir" : "hori"
+        }
+    },
+    "IO_1_8_0_6" : {
+        "coord" : {
+            "row" : 1,
+            "index" : 54,
+            "col" : 0,
+            "dir" : "hori"
+        }
+    },
+    "IO_1_8_0_14" : {
+        "coord" : {
+            "row" : 1,
+            "index" : 78,
+            "col" : 0,
+            "dir" : "hori"
+        }
+    },
+    "IO_1_8_13_7" : {
+        "coord" : {
+            "row" : 1,
+            "index" : 63,
+            "col" : 12,
+            "dir" : "hori"
+        }
+    },
+    "IO_1_8_13_15" : {
+        "coord" : {
+            "row" : 1,
+            "index" : 71,
+            "col" : 12,
+            "dir" : "hori"
         }
     }
 }

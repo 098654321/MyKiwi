@@ -422,11 +422,46 @@ while T > T_freeze and no_improvement_count < max_no_improvement:
 
 ## 8. 目录与关键文件索引（修改时优先查这些）
 
+### 8.1 GUI 可视化主链路（widget）
+
+GUI 入口在 `source/app/gui/gui.cc`，创建 `QApplication` 后启动 `widget::Window`。  
+`Window`（`source/widget/window.*`）是可视化总调度器，内部共享同一组 `Interposer/BaseDie` 指针给所有页面（schematic/layout/view2d/view3d）。
+
+核心交互流程（按 `Window` 当前实现）：
+
+1) `loadConfig()`：读取配置到 `_interposer/_basedie`，并触发  
+   - `SchematicWidget::reload()`  
+   - `LayoutWidget::reload()`
+
+2) `executePlaceRoute()`：在 `PRThread` 中异步执行 P&R（避免阻塞 UI）  
+   - `algo::build_nets(...)`  
+   - `algo::route_nets(..., MazeRouteStrategy{}, HK{}, mode=0, ...)`  
+   完成后触发：
+   - `View2DWidget::reload()`（2D 结果重绘）
+   - `View3DWidget::displayRoutingResult()`（3D 结果渲染）
+
+3) `generateControlBitAs()`：通过 `parse::write_control_bits(...)` 导出 `.ctb`
+
+状态约束（改 GUI 行为时必须保持）：
+
+- `_finishPR == true` 后禁止二次 P&R，且禁用 schematic/layout 编辑（`disableEdit()`）
+- 未完成 P&R 时禁用导出 controlbits 按钮
+- 页面切换由左侧 toolbar + `QStackedWidget` 统一管理，不应让各页面自行持有流程状态
+
 ### app/
 
 - `source/app/kiwi.cc`：命令行参数解析与模式选择（GUI/CLI/增量/compare/placement）
 - `source/app/cli/cli.cc`：端到端主流程（read_config → build_nets → place → route → write）
 - `source/app/gui/gui.cc`：GUI 入口（Qt window）
+
+### widget/
+
+- `source/widget/window.*`：GUI 主窗口与系统状态机（菜单/工具栏/页面容器/P&R 触发）
+- `source/widget/prthread.h`：后台 P&R 线程（build_nets + route_nets）
+- `source/widget/schematic/*`：原理图编辑视图（器件库 + 场景 + 信息面板）
+- `source/widget/layout/*`：布局编辑视图（拓扑摆放与信息统计）
+- `source/widget/view2d/*`：2D 结果视图（QGraphicsScene，按 COB 开关状态绘制连线）
+- `source/widget/view3d/*`：3D 结果视图（OpenGL instancing，支持旋转/缩放/拾取）
 
 ### circuit/
 

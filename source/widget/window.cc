@@ -319,6 +319,7 @@ namespace kiwi::widget {
             return;
         }
 
+        parse::connect_registers(this->_interposer.get(), this->_basedie.get(), 0);
         parse::write_control_bits(this->_interposer.get(), filePath.toStdString(), 0);
     }
     QMESSAGEBOX_REPORT_EXCEPTION("Generate control bit file")
