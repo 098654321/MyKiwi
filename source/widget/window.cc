@@ -37,7 +37,7 @@
 #include <QThread>
 #include <QStatusBar>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     Window::Window(QWidget *parent)
         : QMainWindow{parent}
@@ -183,7 +183,7 @@ namespace kiwi::widget {
     void Window::createStatusBar() {
         auto statusBar = this->statusBar();
 
-        auto status1 = new QLabel{"Kiwi", this};
+        auto status1 = new QLabel{"PR_tool", this};
         status1->setAlignment(Qt::AlignCenter);                    
 
         status1->setMinimumWidth(200); 

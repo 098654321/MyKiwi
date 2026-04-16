@@ -2,7 +2,7 @@
 
 #include "serde/de.hh"
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct InterposerConfig {
         
@@ -10,4 +10,4 @@ namespace kiwi::parse {
 
 }
 
-DESERIALIZE_STRUCT(kiwi::parse::InterposerConfig)
+DESERIALIZE_STRUCT(PR_tool::parse::InterposerConfig)

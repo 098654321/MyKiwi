@@ -1,6 +1,6 @@
 #include "./trackcoord.hh"
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     TrackCoord::TrackCoord(std::i64 r, std::i64 c, TrackDirection d, std::usize i) :
         Coord{r, c},
@@ -37,18 +37,18 @@ namespace kiwi::hardware {
 
 namespace std {
 
-    std::size_t hash<kiwi::hardware::TrackDirection>::operator() (const kiwi::hardware::TrackDirection& dir) const noexcept {
-        if (dir == kiwi::hardware::TrackDirection::Horizontal) {
+    std::size_t hash<PR_tool::hardware::TrackDirection>::operator() (const PR_tool::hardware::TrackDirection& dir) const noexcept {
+        if (dir == PR_tool::hardware::TrackDirection::Horizontal) {
             return 0xCCCCCCCCCCCCCCCCULL;
         } else {
             return 0x3333333333333333ULL;
         }
     }
 
-    std::size_t hash<kiwi::hardware::TrackCoord>::operator() (const kiwi::hardware::TrackCoord& coord) const noexcept {
-        auto coord_hash = hash<kiwi::hardware::Coord>();
+    std::size_t hash<PR_tool::hardware::TrackCoord>::operator() (const PR_tool::hardware::TrackCoord& coord) const noexcept {
+        auto coord_hash = hash<PR_tool::hardware::Coord>();
         auto usize_hash = hash<std::size_t>{};
-        auto dir_hash = hash<kiwi::hardware::TrackDirection>{};
+        auto dir_hash = hash<PR_tool::hardware::TrackDirection>{};
         return coord_hash(coord) ^
                 dir_hash(coord.dir) ^
                 usize_hash(coord.index);

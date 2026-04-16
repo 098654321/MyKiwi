@@ -1,6 +1,6 @@
 #include "./view2dview.h"
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     View2DView::View2DView(QWidget *parent) :
         GraphicsView{parent}

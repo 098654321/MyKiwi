@@ -23,9 +23,9 @@ rule("qt.opengl")
         end
     end)
 
--- Kiwi Task!!!
+-- PR_tool Task!!!
 
-target("kiwi")
+target("PR_tool")
     set_kind("binary")
     set_targetdir("./output")
     set_default(false)

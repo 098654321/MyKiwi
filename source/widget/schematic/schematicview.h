@@ -4,19 +4,19 @@
 #include <QWidget>
 #include <QGraphicsView>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
     class TOB;
     class COB;
     class Track;
 };
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
     class TopDieInstance;
 };
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
    
     class SchematicView : public GraphicsView {
     public:

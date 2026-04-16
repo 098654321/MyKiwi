@@ -19,7 +19,7 @@
 #include <QMessageBox>
 #include <QGraphicsSceneMouseEvent>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     static_assert(AllUnique<
         (int)schematic::NetItem::Type,

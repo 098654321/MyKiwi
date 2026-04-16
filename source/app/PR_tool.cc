@@ -15,23 +15,24 @@
 #include "Windows.h"
 #endif
 
-namespace kiwi {
+namespace PR_tool {
 
-    auto kiwilogo = "\
-    \t██╗  ██╗██╗██╗    ██╗██╗\n\
-    \t██║ ██╔╝██║██║    ██║██║\n\
-    \t█████╔╝ ██║██║ █╗ ██║██║\n\
-    \t██╔═██╗ ██║██║███╗██║██║\n\
-    \t██║  ██╗██║╚███╔███╔╝██║\n\
-    \t╚═╝  ╚═╝╚═╝ ╚══╝╚══╝ ╚═╝\n";
+    auto PR_toollogo = "\
+    \t██████╗ ██████╗         ████████╗ ██████╗  ██████╗ ██╗\n\
+    \t██╔══██╗██╔══██╗        ╚══██╔══╝██╔═══██╗██╔═══██╗██║\n\
+    \t██████╔╝██████╔╝           ██║   ██║   ██║██║   ██║██║\n\
+    \t██╔═══╝ ██╔══██╗           ██║   ██║   ██║██║   ██║██║\n\
+    \t██║     ██║  ██║           ██║   ╚██████╔╝╚██████╔╝███████╗\n\
+    \t╚═╝     ╚═╝  ╚═╝           ╚═╝    ╚═════╝  ╚═════╝ ╚══════╝\n\
+    \t                         _tool\n";
 
     auto print_help() -> void {
         using console::Color;
 
-        console::println("Place & Route tool for kiwimoore's interposer\n");
+        console::println("Place & Route tool\n");
 
         console::println_with_color("Usage: ", Color::Green);
-        console::println_with_color("\tkiwi <input folder path> [OPTIONS]\n", Color::Cyan);
+        console::println_with_color("\tPR_tool <input folder path> [OPTIONS]\n", Color::Cyan);
         console::println_with_color("Options: ", Color::Green);
 
         console::print_with_color("\t-o, --output <OUTPUT_PATH>  ", Color::Cyan);
@@ -59,9 +60,9 @@ namespace kiwi {
     auto print_verion() -> void {
         using console::Color;
 
-        console::println_fmt("kiwi v0.1.0 ({} {})\n", __DATE__, __TIME__);
-        console::println_with_color(kiwilogo, Color::Blue);
-        console::println("👉 Source: https://github.com/The-Kiwi-Project/Kiwi.git");
+        console::println_fmt("PR_tool v1.0 ({} {})\n", __DATE__, __TIME__);
+        console::println_with_color(PR_toollogo, Color::Blue);
+        console::println("👉 Source: https://github.com/The-PR_tool-Project/PR_tool.git");
     }
 
     int main(int argc, char** argv) {

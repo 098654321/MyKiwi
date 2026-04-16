@@ -4,7 +4,7 @@
 #include "hardware/tob/tob.hh"
 #include <hardware/bump/bump.hh>
 
-using namespace kiwi::hardware;
+using namespace PR_tool::hardware;
 
 static void test_tob_mux_available_output_indexes() {
     auto tobmux = TOBMux{8};

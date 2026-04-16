@@ -14,7 +14,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <cassert>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     extern SchematicScene* scene;
 

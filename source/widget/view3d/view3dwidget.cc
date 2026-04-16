@@ -24,7 +24,7 @@
 #include <QtDebug>
 #include <QTimer>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     // Coord (y, z, x)
     static auto generateCubVertices(float length, float width, float height) -> QVector<float> {

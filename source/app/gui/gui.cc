@@ -18,7 +18,7 @@
 
 #include <QApplication>
 
-namespace kiwi {
+namespace PR_tool {
 
     auto gui_main(int argc, char** argv) -> int {
         auto app = QApplication{argc, argv};

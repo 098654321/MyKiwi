@@ -22,7 +22,7 @@
 #include <QMessageBox>
 #include <QDebug>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     SchematicLibWidget::SchematicLibWidget(circuit::BaseDie* basedie, QWidget* parent) :
         QWidget{parent},

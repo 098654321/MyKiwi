@@ -2,7 +2,7 @@
 
 #include <std/integer.hh>
 
-namespace kiwi {
+namespace PR_tool {
 
     auto random() -> double;
     // [min, max)

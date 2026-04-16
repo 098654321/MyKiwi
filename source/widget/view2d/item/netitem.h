@@ -5,7 +5,7 @@
 #include <QGraphicsItem>
 #include <QPainter>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     class NetItem : public QGraphicsLineItem {
     public:

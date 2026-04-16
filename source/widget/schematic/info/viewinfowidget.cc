@@ -20,7 +20,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     constexpr int MIN_HEIGHT = 30;
 

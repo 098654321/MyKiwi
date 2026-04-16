@@ -6,28 +6,28 @@
 #include <vector>
 
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
     class TopDieInstance;
 }
 
 
-namespace kiwi {
+namespace PR_tool {
 
     auto cli_main(
         std::StringView config_path, std::Option<std::StringView> output_path, 
         int mode, std::optional<int> compare, bool try_all_modes, bool placement
     ) -> int;
 
-    auto place(kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*, std::vector<kiwi::circuit::TopDieInstance*>&) -> void;
+    auto place(PR_tool::hardware::Interposer*, PR_tool::circuit::BaseDie*, std::vector<PR_tool::circuit::TopDieInstance*>&) -> void;
 
     auto route(
-        kiwi::hardware::Interposer*, kiwi::circuit::BaseDie*,
+        PR_tool::hardware::Interposer*, PR_tool::circuit::BaseDie*,
         std::StringView,  const std::FilePath&,
         int mode, std::optional<int> compare, bool try_all_modes
     ) -> void;

@@ -4,7 +4,7 @@
 #include "std/utility.hh"
 #include <QDialog>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class COB;
 }
 
@@ -12,7 +12,7 @@ class QButton;
 class QComboBox;
 class QSpinBox;
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class COBInfoDialog : public QDialog {
     public:

@@ -6,7 +6,7 @@
 #include <QGraphicsItem>
 #include <QPainter>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     class TOBItem : public QGraphicsItem {
     public:

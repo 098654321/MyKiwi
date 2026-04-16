@@ -15,7 +15,7 @@
 
 #include <QDebug>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     const QColor NetItem::DEFAULT_COLOR = Qt::black;
     const QColor NetItem::HOVER_COLOR = Qt::red;

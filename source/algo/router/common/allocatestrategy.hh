@@ -5,15 +5,15 @@
 #include <circuit/net/nets.hh>
 
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class Net;
 }
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 struct AllocateStrategy{
 

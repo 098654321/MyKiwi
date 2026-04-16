@@ -5,11 +5,11 @@
 #include "std/utility.hh"
 #include <QMainWindow>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
 }
 
@@ -18,7 +18,7 @@ class QStackedWidget;
 class QMenuBar;
 class QPushButton;
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class SchematicWidget;
     class LayoutWidget;

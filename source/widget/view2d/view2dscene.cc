@@ -14,7 +14,7 @@
 
 #include <QGraphicsScene>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     using namespace view2d;
 

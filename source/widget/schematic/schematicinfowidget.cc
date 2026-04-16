@@ -22,7 +22,7 @@
 #include <QStackedWidget>
 #include <QMessageBox>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     using namespace schematic;
 

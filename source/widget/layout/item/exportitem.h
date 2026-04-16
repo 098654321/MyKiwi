@@ -4,11 +4,11 @@
 #include <QPainter>
 #include "./pinitem.h"
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class ExternalPort;
 }
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     class ExternalPortItem : public QGraphicsItem {
     public:

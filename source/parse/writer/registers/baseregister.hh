@@ -7,13 +7,13 @@
 #include "./registervalues.hh"
 
 
-namespace kiwi::hardware
+namespace PR_tool::hardware
 {
     class Interposer;
 }
 
 
-namespace kiwi::parse
+namespace PR_tool::parse
 {
     struct RegisterValue;
 

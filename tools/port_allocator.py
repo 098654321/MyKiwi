@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Automatic connection allocator for Kiwi test constraints.
+"""Automatic connection allocator for PR_tool test constraints.
 
 Given a constraint directory containing:
 1. 01_ports.json

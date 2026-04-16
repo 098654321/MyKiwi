@@ -3,7 +3,7 @@
 #include "./pin.hh"
 #include <format>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
 
     class BaseDie;
 
@@ -35,7 +35,7 @@ namespace kiwi::circuit {
 }
 
 template <>
-struct std::formatter<kiwi::circuit::Connection> {
+struct std::formatter<PR_tool::circuit::Connection> {
     constexpr auto parse(std::format_parse_context& ctx) {
         auto it = ctx.begin();
         auto end = ctx.end();
@@ -45,7 +45,7 @@ struct std::formatter<kiwi::circuit::Connection> {
         return it;
     }
     template<typename FormatContext>
-    constexpr auto format(const kiwi::circuit::Connection& c, FormatContext& ctx) const {
+    constexpr auto format(const PR_tool::circuit::Connection& c, FormatContext& ctx) const {
         return std::vformat_to(ctx.out(), "[{} => {}]", std ::make_format_args(c.input_pin(), c.output_pin()));
     }
 };

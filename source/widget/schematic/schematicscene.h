@@ -7,7 +7,7 @@
 #include "widget/schematic/item/sourceportitem.h"
 #include <QGraphicsScene>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class TopDieInstance;
     class TopDie;
     class ExternalPort;
@@ -16,11 +16,11 @@ namespace kiwi::circuit {
     class Pin;
 }
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     namespace schematic {
         class NetPointItem;

@@ -3,7 +3,7 @@
 #include "serde/de.hh"
 #include <hardware/track/trackcoord.hh>
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct ExternalPortConfig {
         hardware::TrackCoord coord;
@@ -11,6 +11,6 @@ namespace kiwi::parse {
     
 }
 
-DESERIALIZE_STRUCT(kiwi::parse::ExternalPortConfig,
+DESERIALIZE_STRUCT(PR_tool::parse::ExternalPortConfig,
     DE_FILED(coord)
 )

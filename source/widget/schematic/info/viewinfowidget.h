@@ -5,12 +5,12 @@
 class QLabel;
 class QSpinBox;
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
     class ColorPickerButton;
     class SchematicView;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class ViewInfoWidget : public QWidget {
     public:

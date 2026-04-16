@@ -22,7 +22,7 @@ extern void test_path_length_main();
 #define REGISTER_TEST(test_name)\
 functions.emplace(#test_name, & test_##test_name##_main);\
 if (target == #test_name) {\
-    kiwi::console::println_fmt("Run test '{}'", #test_name);\
+    PR_tool::console::println_fmt("Run test '{}'", #test_name);\
     test_##test_name##_main();\
     return 0;\
 }\
@@ -33,8 +33,8 @@ try {
 
     auto functions = std::HashMap<std::StringView, TestFunction>{};
     auto target = std::StringView{argv[1]};
-    kiwi::debug::set_debug_level(kiwi::debug::DebugLevel::Info);
-    kiwi::debug::initial_log("./debug.log");
+    PR_tool::debug::set_debug_level(PR_tool::debug::DebugLevel::Info);
+    PR_tool::debug::initial_log("./debug.log");
 
     REGISTER_TEST(cob)
     REGISTER_TEST(tob)
@@ -48,16 +48,16 @@ try {
 
     if (target == "all") {
         for (auto [test_name, test_func] : functions) {
-            kiwi::console::println_fmt("Run test '{}'", test_name);
+            PR_tool::console::println_fmt("Run test '{}'", test_name);
             test_func();
-            kiwi::console::println("");
+            PR_tool::console::println("");
         }
         return 0;
     }
 
-    kiwi::console::println_fmt("No exit test target '{}'", target);
+    PR_tool::console::println_fmt("No exit test target '{}'", target);
     return 0;
 }
 catch (const std::exception& err) {
-    kiwi::console::error_fmt("Error in test: {}", err.what());
+    PR_tool::console::error_fmt("Error in test: {}", err.what());
 }

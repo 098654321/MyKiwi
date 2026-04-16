@@ -5,7 +5,7 @@
 #include <algorithm>
 
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
 
 void compare(std::string file1, std::string file2) {

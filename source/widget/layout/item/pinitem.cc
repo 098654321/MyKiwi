@@ -6,7 +6,7 @@
 #include <cassert>
 #include <hardware/bump/bump.hh>
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     const QColor PinItem::COLOR = Qt::black;
     const QColor PinItem::HOVERED_COLOR = Qt::red;

@@ -7,7 +7,7 @@
 #include <std/string.hh>
 #include <std/format.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     struct BumpCoord : public Coord {
         BumpCoord(const Coord& c, std::usize i);
@@ -24,15 +24,15 @@ namespace kiwi::hardware {
 
 }
 
-FORMAT_STRUCT(kiwi::hardware::BumpCoord, row, col, index)
+FORMAT_STRUCT(PR_tool::hardware::BumpCoord, row, col, index)
 
-DESERIALIZE_STRUCT(kiwi::hardware::BumpCoord, 
+DESERIALIZE_STRUCT(PR_tool::hardware::BumpCoord, 
     DE_FILED(row)
     DE_FILED(col)
     DE_FILED(index)
 )
 
 template <>
-struct std::hash<kiwi::hardware::BumpCoord> {
-    std::size_t operator() (const kiwi::hardware::BumpCoord& coord) const noexcept;
+struct std::hash<PR_tool::hardware::BumpCoord> {
+    std::size_t operator() (const PR_tool::hardware::BumpCoord& coord) const noexcept;
 };

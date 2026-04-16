@@ -19,7 +19,7 @@
 #include <QMessageBox>
 #include <QLineEdit>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     constexpr int MIN_HEIGHT = 30;
 

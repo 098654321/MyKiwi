@@ -11,7 +11,7 @@
 #include <std/range.hh>
 #include <cassert>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     COB::COB(const COBCoord& coord) :
         _coord{coord},

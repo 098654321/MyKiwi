@@ -20,7 +20,7 @@
 #include <debug/debug.hh>
 #include <QDebug>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     static_assert(AllUnique<
         (int)layout::NetItem::Type,

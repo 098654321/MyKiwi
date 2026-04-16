@@ -9,11 +9,11 @@
 #include <QPen>
 #include <QDebug>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class Connection;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class PinItem;
     class NetPointItem;

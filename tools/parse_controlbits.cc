@@ -19,7 +19,7 @@
 #include <format>
 
 
-namespace kiwi {
+namespace PR_tool {
 
 auto print_help() -> void;
 auto parse_arguments(int, char**) -> std::tuple<std::string, int>;
@@ -642,10 +642,10 @@ auto show_tobconnectors(const std::unordered_map<hardware::Track*, hardware::TOB
 
 int main(int argc, char** argv) {
     try {
-        kiwi::main_parse(argc, argv);
+        PR_tool::main_parse(argc, argv);
     }
     catch (const std::exception& err) {
-        kiwi::debug::exception("Unexpected exception");
+        PR_tool::debug::exception("Unexpected exception");
     }
 }
 

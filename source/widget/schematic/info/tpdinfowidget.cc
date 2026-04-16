@@ -19,7 +19,7 @@
 #include <QGroupBox>
 #include <QMessageBox>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     constexpr int MIN_HEIGHT = 30;
 

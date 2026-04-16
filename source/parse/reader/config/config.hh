@@ -9,7 +9,7 @@
 #include <std/string.hh>
 #include <std/file.hh>
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct Config {
         InterposerConfig interposer;

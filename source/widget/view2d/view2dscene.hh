@@ -5,18 +5,18 @@
 #include <hardware/track/trackcoord.hh>
 #include <std/utility.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class TOB;
     class COB;
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
     class TopDieInstance;
 };
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     namespace view2d {
         class BumpItem;

@@ -20,7 +20,7 @@
 #include <QGridLayout>
 #include <QMessageBox>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     NetInfoWidget::NetInfoWidget(QWidget* parent) : 
         QWidget{parent}

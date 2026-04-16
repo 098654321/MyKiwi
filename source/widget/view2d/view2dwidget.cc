@@ -3,7 +3,7 @@
 #include "./view2dscene.hh"
 #include "qboxlayout.h"
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     View2DWidget::View2DWidget(
         hardware::Interposer* interposer, 

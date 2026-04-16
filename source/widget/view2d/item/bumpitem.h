@@ -5,11 +5,11 @@
 #include <QPainter>
 #include <QDebug>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Bump;
 }
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     class BumpItem : public QGraphicsEllipseItem {
     public:

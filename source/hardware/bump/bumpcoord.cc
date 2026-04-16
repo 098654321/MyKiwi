@@ -1,7 +1,7 @@
 #include "./bumpcoord.hh"
 #include <format>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     BumpCoord::BumpCoord(const Coord& c, std::usize i) :
         BumpCoord{c.row, c.col, i}
@@ -42,8 +42,8 @@ namespace kiwi::hardware {
 
 namespace std {
 
-    std::size_t hash<kiwi::hardware::BumpCoord>::operator() (const kiwi::hardware::BumpCoord& coord) const noexcept {
-        auto coord_hash = hash<kiwi::hardware::Coord>();
+    std::size_t hash<PR_tool::hardware::BumpCoord>::operator() (const PR_tool::hardware::BumpCoord& coord) const noexcept {
+        auto coord_hash = hash<PR_tool::hardware::Coord>();
         auto usize_hash = hash<std::size_t>{};
         return coord_hash(coord) ^
                usize_hash(coord.index);

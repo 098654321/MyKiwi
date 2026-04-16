@@ -34,14 +34,14 @@
 #include <std/collection.hh>
 #include <std/string.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
     class TOB;
     class Track;
     class Bump;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
     class TopDie;
 
@@ -52,7 +52,7 @@ namespace kiwi::circuit {
     class SyncNet;
 }
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     class Config;
 

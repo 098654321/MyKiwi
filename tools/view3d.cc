@@ -19,25 +19,25 @@
 
 auto main(int argc, char** argv) -> int {
     if (argc < 2) {
-        kiwi::debug::error_fmt("No <config_path> given");
-        kiwi::debug::info_fmt("Usage: view3d <config_path>");
+        PR_tool::debug::error_fmt("No <config_path> given");
+        PR_tool::debug::info_fmt("Usage: view3d <config_path>");
         return 0;
     }
 
-    kiwi::debug::set_debug_level(kiwi::debug::DebugLevel::Debug);
+    PR_tool::debug::set_debug_level(PR_tool::debug::DebugLevel::Debug);
 
     auto config_path = std::StringView{argv[1]};
-    auto [interposer, basedie] = kiwi::parse::read_config(config_path);
+    auto [interposer, basedie] = PR_tool::parse::read_config(config_path);
 
-    kiwi::algo::NetBuilder{basedie.get(), interposer.get()}.build();
-    auto len = kiwi::algo::route_nets(interposer.get(), basedie.get(), kiwi::algo::MazeRouteStrategy{});
-    kiwi::debug::info_fmt("Length: '{}'", len);
+    PR_tool::algo::NetBuilder{basedie.get(), interposer.get()}.build();
+    auto len = PR_tool::algo::route_nets(interposer.get(), basedie.get(), PR_tool::algo::MazeRouteStrategy{});
+    PR_tool::debug::info_fmt("Length: '{}'", len);
 
     interposer->randomly_map_remain_indexes();
 
     auto app = QApplication{argc, argv};
     app.setStyle("Fusion");
-    auto w = kiwi::widget::View3DWidget{interposer.get(), basedie.get()};
+    auto w = PR_tool::widget::View3DWidget{interposer.get(), basedie.get()};
     w.show();
     w.displayRoutingResult();
     return app.exec();

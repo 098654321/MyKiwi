@@ -2,7 +2,7 @@
 
 #include <std/integer.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     enum class COBDirection {
         Left,
@@ -14,7 +14,7 @@ namespace kiwi::hardware {
 }
 
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     struct COBDirectionHash {
         std::usize operator()(const COBDirection& dir) const {
             return static_cast<std::usize>(dir);

@@ -24,7 +24,7 @@
 
 // MARK: A Litter MESS(String)
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     static auto directions = QStringList {
         "Left", "Right", "Up", "Down"

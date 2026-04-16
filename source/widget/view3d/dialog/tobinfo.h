@@ -8,11 +8,11 @@ class QTreeView;
 class QStandardItemModel;
 class QLabel;
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class TOB;
 }
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class TOBInfoDialog : public QDialog {
     public:

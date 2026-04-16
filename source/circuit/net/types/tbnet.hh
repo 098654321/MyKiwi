@@ -5,12 +5,12 @@
 #include <algo/router/common/maze/mazeroutestrategy.hh>
 
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Track;
     class Bump;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
 
     class TrackToBumpNet : public Net {
     public:

@@ -1,6 +1,6 @@
-# Kiwi
+# PR_tool
 
-针对 [kiwimore](https://www.kiwimoore.com/) 设计的一款 chiplet interposer，所制作的布局布线工具。
+针对 [PR_toolmore](https://www.PR_toolmoore.com/) 设计的一款 chiplet interposer，所制作的布局布线工具。
 
 
 ## 项目分支
@@ -92,7 +92,7 @@
 保证系统安装 xmake 以及支持 C++20 版本的编译器。在根目录调用：
 
 ````bash
-xmake build kiwi
+xmake build PR_tool
 ````
 
 
@@ -100,7 +100,7 @@ xmake build kiwi
 ## 命令行参数
 
 ````bash
-kiwi <input folder path> [OPTIONS]
+PR_tool <input folder path> [OPTIONS]
 ````
 
 

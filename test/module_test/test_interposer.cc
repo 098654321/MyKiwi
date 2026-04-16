@@ -7,7 +7,7 @@
 #include "hardware/interposer.hh"
 
 
-using namespace kiwi::hardware;
+using namespace PR_tool::hardware;
 
 static void test_adjacent_tracks() {
     auto i = Interposer{};
@@ -25,7 +25,7 @@ static void test_bump_adjacent_tracks() {
     auto bump = i.get_bump(COBCoord {1, 3}, 33).value();
     auto tracks = i.available_tracks_bump_to_track(bump);
     for (auto& [t, c]: tracks) {
-        kiwi::debug::debug_fmt("{}", t->coord());
+        PR_tool::debug::debug_fmt("{}", t->coord());
     }
 }
 

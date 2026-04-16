@@ -4,8 +4,8 @@
 
 #include "./utilty.hh"
 
-using namespace kiwi::algo;
-using namespace kiwi::hardware;
+using namespace PR_tool::algo;
+using namespace PR_tool::hardware;
 
 // COB adjacency follows track_pos_to_cobs in path_length.cc.
 // - t1,t2,t3 share COB (5,10); t3,t4,t5 share COB (5,11) (pivot t3 must appear in both stars).

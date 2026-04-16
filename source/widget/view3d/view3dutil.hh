@@ -4,7 +4,7 @@
 #include "qvector3d.h"
 #include <QVector3D>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     struct View3DUtil {
 

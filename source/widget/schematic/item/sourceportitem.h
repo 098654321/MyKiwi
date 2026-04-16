@@ -7,7 +7,7 @@
 #include <QGraphicsItem>
 #include <QPainter>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     enum class SourcePortType {
         VDD, GND

@@ -1,7 +1,7 @@
 #include "./entrydialog.h"
 #include "qlabel.h"
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     EntryDialog::EntryDialog(QWidget *parent)
         : QDialog(parent)
@@ -25,7 +25,7 @@ namespace kiwi::widget {
         auto layout = new QVBoxLayout(this);
 
         auto label = new QLabel{this};
-        label->setText("Welcome to Kiwi");
+        label->setText("Welcome to PR_tool");
         auto font = label->font();
         font.setPointSize(20);
         font.setBold(true);

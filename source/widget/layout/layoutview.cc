@@ -1,6 +1,6 @@
 #include "./layoutview.h"
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     LayoutView::LayoutView(
         QWidget *parent

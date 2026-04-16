@@ -1,6 +1,6 @@
 #include "./view3dutil.hh"
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     float View3DUtil::radian2Angle(float radian) {
         return radian / 3.14159f * 180.0f;

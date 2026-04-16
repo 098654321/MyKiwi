@@ -3,15 +3,15 @@
 #include "qobjectdefs.h"
 #include <QStackedWidget>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
 };
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class TrackCoord;
 }
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     namespace schematic {
         class ExternalPortInfoWidget;

@@ -1,7 +1,7 @@
 #include "./exportitem.h"
 #include "./pinitem.h"
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     const QColor ExternalPortItem::COLOR = Qt::blue;
 

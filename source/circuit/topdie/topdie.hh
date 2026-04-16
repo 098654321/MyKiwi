@@ -6,7 +6,7 @@
 #include <std/string.hh>
 #include <parse/reader/config/config.hh>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
 
     class TopDie {
     public:

@@ -4,7 +4,7 @@
 #include <std/file.hh>
 #include <std/string.hh>
 
-namespace kiwi::utility {
+namespace PR_tool::utility {
 
     std::size_t filesize(std::ifstream& file) {
         file.seekg(0, std::ios::end);

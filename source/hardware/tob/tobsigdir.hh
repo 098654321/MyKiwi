@@ -1,6 +1,6 @@
 #pragma once
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     enum class TOBSignalDirection {
         BumpToTrack,

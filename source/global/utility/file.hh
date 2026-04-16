@@ -3,7 +3,7 @@
 #include <std/file.hh>
 #include <std/string.hh>
 
-namespace kiwi::utility {
+namespace PR_tool::utility {
 
     auto read_file(const std::FilePath& filepath) -> std::String;
 

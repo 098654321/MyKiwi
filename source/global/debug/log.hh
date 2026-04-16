@@ -4,7 +4,7 @@
 #include <std/string.hh>
 #include <std/format.hh>
 
-namespace kiwi::log {
+namespace PR_tool::log {
 
     auto initial(const std::FilePath& log_path) -> void;
 

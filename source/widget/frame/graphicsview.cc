@@ -2,7 +2,7 @@
 #include "qnamespace.h"
 #include <QScrollBar>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     GraphicsView::GraphicsView(QWidget* parent)
         : QGraphicsView{parent},

@@ -1,6 +1,6 @@
 #include "./connection.hh"
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
 
     Connection::Connection(int mode, int sync, Pin input, Pin output) :
         _mode{mode},

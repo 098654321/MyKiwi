@@ -23,7 +23,7 @@
 #include <QStandardItemModel>
 #include <QHeaderView>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     TopDieInsDialog::TopDieInsDialog(circuit::TopDieInstance* topdieinst) :
         QDialog{},

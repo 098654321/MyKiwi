@@ -10,7 +10,7 @@
 #include <std/file.hh>
 #include <std/integer.hh>
 
-namespace kiwi::serde {
+namespace PR_tool::serde {
     
     class Json {
     public:
@@ -83,12 +83,12 @@ namespace kiwi::serde {
     public:
         template <typename Value>
         auto get_to(Value& v) const -> void {
-            kiwi::serde::Deserialize<Json, Value>::from(*this, v);
+            PR_tool::serde::Deserialize<Json, Value>::from(*this, v);
         }
 
         template <typename Value>
         auto set_to(const Value& v) -> void {
-            kiwi::serde::Serialize<Json, Value>::to(*this, v);
+            PR_tool::serde::Serialize<Json, Value>::to(*this, v);
         }
 
     private:
@@ -113,108 +113,108 @@ namespace kiwi::serde {
 }
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, bool> {
-    static void from(const kiwi::serde::Json& j, bool& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, bool> {
+    static void from(const PR_tool::serde::Json& j, bool& value) {
         value = j.as_boolean();
     }
 };
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, int> {
-    static void from(const kiwi::serde::Json& j, int& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, int> {
+    static void from(const PR_tool::serde::Json& j, int& value) {
         value = j.as_integer();
     }
 };
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::i64> {
-    static void from(const kiwi::serde::Json& j, std::i64& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::i64> {
+    static void from(const PR_tool::serde::Json& j, std::i64& value) {
         value = static_cast<std::i64>(j.as_integer());
     }
 };
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::usize> {
-    static void from(const kiwi::serde::Json& j, std::usize& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::usize> {
+    static void from(const PR_tool::serde::Json& j, std::usize& value) {
         value = static_cast<std::usize>(j.as_integer());
     }
 };
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, double> {
-    static void from(const kiwi::serde::Json& j, double& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, double> {
+    static void from(const PR_tool::serde::Json& j, double& value) {
         value = j.as_decimal();
     }
 };
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::String> {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::String> {
     static void from(const Json& j, std::String& value) {
         value = j.as_string();
     }
 };
 
 template <>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::FilePath> {
-    static void from(const kiwi::serde::Json& j, std::FilePath& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::FilePath> {
+    static void from(const PR_tool::serde::Json& j, std::FilePath& value) {
         value = j.as_string();
     }
 };
 
 template <typename Value>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::Vector<Value>> {
-    static void from(const kiwi::serde::Json& json, std::Vector<Value>& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::Vector<Value>> {
+    static void from(const PR_tool::serde::Json& json, std::Vector<Value>& value) {
         auto arr = json.as_array();
         for (auto& j : arr) {
             auto v = Value{};
-            kiwi::serde::Deserialize<kiwi::serde::Json, Value>::from(j, v);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, Value>::from(j, v);
             value.emplace_back(std::move(v));
         }
     }
 };
 
 template <typename Value>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<std::String, Value>> {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::HashMap<std::String, Value>> {
     static void from(const Json& json, std::HashMap<std::String, Value>& value) {
         auto& map = json.as_object();
         for (auto& [key, j] : map) {
             auto pair = value.emplace(key, Value{});
-            kiwi::serde::Deserialize<kiwi::serde::Json, Value>::from(j, pair.first->second);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, Value>::from(j, pair.first->second);
         }
     }
 };
 
 template <typename Value>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::Vector<std::Vector<Value>>> {
-    static void from(const kiwi::serde::Json& json, std::Vector<std::Vector<Value>>& value) {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::Vector<std::Vector<Value>>> {
+    static void from(const PR_tool::serde::Json& json, std::Vector<std::Vector<Value>>& value) {
         auto arr = json.as_array();
         for (auto& j : arr) {
             auto v = std::Vector<Value>{};
-            kiwi::serde::Deserialize<kiwi::serde::Json, std::Vector<Value>>::from(j, v);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, std::Vector<Value>>::from(j, v);
             value.emplace_back(std::move(v));
         }
     }
 };
 
 template <typename Value>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::map<std::String, Value>> {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::map<std::String, Value>> {
     static void from(const Json& json, std::map<std::String, Value>& value) {
         auto& map = json.as_object();
         for (auto& [key, j] : map) {
             auto pair = value.emplace(key, Value{});
-            kiwi::serde::Deserialize<kiwi::serde::Json, Value>::from(j, pair.first->second);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, Value>::from(j, pair.first->second);
         }
     }
 };
 
 template <typename Key, typename Value>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::map<Key, Value>> {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::map<Key, Value>> {
     static void from(const Json& json, std::map<Key, Value>& value) {
         auto& map = json.as_object();
         for (auto& [key, j] : map) {
             auto keyv = Key::fromString(key);
             auto pair = value.emplace(keyv, Value{});
-            kiwi::serde::Deserialize<kiwi::serde::Json, Value>::from(j, pair.first->second);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, Value>::from(j, pair.first->second);
         }
     }
 };

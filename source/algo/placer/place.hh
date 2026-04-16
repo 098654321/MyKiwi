@@ -5,15 +5,15 @@
 #include <std/integer.hh>
 #include <circuit/topdieinst/topdieinst.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
 }
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
     struct PlaceStrategy;
     auto place(
         hardware::Interposer* interposer,

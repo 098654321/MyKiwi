@@ -14,7 +14,7 @@
 #include <serde/json/json.hh>
 // #include <xlnt/xlnt.hpp>
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct ConfigFilepaths {
         std::FilePath interposer;
@@ -27,7 +27,7 @@ namespace kiwi::parse {
 
 }
 
-DESERIALIZE_STRUCT(kiwi::parse::ConfigFilepaths,
+DESERIALIZE_STRUCT(PR_tool::parse::ConfigFilepaths,
     DE_FILED(interposer)
     DE_FILED(topdies)
     DE_FILED(topdie_insts)
@@ -37,12 +37,12 @@ DESERIALIZE_STRUCT(kiwi::parse::ConfigFilepaths,
 )
 
 template <class ConnectionConfig>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>> {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>> {
     static void from(const Json& json, std::HashMap<int, std::Vector<ConnectionConfig>>& value){
         auto& map = json.as_object();
         for (auto& [key, j]: map){
             std::Vector<std::Vector<std::String>> vec {};
-            kiwi::serde::Deserialize<kiwi::serde::Json, std::Vector<std::Vector<std::String>>>::from(j, vec);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, std::Vector<std::Vector<std::String>>>::from(j, vec);
 
             std::Vector<ConnectionConfig> nets {};
             for (auto& net: vec)
@@ -56,18 +56,18 @@ struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector
 };
 
 template <class ConnectionConfig>
-struct kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>> {
+struct PR_tool::serde::Deserialize<PR_tool::serde::Json, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>> {
     static void from(const Json& json, std::HashMap<int, std::HashMap<int, std::Vector<ConnectionConfig>>>& value){
         auto& map = json.as_object();
         for (auto& [key, j]: map){
             std::HashMap<int, std::Vector<ConnectionConfig>> value_v {};
-            kiwi::serde::Deserialize<kiwi::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>>::from(j, value_v);
+            PR_tool::serde::Deserialize<PR_tool::serde::Json, std::HashMap<int, std::Vector<ConnectionConfig>>>::from(j, value_v);
             value.emplace(std::stoi(key), value_v);
         }
     }
 };
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     static auto load_interposer_config(const std::FilePath& path, InterposerConfig& config) -> void;
     static auto load_topdies_config(const std::FilePath& path, std::HashMap<std::String, TopDieConfig>& topdies) -> void;

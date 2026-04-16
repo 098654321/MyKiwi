@@ -9,7 +9,7 @@
 
 
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 inline constexpr std::usize COBGroupSize = 32;
 inline constexpr std::usize COBGroupNum = 4;

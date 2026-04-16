@@ -7,7 +7,7 @@
 #include <std/memory.hh>
 
 
-namespace kiwi::serde {
+namespace PR_tool::serde {
 
     /*
         A Deserializer should impl:
@@ -26,7 +26,7 @@ namespace kiwi::serde {
 
     #define DESERIALIZE_STRUCT(Struct, ...)\
     template <typename Deserializer>\
-    struct kiwi::serde::Deserialize<Deserializer, Struct> {\
+    struct PR_tool::serde::Deserialize<Deserializer, Struct> {\
         static void from(const Deserializer& dsr, Struct& c) {\
             __VA_ARGS__\
         }\
@@ -34,7 +34,7 @@ namespace kiwi::serde {
 
     #define DESERIALIZE_ENUM(Enum, ...)\
     template <typename Deserializer>\
-    struct kiwi::serde::Deserialize<Deserializer, Enum> {\
+    struct PR_tool::serde::Deserialize<Deserializer, Enum> {\
         static void from(const Deserializer& dsr, Enum& c) {\
             auto s = std::string{};\
             Deserialize<Deserializer, std::string>::from(dsr, s);\

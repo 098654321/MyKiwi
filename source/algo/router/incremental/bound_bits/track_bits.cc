@@ -3,7 +3,7 @@
 #include <stdexcept>
 
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 // notice: the third param needs a track_index, not a group_index
 TrackGroupCoord::TrackGroupCoord(const hardware::Coord& coord, hardware::TrackDirection dir, std::usize track_index) :
@@ -63,9 +63,9 @@ auto GlobalTrackGroups::info() const -> std::Tuple<std::usize, std::usize> {
 
 namespace std {
 
-    std::size_t hash<kiwi::algo::TrackGroupCoord>::operator() (const kiwi::algo::TrackGroupCoord& coord) const noexcept {
-        auto coord_hash = hash<kiwi::hardware::Coord>();
-        auto dir_hash = hash<kiwi::hardware::TrackDirection>();
+    std::size_t hash<PR_tool::algo::TrackGroupCoord>::operator() (const PR_tool::algo::TrackGroupCoord& coord) const noexcept {
+        auto coord_hash = hash<PR_tool::hardware::Coord>();
+        auto dir_hash = hash<PR_tool::hardware::TrackDirection>();
         auto usize_hash = hash<std::size_t>();
 
         return coord_hash(coord._coord) ^

@@ -2,7 +2,7 @@
 
 #include <std/integer.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     Coord::Coord(std::i64 row, std::i64 col) :
         row{row}, col{col} 
@@ -22,7 +22,7 @@ namespace kiwi::hardware {
 
 namespace std {
 
-    std::size_t hash<kiwi::hardware::Coord>::operator() (const kiwi::hardware::Coord& c) const noexcept {
+    std::size_t hash<PR_tool::hardware::Coord>::operator() (const PR_tool::hardware::Coord& c) const noexcept {
         auto h = hash<i64>{};
         return h(c.col) ^ h(c.row);
     }

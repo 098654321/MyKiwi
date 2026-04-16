@@ -17,7 +17,7 @@
 #include <QStyleOptionGraphicsItem>
 
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
     
     const QColor TopDieInstanceItem::COLOR = QColor::fromRgb(200, 200, 200, 100);
 

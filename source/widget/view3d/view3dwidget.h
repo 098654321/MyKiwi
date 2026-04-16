@@ -28,18 +28,18 @@
 #include <QOpenGLVertexArrayObject>
 #endif
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
     class TOB;
     class Track;
 };
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
     class TopDieInstance;
 };
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     enum class CubeType {
         TOB,

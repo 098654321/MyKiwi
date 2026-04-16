@@ -7,7 +7,7 @@
 #include <cmath>
 #include <QDebug>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class GridItem : public QGraphicsItem {
     public:

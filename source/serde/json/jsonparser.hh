@@ -4,7 +4,7 @@
 #include "./json.hh"
 #include <list>
 
-namespace kiwi::serde {
+namespace PR_tool::serde {
 
     class JsonParser {
     public:

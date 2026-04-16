@@ -4,7 +4,7 @@
 #include <QGraphicsPathItem>
 #include <QPen>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     class HighLightPathItem : public QGraphicsPathItem {
     public:

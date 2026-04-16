@@ -10,17 +10,17 @@
 #include <QGraphicsScene>
 #include <QHash>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class TOB;
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class TopDieInstance;
     class BaseDie;
 }
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     namespace layout {
         class NetItem;

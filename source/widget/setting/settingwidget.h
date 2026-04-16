@@ -2,7 +2,7 @@
 
 #include <QWidget>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class SettingWidget : public QWidget {
     public:

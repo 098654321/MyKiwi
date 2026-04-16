@@ -7,7 +7,7 @@
 #include <algorithm>
 
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 inline constexpr std::usize TrackGroupSize = 32;
 
@@ -37,13 +37,13 @@ struct TrackGroupCoord {
 namespace std {
 
     template <>
-    struct hash<kiwi::algo::TrackGroupCoord> {
-        std::size_t operator() (const kiwi::algo::TrackGroupCoord& coord) const noexcept;
+    struct hash<PR_tool::algo::TrackGroupCoord> {
+        std::size_t operator() (const PR_tool::algo::TrackGroupCoord& coord) const noexcept;
     };
     
 }
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 class GlobalTrackGroups {
 

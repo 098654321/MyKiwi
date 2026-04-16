@@ -4,7 +4,7 @@
 #include "hardware/cob/cobregister.hh"
 #include <cassert>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     COBConnector::COBConnector(
         COBDirection from_dir, std::usize from_track_index, 

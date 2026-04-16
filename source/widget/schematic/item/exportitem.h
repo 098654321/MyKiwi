@@ -7,11 +7,11 @@
 #include <QGraphicsItem>
 #include <QPainter>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class ExternalPort;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class ExternalPortItem : public GridItem {
     public:

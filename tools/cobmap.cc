@@ -5,7 +5,7 @@
 #include <std/utility.hh>
 #include <std/string.hh>
 
-using namespace kiwi::hardware;
+using namespace PR_tool::hardware;
 
 auto str_to_dir(std::StringView str) -> std::Option<COBDirection> {
     if (str == "left") return { COBDirection::Left };
@@ -22,7 +22,7 @@ auto str_to_dir(std::StringView str) -> std::Option<COBDirection> {
 auto ensure_str_to_dir(std::StringView str) -> COBDirection {
     auto opt_dir = str_to_dir(str);
     if (!opt_dir.has_value()) {
-        kiwi::debug::fatal_fmt("'{}' is not a valid direction literal!", str);
+        PR_tool::debug::fatal_fmt("'{}' is not a valid direction literal!", str);
     }
     return *opt_dir;
 }
@@ -31,13 +31,13 @@ auto ensure_str_to_usize(std::StringView str) -> std::usize {
     try {
         return std::stoll(str.data());
     } catch (const std::exception& err) {
-        kiwi::debug::fatal_fmt("Parse number failed, '{}'", err.what());
+        PR_tool::debug::fatal_fmt("Parse number failed, '{}'", err.what());
     }
 }
 
 int main(int argc, char* argv[]) {
     if (argc != 5) {
-        kiwi::debug::info("Usage: cob_map <cob_index/track_index> <from_dir> <from_index> <to_dir>");
+        PR_tool::debug::info("Usage: cob_map <cob_index/track_index> <from_dir> <from_index> <to_dir>");
     } else {
         auto command = std::StringView{argv[1]};
         auto from_dir_str = std::StringView{argv[2]};
@@ -54,10 +54,10 @@ int main(int argc, char* argv[]) {
         } else if (command == "tracl_index") {
             to_index = COB::track_index_map(from_dir, from_index, to_dir);   
         } else {
-            kiwi::debug::fatal_fmt("Unkown command: ", command);
+            PR_tool::debug::fatal_fmt("Unkown command: ", command);
         }
 
-        kiwi::debug::info_fmt("to_index = {}", to_index);
+        PR_tool::debug::info_fmt("to_index = {}", to_index);
 
     }
 

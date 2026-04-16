@@ -6,11 +6,11 @@
 #include <QDebug>
 #include <circuit/connection/pin.hh>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
    class SchematicScene;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     enum class PinSide {
         Top,

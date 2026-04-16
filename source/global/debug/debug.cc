@@ -9,7 +9,7 @@
 #include <std/integer.hh>
 #include <std/exception.hh>
 
-namespace kiwi::debug {
+namespace PR_tool::debug {
 
     static auto debug_level = DebugLevel::Info;
 

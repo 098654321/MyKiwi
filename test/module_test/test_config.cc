@@ -5,7 +5,7 @@
 #include <parse/reader/config/config.hh>
 #include <parse/reader/module.hh>
 
-using namespace kiwi;
+using namespace PR_tool;
 
 static auto print_config(hardware::Interposer* i, circuit::BaseDie* b) -> void {
     console::println("Topdie:");

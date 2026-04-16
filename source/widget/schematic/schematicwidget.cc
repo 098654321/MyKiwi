@@ -12,7 +12,7 @@
 #include <QVBoxLayout>
 #include <QLineEdit>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     SchematicWidget::SchematicWidget(hardware::Interposer* interposer, circuit::BaseDie* basedie, QWidget *parent) :
         QWidget{parent},

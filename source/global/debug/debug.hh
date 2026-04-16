@@ -5,7 +5,7 @@
 #include <std/file.hh>
 #include <cassert>
 
-namespace kiwi::debug
+namespace PR_tool::debug
 {
 
     enum class DebugLevel {

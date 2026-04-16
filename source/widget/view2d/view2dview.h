@@ -2,7 +2,7 @@
 
 #include <widget/frame/graphicsview.h>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
    
     class View2DView : public GraphicsView {
 

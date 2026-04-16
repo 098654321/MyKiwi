@@ -3,7 +3,7 @@
 #include <std/string.hh>
 #include <std/format.hh>
 
-namespace kiwi::console {
+namespace PR_tool::console {
 
     enum class Color {
         Black,

@@ -5,7 +5,7 @@
 #include "qcolor.h"
 #include "qpoint.h"
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     /*
     

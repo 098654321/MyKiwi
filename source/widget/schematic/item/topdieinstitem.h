@@ -7,15 +7,15 @@
 #include "qmap.h"
 #include <QGraphicsItem>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class TopDieInstance;
 }
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
     class SchematicScene;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class TopDieInstanceItem : public GridItem {
     public:

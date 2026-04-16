@@ -9,7 +9,7 @@
 
 #include <QDebug>
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     const QColor NetPointItem::COLOR = Qt::blue;
     const QColor NetPointItem::HOVER_COLOR = Qt::red;

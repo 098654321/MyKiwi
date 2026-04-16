@@ -14,14 +14,14 @@
 #include <circuit/basedie.hh>
 
 
-namespace kiwi::test{
+namespace PR_tool::test{
 
     void PLEASE_DO_NOT_FAIL(std::usize id, std::String info) {
         WHEN("Case " + std::to_string(id) + ": " + info) {
             std::FilePath config_path{"../test/config/case" + std::to_string(id)};
             debug::initial_log("debug.log");
 
-            auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0, false);
+            auto [interposer, basedie] = PR_tool::parse::read_config(config_path, 0, false);
             algo::build_nets(basedie.get(), interposer.get());
             auto data = algo::route_nets(interposer.get(), basedie.get(), algo::MazeRouteStrategy{}, algo::HK{}, 0, false, false);
             THEN("The total length should be within a limit"){
@@ -42,7 +42,7 @@ namespace kiwi::test{
         // utility::append_logs("debug.log", "regression_test.log");
     }
 
-    SCENARIO("Regression test for basic kiwi functions", "[basic]"){
+    SCENARIO("Regression test for basic PR_tool functions", "[basic]"){
         
         GIVEN("Configs, describing connections, external_ports, topdies and topdie_insts"){
             // std::ofstream file("regression_test.log", std::ios::trunc);

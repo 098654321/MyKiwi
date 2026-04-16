@@ -7,7 +7,7 @@
 #include <QFileDialog>
 #include <optional>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class EntryDialog : public QDialog {
         Q_OBJECT

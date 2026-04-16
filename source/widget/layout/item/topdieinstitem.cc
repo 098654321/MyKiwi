@@ -10,7 +10,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QDebug>
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     /*
     

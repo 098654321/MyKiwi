@@ -1,6 +1,6 @@
-# Kiwi Project Test Suite Documentation
+# PR_tool Project Test Suite Documentation
 
-This document provides an overview of the `test/` directory for AI agents. It details the testing infrastructure, data formats, and test cases used to validate the Kiwi EDA tool.
+This document provides an overview of the `test/` directory for AI agents. It details the testing infrastructure, data formats, and test cases used to validate the PR_tool EDA tool.
 
 ## Directory Structure
 

@@ -1,7 +1,7 @@
 #include "console.hh"
 #include <iostream>
 
-namespace kiwi::console {
+namespace PR_tool::console {
 
     static void print_level(Color color, std::StringView level)
     {

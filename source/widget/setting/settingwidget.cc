@@ -1,7 +1,7 @@
 #include "./settingwidget.h"
 #include "qwidget.h"
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     SettingWidget::SettingWidget(QWidget* parent) :
         QWidget{parent}

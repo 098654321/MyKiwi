@@ -7,7 +7,7 @@
 
 #include <hardware/interposer.hh>
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     auto read_config(const std::FilePath& config_folder, int mode, bool try_all_modes) 
         -> std::Tuple<std::Box<hardware::Interposer>, std::Box<circuit::BaseDie>>;

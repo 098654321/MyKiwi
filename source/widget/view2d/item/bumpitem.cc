@@ -1,7 +1,7 @@
 #include "./bumpitem.h"
 #include <hardware/bump/bump.hh>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     const QColor BumpItem::COLOR = Qt::black;
     const QColor BumpItem::HOVERED_COLOR = Qt::red;

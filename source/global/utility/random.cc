@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <ctime>
 
-namespace kiwi {
+namespace PR_tool {
 
     struct RandomSeed {
         RandomSeed() {

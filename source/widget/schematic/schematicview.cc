@@ -13,7 +13,7 @@
 #include <QScrollBar>
 #include <cmath>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     using namespace schematic;
 

@@ -7,11 +7,11 @@
 class QLineEdit;
 class QVBoxLayout;
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
 };
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class SchematicLibWidget : public QWidget {
         Q_OBJECT

@@ -13,7 +13,7 @@
 
 
 // Implement Serialize specializations locally since they are missing in headers
-namespace kiwi::serde {
+namespace PR_tool::serde {
 
     // Basic types
     template <> struct Serialize<Json, bool> {
@@ -62,42 +62,42 @@ namespace kiwi::serde {
     };
     
     // Config structs
-    SERIALIZE_STRUCT(kiwi::parse::TopDieConfig,
+    SERIALIZE_STRUCT(PR_tool::parse::TopDieConfig,
         SER_FEILD(pin_map)
     )
 
-    SERIALIZE_STRUCT(kiwi::hardware::Coord,
+    SERIALIZE_STRUCT(PR_tool::hardware::Coord,
         SER_FEILD(row)
         SER_FEILD(col)
     )
     
     // TrackDirection Enum
     template <>
-    struct Serialize<Json, kiwi::hardware::TrackDirection> {
-        static void to(Json& sr, const kiwi::hardware::TrackDirection& d) {
-            if (d == kiwi::hardware::TrackDirection::Horizontal) sr = Json::string("hori");
+    struct Serialize<Json, PR_tool::hardware::TrackDirection> {
+        static void to(Json& sr, const PR_tool::hardware::TrackDirection& d) {
+            if (d == PR_tool::hardware::TrackDirection::Horizontal) sr = Json::string("hori");
             else sr = Json::string("vert");
         }
     };
 
-    SERIALIZE_STRUCT(kiwi::hardware::TrackCoord,
+    SERIALIZE_STRUCT(PR_tool::hardware::TrackCoord,
         SER_FEILD(row)
         SER_FEILD(col)
         SER_FEILD(dir)
         SER_FEILD(index)
     )
 
-    SERIALIZE_STRUCT(kiwi::parse::TopdieInstConfig,
+    SERIALIZE_STRUCT(PR_tool::parse::TopdieInstConfig,
         SER_FEILD(topdie)
         SER_FEILD(coord)
     )
 
-    SERIALIZE_STRUCT(kiwi::parse::ExternalPortConfig,
+    SERIALIZE_STRUCT(PR_tool::parse::ExternalPortConfig,
         SER_FEILD(coord)
     )
 }
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     void txt2json(const std::FilePath& config_folder, const std::FilePath& json_folder, int mode, bool try_all_modes) {
         auto config = load_config(config_folder, mode, try_all_modes);
@@ -105,8 +105,8 @@ namespace kiwi::parse {
         // 1. topdies.json
         debug::info("load topdies.json");
         {
-            kiwi::serde::Json j;
-            kiwi::serde::Serialize<kiwi::serde::Json, decltype(config.topdies)>::to(j, config.topdies);
+            PR_tool::serde::Json j;
+            PR_tool::serde::Serialize<PR_tool::serde::Json, decltype(config.topdies)>::to(j, config.topdies);
             std::OutFile file(json_folder / "topdies.json");
             file << j.to_string();
         }
@@ -114,8 +114,8 @@ namespace kiwi::parse {
         // 2. topdie_insts.json
         debug::info("load topdie_insts.json");
         {
-            kiwi::serde::Json j;
-            kiwi::serde::Serialize<kiwi::serde::Json, decltype(config.topdie_insts)>::to(j, config.topdie_insts);
+            PR_tool::serde::Json j;
+            PR_tool::serde::Serialize<PR_tool::serde::Json, decltype(config.topdie_insts)>::to(j, config.topdie_insts);
             std::OutFile file(json_folder / "topdie_insts.json");
             file << j.to_string();
         }
@@ -123,8 +123,8 @@ namespace kiwi::parse {
         // 3. external_ports.json
         debug::info("load external_ports.json");
         {
-            kiwi::serde::Json j;
-            kiwi::serde::Serialize<kiwi::serde::Json, decltype(config.external_ports)>::to(j, config.external_ports);
+            PR_tool::serde::Json j;
+            PR_tool::serde::Serialize<PR_tool::serde::Json, decltype(config.external_ports)>::to(j, config.external_ports);
             std::OutFile file(json_folder / "external_ports.json");
             file << j.to_string();
         }
@@ -132,15 +132,15 @@ namespace kiwi::parse {
         // 4. connections.json
         debug::info("load connections.json");
         {
-            kiwi::serde::Json j = kiwi::serde::Json::object();
+            PR_tool::serde::Json j = PR_tool::serde::Json::object();
             
             for(const auto& [mode, inner_map] : config.connections) {
                  for(const auto& [group_index, vec] : inner_map) {
-                     kiwi::serde::Json arr = kiwi::serde::Json::array();
+                     PR_tool::serde::Json arr = PR_tool::serde::Json::array();
                      for(const auto& conn : vec) {
-                         kiwi::serde::Json pair = kiwi::serde::Json::array();
-                         pair.push(kiwi::serde::Json::string(conn.input));
-                         pair.push(kiwi::serde::Json::string(conn.output));
+                         PR_tool::serde::Json pair = PR_tool::serde::Json::array();
+                         pair.push(PR_tool::serde::Json::string(conn.input));
+                         pair.push(PR_tool::serde::Json::string(conn.output));
                          arr.push(pair);
                      }
                      j.insert(std::to_string(group_index), arr);
@@ -156,12 +156,12 @@ namespace kiwi::parse {
 
 
 int main() {
-    kiwi::debug::initial_log("./debug.log");
+    PR_tool::debug::initial_log("./debug.log");
 
     for (int i = 8; i <= 15; i++) {
         std::FilePath config_folder = "../test/config/case" + std::to_string(i);
         std::FilePath json_folder = "./json/case" + std::to_string(i);
-        kiwi::parse::txt2json(config_folder, json_folder, 0, false);
+        PR_tool::parse::txt2json(config_folder, json_folder, 0, false);
     }
     
     return 0;

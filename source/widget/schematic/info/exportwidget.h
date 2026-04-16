@@ -10,11 +10,11 @@ class QLineEdit;
 class QComboBox;
 class QPushButton;
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
     class LineEditWithButton;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class ExternalPortItem;
 

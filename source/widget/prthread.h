@@ -9,7 +9,7 @@
 #include <algo/router/common/allocate/hopcroft_karp.hh>
 #include <parse/writer/module.hh>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class PRThread : public QThread {
         Q_OBJECT

@@ -4,7 +4,7 @@
 #include <QPainter>
 #include "./pinitem.h"
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     enum class SourcePortType {
         VDD, GND

@@ -5,7 +5,7 @@
 #include <std/string.hh>
 #include <std/collection.hh>
 
-namespace kiwi::serde {
+namespace PR_tool::serde {
 
     class JsonScanner {
     public:

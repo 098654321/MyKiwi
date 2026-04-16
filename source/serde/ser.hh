@@ -1,13 +1,13 @@
 #pragma once
 
-namespace kiwi::serde {
+namespace PR_tool::serde {
 
     #define SER_FEILD(f) sr.at(#f).set_to(c.f);
     #define SER_FEILD_AS(f, n) sr.at(n).set_to(c.f);
 
     #define SERIALIZE_STRUCT(Struct, ...)\
     template <typename Serializer>\
-    struct kiwi::serde::Serialize<Serializer, Struct> {\
+    struct PR_tool::serde::Serialize<Serializer, Struct> {\
         static void to(Serializer& sr, const Struct& c) {\
             sr = Serializer::object();\
             __VA_ARGS__\

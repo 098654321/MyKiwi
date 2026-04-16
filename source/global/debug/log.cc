@@ -1,7 +1,7 @@
 #include "./log.hh"
 #include <std/file.hh>
 
-namespace kiwi::log {
+namespace PR_tool::log {
 
     static auto log_file = std::OutFile{};
     static bool is_first_initialization = true;

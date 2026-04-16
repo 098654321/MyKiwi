@@ -1,13 +1,13 @@
 #include <debug/debug.hh>
 #include <std/exception.hh>
 
-namespace kiwi {
+namespace PR_tool {
     int main(int argc, char** argv);
 }
 
 int main(int argc, char** argv) try {
-    return kiwi::main(argc, argv);
+    return PR_tool::main(argc, argv);
 } catch (const std::Exception& err) {
-    kiwi::debug::error_fmt("Kiwi failed: {}", err.what());
+    PR_tool::debug::error_fmt("PR_tool failed: {}", err.what());
     std::exit(1);
 }

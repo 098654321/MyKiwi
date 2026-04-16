@@ -8,13 +8,13 @@
 #include <std/utility.hh>
 #include <std/string.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Track;
     class Bump;
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
     class Net;
     class Connection;
@@ -22,7 +22,7 @@ namespace kiwi::circuit {
     class Pin;
 }
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
     void build_nets(circuit::BaseDie* basedie, hardware::Interposer* interposer);
 

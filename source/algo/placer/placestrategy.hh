@@ -4,16 +4,16 @@
 #include <std/collection.hh>
 #include <circuit/topdieinst/topdieinst.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class TopDieInstance;
     class BaseDie;
 }
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
     struct PlaceStrategy {
         virtual auto place(
             hardware::Interposer* interposer,

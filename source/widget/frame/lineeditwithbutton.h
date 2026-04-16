@@ -6,7 +6,7 @@
 #include <QPushButton>
 #include <QHBoxLayout>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class LineEditWithButton : public QWidget {
         Q_OBJECT

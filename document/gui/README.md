@@ -1,4 +1,4 @@
-# KIWI GUI
+# PR_TOOL GUI
 
 目前 interposer config 为空，可以把这些放到里面:
 - COB 阵列的行、列

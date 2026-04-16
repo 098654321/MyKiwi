@@ -4,7 +4,7 @@
 #include "widget/schematic/item/griditem.h"
 #include "widget/schematic/item/pinitem.h"
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
     
     const QColor ExternalPortItem::COLOR = QColor::fromRgb(200, 200, 200, 100);
 

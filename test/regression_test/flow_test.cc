@@ -19,7 +19,7 @@
 #include <parse/comparator/controlbits_parser.hh>
 #include <parse/writer/module.hh>
 
-namespace kiwi::test {
+namespace PR_tool::test {
 
     // Helper to extract topdie instances from basedie
     std::Vector<circuit::TopDieInstance*> get_topdie_insts(circuit::BaseDie* basedie) {
@@ -36,7 +36,7 @@ namespace kiwi::test {
             debug::initial_log("debug_flow_case" + std::to_string(id) + ".log");
 
             // 1. Read config
-            auto [interposer, basedie] = kiwi::parse::read_config(config_path, 0, false);
+            auto [interposer, basedie] = PR_tool::parse::read_config(config_path, 0, false);
             
             // 2. Build nets
             algo::build_nets(basedie.get(), interposer.get());
@@ -80,7 +80,7 @@ namespace kiwi::test {
             debug::initial_log("debug_flow_incre_case" + std::to_string(id) + ".log");
 
             // 1. Read config
-            auto [interposer, basedie] = kiwi::parse::read_config(config_path, mode, false);
+            auto [interposer, basedie] = PR_tool::parse::read_config(config_path, mode, false);
             
             // 2. Build nets
             algo::build_nets(basedie.get(), interposer.get());

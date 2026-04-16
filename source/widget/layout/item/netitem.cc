@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <debug/debug.hh>
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     const QColor NetItem::COLOR = Qt::black;
     const QColor NetItem::HOVER_COLOR = Qt::red;

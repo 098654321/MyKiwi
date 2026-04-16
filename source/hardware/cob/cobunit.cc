@@ -8,7 +8,7 @@
 #include <std/range.hh>
 #include <cassert>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     auto COBUnit::adjacent_connectors(COBDirection from_dir, std::usize from_index) -> std::Vector<COBUnitConnector> {
         COBUnit::assert_index(from_index);

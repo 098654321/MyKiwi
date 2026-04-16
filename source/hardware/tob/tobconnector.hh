@@ -9,7 +9,7 @@
 #include <hardware/tob/tobcoord.hh>
 #include <hardware/tob/tobregister.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     class TOBConnector {
     public:

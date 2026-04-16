@@ -2,7 +2,7 @@
 #include "debug/debug.hh"
 #include "hardware/interposer.hh"
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
 
     ExternalPort::ExternalPort(std::String name, const hardware::TrackCoord& coord) :
         _name{std::move(name)},

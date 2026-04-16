@@ -6,7 +6,7 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class ColorPickerButton : public QPushButton {
         Q_OBJECT

@@ -7,12 +7,12 @@
 #include <circuit/path/pathpackage.hh>
 
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class PathPackage;
 }
 
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 class HardwareRecorder {
     // a recorder is generated only when it is used

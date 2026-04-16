@@ -7,7 +7,7 @@
 #include <QVBoxLayout>
 #include <QDebug>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     using namespace layout;
 

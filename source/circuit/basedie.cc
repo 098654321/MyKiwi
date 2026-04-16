@@ -16,7 +16,7 @@
 #include <utility>
 #include <cstdlib>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
 
     void BaseDie::clear() {
         this->_topdies.clear();

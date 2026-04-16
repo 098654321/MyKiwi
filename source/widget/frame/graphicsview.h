@@ -6,7 +6,7 @@
 #include <QGraphicsSceneMouseEvent>
 #include <QGraphicsItem>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class GraphicsView : public QGraphicsView {
         Q_OBJECT

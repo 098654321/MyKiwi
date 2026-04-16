@@ -3,7 +3,7 @@
 #include <serde/de.hh>
 #include <std/string.hh>
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct ConnectionConfig {
         std::String input;
@@ -12,7 +12,7 @@ namespace kiwi::parse {
 
 }
 
-DESERIALIZE_STRUCT(kiwi::parse::ConnectionConfig,
+DESERIALIZE_STRUCT(PR_tool::parse::ConnectionConfig,
     DE_FILED(input)
     DE_FILED(output)
 )

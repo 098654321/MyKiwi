@@ -6,7 +6,7 @@
 #include <widget/frame/graphicsview.h>
 #include <QDebug>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     /*
     

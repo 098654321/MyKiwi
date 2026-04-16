@@ -3,7 +3,7 @@
 #include <algo/router/command_mode/command.hh>
 
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
 class Allocate: public Command {
 public:

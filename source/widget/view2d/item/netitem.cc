@@ -1,7 +1,7 @@
 #include "./netitem.h"
 #include <debug/debug.hh>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     const QColor NetItem::COLOR = Qt::black;
     const QColor NetItem::HOVER_COLOR = Qt::red;

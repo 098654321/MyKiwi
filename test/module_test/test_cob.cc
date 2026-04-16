@@ -2,7 +2,7 @@
 #include "hardware/cob/cobunit.hh"
 #include "hardware/cob/cob.hh"
 
-using namespace kiwi::hardware;
+using namespace PR_tool::hardware;
 
 static auto test_cob_unit() {
     auto cobunit = COBUnit{};

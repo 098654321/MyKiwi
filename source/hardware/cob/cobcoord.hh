@@ -2,7 +2,7 @@
 
 #include "../coord.hh"
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     using COBCoord  = Coord;
 

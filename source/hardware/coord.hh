@@ -4,7 +4,7 @@
 #include <std/format.hh>
 #include <serde/de.hh>
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     struct Coord {
         Coord(std::i64 row, std::i64 col);
@@ -18,14 +18,14 @@ namespace kiwi::hardware {
 
 }
 
-DESERIALIZE_STRUCT(kiwi::hardware::Coord,
+DESERIALIZE_STRUCT(PR_tool::hardware::Coord,
     DE_FILED(row)
     DE_FILED(col)
 )
 
-FORMAT_STRUCT(kiwi::hardware::Coord, row, col)
+FORMAT_STRUCT(PR_tool::hardware::Coord, row, col)
 
 template<>
-struct std::hash<kiwi::hardware::Coord> {
-    std::size_t operator() (const kiwi::hardware::Coord& c) const noexcept;
+struct std::hash<PR_tool::hardware::Coord> {
+    std::size_t operator() (const PR_tool::hardware::Coord& c) const noexcept;
 };

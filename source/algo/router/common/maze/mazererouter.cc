@@ -11,7 +11,7 @@
 #include <format>
 
 
-namespace kiwi::algo{
+namespace PR_tool::algo{
 
     auto Node::remove_child(const std::Rc<Node> child) -> void{
         auto it {std::find(_post_nodes.begin(), _post_nodes.end(), child)};
@@ -36,7 +36,7 @@ namespace kiwi::algo{
     {
         if (root->parent() != std::nullopt || std::fabs(root->cost()) > 0.001 || root->post_nodes().size() != 0){
             auto parent_coord {root->parent().value()->track()->coord()};
-            kiwi::debug::fatal_fmt("Tree_constructor: root node must have null parent, empty children and a 0 cost, \
+            PR_tool::debug::fatal_fmt("Tree_constructor: root node must have null parent, empty children and a 0 cost, \
                                     but now it has parent ({}, {}, {}, {}), cost {} and {} children", \
                                     parent_coord.row, parent_coord.col, parent_coord.dir, parent_coord.index, \
                                     root->cost(), root->post_nodes().size());
@@ -91,7 +91,7 @@ namespace kiwi::algo{
             std::usize bump_length = 0; // end bump
 
             std::HashSet<hardware::Track*> end_tracks_set {};
-            std::HashMap<kiwi::hardware::Track *, kiwi::hardware::TOBConnector> possible_end_tracks_map{};
+            std::HashMap<PR_tool::hardware::Track *, PR_tool::hardware::TOBConnector> possible_end_tracks_map{};
 
             // if there is an end bump, then the tob state will be updated after removing end track
             // --> possible end tracks will be changed

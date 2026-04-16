@@ -1,7 +1,7 @@
 #include <parse/comparator/controlbits_parser.hh>
 
 
-using namespace kiwi;
+using namespace PR_tool;
 
 
 static void test_comparint_two_mode_controlbits() {

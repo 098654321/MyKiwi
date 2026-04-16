@@ -19,7 +19,7 @@
 #include <QListView>
 #include <QStandardItemModel>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     TOBInfoDialog::TOBInfoDialog(hardware::TOB* tob) :
         QDialog{},

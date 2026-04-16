@@ -8,7 +8,7 @@
 
 #include <serde/de.hh>
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct TopDieConfig {
         std::HashMap<std::String, std::usize> pin_map;
@@ -21,11 +21,11 @@ namespace kiwi::parse {
 
 }
 
-DESERIALIZE_STRUCT(kiwi::parse::TopDieConfig,
+DESERIALIZE_STRUCT(PR_tool::parse::TopDieConfig,
     DE_FILED(pin_map)
 )
 
-DESERIALIZE_STRUCT(kiwi::parse::TopdieInstConfig,
+DESERIALIZE_STRUCT(PR_tool::parse::TopdieInstConfig,
     DE_FILED(topdie)
     DE_FILED(coord)
 )

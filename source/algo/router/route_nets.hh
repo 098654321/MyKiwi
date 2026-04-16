@@ -9,15 +9,15 @@
 #include <algo/route_data.hh>
 
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
     class Interposer;
 }
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class BaseDie;
 }
 
-namespace kiwi::algo {
+namespace PR_tool::algo {
 
     class RouteStrategy;
     class AllocateStrategy;
@@ -46,10 +46,10 @@ namespace kiwi::algo {
 
     auto net_connection_state(
         circuit::Net*, hardware::Interposer*
-    ) -> std::Tuple<std::Vector<const kiwi::hardware::Bump *>, std::Vector<const kiwi::hardware::Bump *>, std::Vector<const kiwi::hardware::Track *>>;
+    ) -> std::Tuple<std::Vector<const PR_tool::hardware::Bump *>, std::Vector<const PR_tool::hardware::Bump *>, std::Vector<const PR_tool::hardware::Track *>>;
 
     auto show_bump_resources(
-        const std::Tuple<std::Vector<const kiwi::hardware::Bump *>, std::Vector<const kiwi::hardware::Bump *>, std::Vector<const kiwi::hardware::Track *>>&,
+        const std::Tuple<std::Vector<const PR_tool::hardware::Bump *>, std::Vector<const PR_tool::hardware::Bump *>, std::Vector<const PR_tool::hardware::Track *>>&,
         circuit::Net*, hardware::Interposer*, RouteEngine&
     ) -> void;
 

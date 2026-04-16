@@ -8,11 +8,11 @@ class QTreeView;
 class QStandardItemModel;
 class QLabel;
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class TopDieInstance;
 }
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     class TopDieInsDialog : public QDialog {
     public:

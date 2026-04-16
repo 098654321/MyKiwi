@@ -8,12 +8,12 @@ class QLabel;
 class QSpinBox;
 class QTableView;
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
     class ColorPickerButton;
     class LineEditWithButton;
 }
 
-namespace kiwi::widget::schematic {
+namespace PR_tool::widget::schematic {
 
     class TopDieInstanceItem;
 

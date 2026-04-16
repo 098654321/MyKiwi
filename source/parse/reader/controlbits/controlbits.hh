@@ -12,14 +12,14 @@
 #include <std/memory.hh>
 
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class Net;
     class SyncNet;
 }
 
 
 
-namespace kiwi::parse {
+namespace PR_tool::parse {
 
     struct XinzhaiControlbits {
         std::Bits<128> padctrl_right;

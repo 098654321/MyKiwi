@@ -13,11 +13,11 @@
 #include <hardware/tob/tobcoord.hh>
 #include <hardware/tob/tobregister.hh>
 
-namespace kiwi::circuit {
+namespace PR_tool::circuit {
     class TopDieInstance;
 }
 
-namespace kiwi::hardware {
+namespace PR_tool::hardware {
 
     class TOB { 
     public:

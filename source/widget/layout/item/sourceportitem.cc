@@ -1,7 +1,7 @@
 #include "./sourceportitem.h"
 #include "./pinitem.h"
 
-namespace kiwi::widget::layout {
+namespace PR_tool::widget::layout {
 
     const QColor SourcePortItem::VDD_COLOR = QColor::fromRgb(255, 100, 100, 100);
     const QColor SourcePortItem::GND_COLOR = QColor::fromRgb(100, 255, 100, 100); 

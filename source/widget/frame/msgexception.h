@@ -2,7 +2,7 @@
 
 #include <QMessageBox>
 
-namespace kiwi::widget {
+namespace PR_tool::widget {
 
     #define QMESSAGEBOX_REPORT_EXCEPTION(title)\
     catch (const std::Exception& err) {\

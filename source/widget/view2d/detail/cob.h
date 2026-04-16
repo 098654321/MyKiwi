@@ -5,7 +5,7 @@
 #include "qpoint.h"
 #include <hardware/cob/cob.hh>
 
-namespace kiwi::widget::view2d {
+namespace PR_tool::widget::view2d {
 
     class COBScene : public QGraphicsScene {
         static constexpr qreal COB_UNIT_WIDTH = 180;
