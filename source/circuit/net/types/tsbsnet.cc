@@ -82,7 +82,7 @@ namespace PR_tool::circuit {
             if (i != 0) {
                 ss << ", ";
             }
-            ss << std::format("{}", this->_end_bumps[i]->coord());
+            ss << std::format("{}", this->_begin_tracks[i]->coord());
         }
         ss << "] to End bumps '[";
         for (int i = 0; i < this->_end_bumps.size(); ++i) {

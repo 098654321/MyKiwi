@@ -1,2 +1,2 @@
-case7 with 9*12 COB array on the interposer, for displaying functions
+case7 with 9*12 COB array on the interposer, for displaying functions without pose/nege
 
