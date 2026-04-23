@@ -163,6 +163,21 @@ target("parse_controlbits")
         "source/serde/**.cc"
     )
 
+target("test_ILP")
+    set_kind("binary")
+    set_targetdir("./output")
+    set_default(false)
+    add_includedirs("source", "source/global")
+    add_files("algorithm/test_ILP/main.cc")
+    add_files(
+        "source/algo/**.cc",
+        "source/circuit/**.cc",
+        "source/global/**.cc",
+        "source/hardware/**.cc",
+        "source/parse/**.cc",
+        "source/serde/**.cc"
+    )
+
 
 
 -- xmake project -k compile_commands
