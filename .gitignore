@@ -25,3 +25,4 @@ schedule*
 .VSCodeCounter/*
 .venv/
 third/HiGHS/
+local/*
