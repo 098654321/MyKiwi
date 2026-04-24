@@ -167,8 +167,12 @@ target("test_ILP")
     set_kind("binary")
     set_targetdir("./output")
     set_default(false)
-    add_includedirs("source", "source/global")
-    add_files("algorithm/test_ILP/main.cc")
+    add_includedirs("source", "source/global", "algorithm/test_ILP")
+    add_files(
+        "algorithm/test_ILP/main.cc",
+        "algorithm/test_ILP/tob_ilp_model.cc",
+        "algorithm/test_ILP/highs.cc"
+    )
     add_files(
         "source/algo/**.cc",
         "source/circuit/**.cc",
@@ -177,6 +181,10 @@ target("test_ILP")
         "source/parse/**.cc",
         "source/serde/**.cc"
     )
+    add_includedirs("local/include", "local/include/highs")
+    add_linkdirs("local/lib")
+    add_rpathdirs("local/lib")
+    add_links("highs")
 
 
 

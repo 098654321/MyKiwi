@@ -1,4 +1,8 @@
-// Build ILP model from config and export to MPS.
+// Build ILP model from config, solve with HiGHS, optional MPS export.
+
+#include "highs.hh"
+#include "ilp_types.hh"
+#include "tob_ilp_model.hh"
 
 #include <algo/netbuilder/netbuilder.hh>
 #include <circuit/net/types/bbnet.hh>
@@ -18,7 +22,6 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
-#include <fstream>
 #include <format>
 #include <map>
 #include <set>
@@ -28,147 +31,13 @@
 
 namespace PR_tool {
 
-struct Bump_coord {
-    std::size_t TOB;
-    std::size_t Bank;
-    std::size_t Group;
-    std::size_t Index;
-
-    auto operator==(const Bump_coord& other) const -> bool {
-        return TOB == other.TOB && Bank == other.Bank && Group == other.Group && Index == other.Index;
-    }
-
-    auto operator<(const Bump_coord& other) const -> bool {
-        return std::tie(TOB, Bank, Group, Index) < std::tie(other.TOB, other.Bank, other.Group, other.Index);
-    }
-};
-
-enum class Net_type {
-    Bnet,
-    Tnet,
-    PNnet
-};
-
-struct Net_cost_record {
-    std::String net_name;
-    Net_type type;
-    float bits;
-    float lambda;
-    std::Vector<Bump_coord> start_bumps;
-    std::Vector<Bump_coord> end_bumps;
-    std::Vector<std::size_t> candidate_cobunits;
-    std::Vector<std::size_t> tnet_fixed_cobunits;
-};
-
-class Mps_builder {
-public:
-    auto add_row(std::String name, char type, double rhs = 0.0) -> void {
-        if (this->_row_types.contains(name)) {
-            return;
-        }
-        this->_row_types.emplace(name, type);
-        this->_row_order.emplace_back(name);
-        if (type != 'N') {
-            this->_rhs.emplace(name, rhs);
-        }
-    }
-
-    auto add_binary(std::String var_name) -> void {
-        this->_binary_vars.insert(var_name);
-    }
-
-    auto add_objective(std::String var_name, double coeff) -> void {
-        if (std::fabs(coeff) < 1e-12) {
-            return;
-        }
-        this->_objective[var_name] += coeff;
-    }
-
-    auto add_coefficient(std::String var_name, std::String row_name, double coeff) -> void {
-        if (std::fabs(coeff) < 1e-12) {
-            return;
-        }
-        this->_columns[var_name].emplace_back(std::move(row_name), coeff);
-    }
-
-    auto write_to(const std::String& path) const -> void {
-        std::ofstream out(path);
-        if (!out.is_open()) {
-            throw std::runtime_error(std::format("cannot open mps output '{}'", path));
-        }
-
-        out << "NAME TOB_ALLOC\n";
-        out << "ROWS\n";
-        for (const auto& row_name : this->_row_order) {
-            out << ' ' << this->_row_types.at(row_name) << ' ' << row_name << '\n';
-        }
-
-        out << "COLUMNS\n";
-        for (const auto& [var_name, entries] : this->_columns) {
-            if (const auto it = this->_objective.find(var_name); it != this->_objective.end()) {
-                out << "    " << var_name << " OBJ " << it->second << '\n';
-            }
-            for (const auto& [row_name, coeff] : entries) {
-                out << "    " << var_name << ' ' << row_name << ' ' << coeff << '\n';
-            }
-        }
-
-        out << "RHS\n";
-        for (const auto& row_name : this->_row_order) {
-            if (const auto it = this->_rhs.find(row_name); it != this->_rhs.end()) {
-                if (std::fabs(it->second) < 1e-12) {
-                    continue;
-                }
-                out << "    RHS1 " << row_name << ' ' << it->second << '\n';
-            }
-        }
-
-        out << "BOUNDS\n";
-        for (const auto& var_name : this->_binary_vars) {
-            out << " BV BND1 " << var_name << '\n';
-        }
-        out << "ENDATA\n";
-    }
-
-private:
-    std::HashMap<std::String, char> _row_types {};
-    std::Vector<std::String> _row_order {};
-    std::HashMap<std::String, double> _rhs {};
-    std::map<std::String, std::Vector<std::Pair<std::String, double>>> _columns {};
-    std::HashMap<std::String, double> _objective {};
-    std::set<std::String> _binary_vars {};
-};
-
-auto map_track(std::size_t track) -> std::size_t;
 auto bump_to_ilp_coord(const hardware::Bump* bump) -> Bump_coord;
 auto sort_and_unique(std::Vector<std::size_t>& values) -> void;
 auto sort_and_unique(std::Vector<Bump_coord>& values) -> void;
 auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record;
 auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vector<Net_cost_record>;
-using Bump_cost_row = std::array<double, 16>;
-using Net_cost_matrix = std::map<Bump_coord, Bump_cost_row>;
 auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<Net_cost_matrix>;
 auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs, const std::String& output_mps) -> void;
-
-auto w_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String {
-    return std::format("W_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-}
-
-auto s_var(std::size_t t, std::size_t v) -> std::String {
-    return std::format("S_{}_{}", t, v);
-}
-
-auto z_var(std::size_t n, std::size_t c) -> std::String {
-    return std::format("Z_{}_{}", n, c);
-}
-
-auto qs_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String {
-    return std::format("QS_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-}
-
-auto qw_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String {
-    return std::format("QW_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-}
 
 auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
@@ -178,23 +47,32 @@ auto run_main(int argc, char** argv) -> int {
     }
 
     const auto config_path = std::String(argv[1]);
-    const auto output_mps = argc >= 3 ? std::String(argv[2]) : std::String("./output/test_ILP_model.mps");
+    const auto output_mps = argc >= 3 ? std::String(argv[2]) : std::String{};
 
     debug::initial_log("./debug.log");
     auto [interposer, basedie] = PR_tool::parse::read_config(config_path, 0, false);
     algo::build_nets(basedie.get(), interposer.get());
 
-    auto nets = basedie->nets_to_vector();
-    auto records = build_records(nets);
-    auto costs = build_cost_matrix(records);
-    write_mps_file(records, costs, output_mps);
+    const auto nets = basedie->nets_to_vector();
+    const auto records = build_records(nets);
+    const auto costs = build_cost_matrix(records);
 
-    debug::info_fmt("MPS generated: {}, nets={}, rows_cost={}", output_mps, records.size(), costs.size());
+    if (!output_mps.empty()) {
+        write_mps_file(records, costs, output_mps);
+        debug::info_fmt("MPS written: {}", output_mps);
+    }
+
+    const auto result = solve_tob_ilp_with_highs(records, costs);
+    if (!result.ok) {
+        debug::error_fmt("HiGHS: {}", result.message);
+        return 1;
+    }
+    for (const auto& a : result.assignments) {
+        debug::info_fmt("net \"{}\" -> COBUnit {}", a.net_name, a.cob_unit);
+    }
+    debug::info_fmt("objective value: {}", result.objective);
+    debug::info_fmt("nets solved: {}", records.size());
     return 0;
-}
-
-auto map_track(std::size_t track) -> std::size_t {
-    return track < 64 ? track % 8 : track % 8 + 8;
 }
 
 auto bump_to_ilp_coord(const hardware::Bump* bump) -> Bump_coord {
@@ -219,7 +97,7 @@ auto sort_and_unique(std::Vector<Bump_coord>& values) -> void {
 }
 
 auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
-    auto add_all_cobunits = [](std::Vector<std::size_t>& cs) {
+    const auto add_all_cobunits = [](std::Vector<std::size_t>& cs) {
         for (std::size_t c = 0; c < 16; ++c) {
             cs.emplace_back(c);
         }
@@ -435,283 +313,16 @@ auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vect
     return costs;
 }
 
-//MARK: write mps file
+// MARK: write mps file (optional; same model as HiGHS)
 auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs, const std::String& output_mps) -> void {
-    if (records.size() != costs.size()) {
-        throw std::runtime_error("records and costs size mismatch");
-    }
-
-    Mps_builder mps {};
-    mps.add_row("OBJ", 'N');
-
-    auto active_bumps = std::set<Bump_coord> {};
-    auto active_i = std::map<std::tuple<std::size_t, std::size_t, std::size_t>, std::set<std::size_t>> {};
-
-    for (std::size_t n = 0; n < records.size(); ++n) {
-        const auto& record = records[n];
-
-        // z sum-to-one, objective, binary mark
-        const auto z_sum_row = std::format("R_ZSUM_{}", n);
-        mps.add_row(z_sum_row, 'E', 1.0);
-        for (std::size_t c = 0; c < 16; ++c) {
-            const auto z = z_var(n, c);
-            mps.add_binary(z);
-            mps.add_coefficient(z, z_sum_row, 1.0);
-            double coeff = 0.0;
-            for (const auto& bump : record.start_bumps) {
-                const auto it = costs[n].find(bump);
-                if (it == costs[n].end()) {
-                    throw std::runtime_error(std::format(
-                        "missing bump cost at net '{}' bump({}, {}, {}, {})",
-                        record.net_name, bump.TOB, bump.Bank, bump.Group, bump.Index
-                    ));
-                }
-                coeff += it->second[c];
-            }
-            mps.add_objective(z, coeff);
-        }
-
-        if (record.type == Net_type::Tnet) {
-            for (const auto fixed_c : record.tnet_fixed_cobunits) {
-                const auto row = std::format("R_TFIX_{}_{}", n, fixed_c);
-                mps.add_row(row, 'E', 1.0);
-                mps.add_coefficient(z_var(n, fixed_c), row, 1.0);
-            }
-        }
-        else if (record.type == Net_type::PNnet) {
-            std::set<std::size_t> allowed(record.candidate_cobunits.begin(), record.candidate_cobunits.end());
-            for (std::size_t c = 0; c < 16; ++c) {
-                if (allowed.contains(c)) {
-                    continue;
-                }
-                const auto row = std::format("R_PN0_{}_{}", n, c);
-                mps.add_row(row, 'E', 0.0);
-                mps.add_coefficient(z_var(n, c), row, 1.0);
-            }
-        }
-
-        for (const auto& b : record.start_bumps) {
-            active_bumps.insert(b);
-            active_i[{b.TOB, b.Bank, b.Group}].insert(b.Index);
-        }
-        for (const auto& b : record.end_bumps) {
-            active_bumps.insert(b);
-            active_i[{b.TOB, b.Bank, b.Group}].insert(b.Index);
-        }
-    }
-
-    // Constraint 1: each active bump chooses one (j,k)
-    for (const auto& b : active_bumps) {
-        const auto row = std::format("R_WONE_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index);
-        mps.add_row(row, 'E', 1.0);
-        for (std::size_t j = 0; j < 8; ++j) {
-            for (std::size_t k = 0; k < 8; ++k) {
-                const auto w = w_var(b, j, k);
-                mps.add_binary(w);
-                mps.add_coefficient(w, row, 1.0);
-            }
-        }
-    }
-
-    // Constraint 2 (keep single copy): each (t,b,g,j) has at most one chosen bump-vert
-    for (std::size_t t = 0; t < 16; ++t) {
-        for (std::size_t b = 0; b < 2; ++b) {
-            for (std::size_t g = 0; g < 8; ++g) {
-                const auto key = std::tuple<std::size_t, std::size_t, std::size_t>{t, b, g};
-                if (!active_i.contains(key)) {
-                    continue;
-                }
-                for (std::size_t j = 0; j < 8; ++j) {
-                    const auto row = std::format("R_HORI_{}_{}_{}_{}", t, b, g, j);
-                    mps.add_row(row, 'L', 1.0);
-                    for (const auto i : active_i.at(key)) {
-                        for (std::size_t k = 0; k < 8; ++k) {
-                            mps.add_coefficient(w_var(Bump_coord{t, b, g, i}, j, k), row, 1.0);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Constraint 3: each (t,b,j,k) chosen by at most one (g,i) — skip (t,b) with no w variables
-    for (std::size_t t = 0; t < 16; ++t) {
-        for (std::size_t b = 0; b < 2; ++b) {
-            bool tb_active = false;
-            for (std::size_t g = 0; g < 8; ++g) {
-                if (active_i.contains(std::tuple<std::size_t, std::size_t, std::size_t>{t, b, g})) {
-                    tb_active = true;
-                    break;
-                }
-            }
-            if (!tb_active) {
-                continue;
-            }
-            for (std::size_t j = 0; j < 8; ++j) {
-                for (std::size_t k = 0; k < 8; ++k) {
-                    const auto row = std::format("R_VERT_{}_{}_{}_{}", t, b, j, k);
-                    mps.add_row(row, 'L', 1.0);
-                    for (std::size_t g = 0; g < 8; ++g) {
-                        const auto key = std::tuple<std::size_t, std::size_t, std::size_t>{t, b, g};
-                        if (!active_i.contains(key)) {
-                            continue;
-                        }
-                        for (const auto i : active_i.at(key)) {
-                            mps.add_coefficient(w_var(Bump_coord{t, b, g, i}, j, k), row, 1.0);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Linearization for q and Bnet: u_{bump,c} = z_{n,c}
-    auto ensure_q_linearization = [&](const Bump_coord& b, std::size_t j, std::size_t k) {
-        const auto w = w_var(b, j, k);
-        const auto qs = qs_var(b, j, k);
-        const auto qw = qw_var(b, j, k);
-        const auto v = j * 8 + k;
-        const auto s = s_var(b.TOB, v);
-
-        mps.add_binary(w);
-        mps.add_binary(s);
-        mps.add_binary(qs);
-        mps.add_binary(qw);
-
-        // qs <= w
-        {
-            const auto row = std::format("R_QS1_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-            mps.add_row(row, 'L', 0.0);
-            mps.add_coefficient(qs, row, 1.0);
-            mps.add_coefficient(w, row, -1.0);
-        }
-        // qs <= s
-        {
-            const auto row = std::format("R_QS2_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-            mps.add_row(row, 'L', 0.0);
-            mps.add_coefficient(qs, row, 1.0);
-            mps.add_coefficient(s, row, -1.0);
-        }
-        // qs >= w + s - 1
-        {
-            const auto row = std::format("R_QS3_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-            mps.add_row(row, 'G', -1.0);
-            mps.add_coefficient(qs, row, 1.0);
-            mps.add_coefficient(w, row, -1.0);
-            mps.add_coefficient(s, row, -1.0);
-        }
-
-        // qw <= w
-        {
-            const auto row = std::format("R_QW1_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-            mps.add_row(row, 'L', 0.0);
-            mps.add_coefficient(qw, row, 1.0);
-            mps.add_coefficient(w, row, -1.0);
-        }
-        // qw <= 1 - s -> qw + s <= 1
-        {
-            const auto row = std::format("R_QW2_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-            mps.add_row(row, 'L', 1.0);
-            mps.add_coefficient(qw, row, 1.0);
-            mps.add_coefficient(s, row, 1.0);
-        }
-        // qw >= w - s -> qw - w + s >= 0
-        {
-            const auto row = std::format("R_QW3_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
-            mps.add_row(row, 'G', 0.0);
-            mps.add_coefficient(qw, row, 1.0);
-            mps.add_coefficient(w, row, -1.0);
-            mps.add_coefficient(s, row, 1.0);
-        }
-    };
-
-    // bank 0/1: straight / swap which physical track (v or v+64) reaches map_track; must match interposer/TOB spec.
-    auto cob_from_jk = [](std::size_t bank, std::size_t j, std::size_t k, bool straight) -> std::size_t {
-        const auto v = j * 8 + k;
-        std::size_t track = 0;
-        if (bank == 0) {
-            track = straight ? v : (v + 64);
-        }
-        else {
-            track = straight ? (v + 64) : v;
-        }
-        return map_track(track);
-    };
-
-    auto processed_q = std::set<std::tuple<Bump_coord, std::size_t, std::size_t>> {};
-
-    auto add_u_equals_z_rows = [&](std::size_t net_idx, const Bump_coord& b, const std::String& row_label) {
-        for (std::size_t c = 0; c < 16; ++c) {
-            const auto row = std::format("R_{}_{}_{}_{}_{}_{}_{}", row_label, net_idx, b.TOB, b.Bank, b.Group, b.Index, c);
-            mps.add_row(row, 'E', 0.0);
-            mps.add_coefficient(z_var(net_idx, c), row, -1.0);
-            for (std::size_t j = 0; j < 8; ++j) {
-                for (std::size_t k = 0; k < 8; ++k) {
-                    if (cob_from_jk(b.Bank, j, k, true) == c) {
-                        mps.add_coefficient(qs_var(b, j, k), row, 1.0);
-                    }
-                    if (cob_from_jk(b.Bank, j, k, false) == c) {
-                        mps.add_coefficient(qw_var(b, j, k), row, 1.0);
-                    }
-                }
-            }
-        }
-    };
-
-    auto ensure_qs_qw = [&](const Bump_coord& b) {
-        for (std::size_t j = 0; j < 8; ++j) {
-            for (std::size_t k = 0; k < 8; ++k) {
-                const auto key = std::tuple<Bump_coord, std::size_t, std::size_t>{b, j, k};
-                if (!processed_q.contains(key)) {
-                    ensure_q_linearization(b, j, k);
-                    processed_q.insert(key);
-                }
-            }
-        }
-    };
-    for (std::size_t n = 0; n < records.size(); ++n) {
-        const auto& record = records[n];
-        if (record.type != Net_type::Bnet) {
-            continue;
-        }
-
-        auto relation_bumps = std::Vector<Bump_coord> {};
-        relation_bumps.insert(relation_bumps.end(), record.start_bumps.begin(), record.start_bumps.end());
-        relation_bumps.insert(relation_bumps.end(), record.end_bumps.begin(), record.end_bumps.end());
-        sort_and_unique(relation_bumps);
-
-        for (const auto& b : relation_bumps) {
-            ensure_qs_qw(b);
-            add_u_equals_z_rows(n, b, "BEQ");
-        }
-    }
-
-    for (std::size_t n = 0; n < records.size(); ++n) {
-        const auto& record = records[n];
-        if (record.type != Net_type::Tnet && record.type != Net_type::PNnet) {
-            continue;
-        }
-        for (const auto& b : record.start_bumps) {
-            ensure_qs_qw(b);
-            if (record.type == Net_type::Tnet) {
-                add_u_equals_z_rows(n, b, "UEQ_T");
-            }
-            else {
-                add_u_equals_z_rows(n, b, "UEQ_P");
-            }
-        }
-    }
-
-    mps.write_to(output_mps);
+    TobIlpModel m {};
+    build_tob_ilp_model(m, records, costs);
+    m.write_mps(output_mps);
 }
 // MARK: END of writing mps file
-
 
 } // namespace PR_tool
 
 auto main(int argc, char** argv) -> int {
     return PR_tool::run_main(argc, argv);
 }
-
-
-
