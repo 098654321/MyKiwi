@@ -182,8 +182,13 @@ target("test_ILP")
         "source/serde/**.cc"
     )
     add_includedirs("local/include", "local/include/highs")
-    add_linkdirs("local/lib")
-    add_rpathdirs("local/lib")
+    if is_plat("linux") then
+      add_linkdirs("local/lib64")
+      add_rpathdirs("local/lib64")
+    else
+      add_linkdirs("local/lib")
+      add_rpathdirs("local/lib")
+    end
     add_links("highs")
 
 
