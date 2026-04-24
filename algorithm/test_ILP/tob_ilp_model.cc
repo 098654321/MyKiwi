@@ -1,4 +1,5 @@
 #include "tob_ilp_model.hh"
+#include "ilp_speedup.hh"
 
 #include "highs/lp_data/HConst.h"
 
@@ -105,7 +106,11 @@ auto TobIlpModel::write_mps(const std::String& path) const -> void {
     out << "ENDATA\n";
 }
 
-auto TobIlpModel::to_highs_lp(HighsLp& lp, std::Vector<std::array<HighsInt, 16>>& z_col_index) const -> void {
+auto TobIlpModel::to_highs_lp(
+    HighsLp& lp,
+    std::Vector<std::array<HighsInt, 16>>& z_col_index,
+    std::map<std::String, HighsInt>* col_index
+) const -> void {
     lp.clear();
 
     std::map<std::String, HighsInt> row_to_idx;
@@ -129,6 +134,9 @@ auto TobIlpModel::to_highs_lp(HighsLp& lp, std::Vector<std::array<HighsInt, 16>>
             col_to_idx.emplace(var_name, col_idx++);
             col_order.push_back(var_name);
         }
+    }
+    if (col_index != nullptr) {
+        *col_index = col_to_idx;
     }
     const HighsInt num_col = static_cast<HighsInt>(col_order.size());
 
@@ -229,14 +237,15 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
 
     auto active_bumps = std::set<Bump_coord> {};
     auto active_i = std::map<std::tuple<std::size_t, std::size_t, std::size_t>, std::set<std::size_t>> {};
+    const auto net_bumps = collect_net_bumps(records);
 
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
 
         const auto z_sum_row = std::format("R_ZSUM_{}", n);
-        mps.add_row(z_sum_row, 'E', 1.0);
+        mps.add_row(z_sum_row, 'E', 1.0);   // 约束4
         for (std::size_t c = 0; c < 16; ++c) {
-            const auto z = z_var(n, c);
+            const auto z = z_var(n, c); // 创建变量z_{n, c}
             mps.add_binary(z);
             mps.add_coefficient(z, z_sum_row, 1.0);
             double coeff = 0.0;
@@ -250,16 +259,47 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
                 }
                 coeff += it->second[c];
             }
-            mps.add_objective(z, coeff);
+            mps.add_objective(z, coeff);    // 目标函数最内层
         }
 
+        // 约束5，分三种情况
+        // Tnet：直接设置等式约束
         if (record.type == Net_type::Tnet) {
             for (const auto fixed_c : record.tnet_fixed_cobunits) {
                 const auto row = std::format("R_TFIX_{}_{}", n, fixed_c);
                 mps.add_row(row, 'E', 1.0);
                 mps.add_coefficient(z_var(n, fixed_c), row, 1.0);
             }
+            const auto allowed_jk = tnet_allowed_jk(record.tnet_fixed_cobunits);
+            for (const auto& b : record.start_bumps) {
+                const auto allow_row = std::format("R_TJK1_{}_{}_{}_{}_{}", n, b.TOB, b.Bank, b.Group, b.Index);
+                mps.add_row(allow_row, 'E', 1.0);
+                for (std::size_t j = 0; j < 8; ++j) {
+                    for (std::size_t k = 0; k < 8; ++k) {
+                        const auto w = w_var(b, j, k);
+                        mps.add_binary(w);
+                        if (allowed_jk.contains({j, k})) {
+                            mps.add_coefficient(w, allow_row, 1.0);
+                        }
+                        else {
+                            const auto zero_row = std::format(
+                                "R_TJK0_{}_{}_{}_{}_{}_{}_{}",
+                                n,
+                                b.TOB,
+                                b.Bank,
+                                b.Group,
+                                b.Index,
+                                j,
+                                k
+                            );
+                            mps.add_row(zero_row, 'E', 0.0);
+                            mps.add_coefficient(w, zero_row, 1.0);
+                        }
+                    }
+                }
+            }
         }
+        // PNnet：设置等式约束
         else if (record.type == Net_type::PNnet) {
             std::set<std::size_t> allowed(record.candidate_cobunits.begin(), record.candidate_cobunits.end());
             for (std::size_t c = 0; c < 16; ++c) {
@@ -272,6 +312,7 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
             }
         }
 
+        // Bnet：先存下来，后面处理
         for (const auto& b : record.start_bumps) {
             active_bumps.insert(b);
             active_i[{b.TOB, b.Bank, b.Group}].insert(b.Index);
@@ -282,7 +323,30 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
         }
     }
 
-    for (const auto& b : active_bumps) {
+    for (std::size_t t = 0; t < 16; ++t) {
+        for (std::size_t b = 0; b < 2; ++b) {
+            for (std::size_t g = 0; g < 8; ++g) {
+                for (std::size_t i = 0; i < 8; ++i) {
+                    const auto bump = Bump_coord{t, b, g, i};
+                    if (net_bumps.contains(bump)) {
+                        continue;
+                    }
+                    for (std::size_t j = 0; j < 8; ++j) {
+                        for (std::size_t k = 0; k < 8; ++k) {
+                            const auto row = std::format("R_WZERO_{}_{}_{}_{}_{}_{}", t, b, g, i, j, k);
+                            const auto w = w_var(bump, j, k);
+                            mps.add_row(row, 'E', 0.0);
+                            mps.add_binary(w);
+                            mps.add_coefficient(w, row, 1.0);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 约束1
+    for (const auto& b : active_bumps) {    // 约束6
         const auto row = std::format("R_WONE_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index);
         mps.add_row(row, 'E', 1.0);
         for (std::size_t j = 0; j < 8; ++j) {
@@ -294,6 +358,7 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
         }
     }
 
+    // 约束2
     for (std::size_t t = 0; t < 16; ++t) {
         for (std::size_t b = 0; b < 2; ++b) {
             for (std::size_t g = 0; g < 8; ++g) {
@@ -314,6 +379,7 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
         }
     }
 
+    // 约束3
     for (std::size_t t = 0; t < 16; ++t) {
         for (std::size_t b = 0; b < 2; ++b) {
             bool tb_active = false;
@@ -440,6 +506,7 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
         }
     };
 
+    // Bnet 的约束5
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
         if (record.type != Net_type::Bnet) {

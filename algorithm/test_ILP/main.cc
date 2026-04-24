@@ -19,12 +19,10 @@
 
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <cstddef>
 #include <limits>
 #include <format>
 #include <map>
-#include <set>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -69,6 +67,52 @@ auto run_main(int argc, char** argv) -> int {
     }
     for (const auto& a : result.assignments) {
         debug::info_fmt("net \"{}\" -> COBUnit {}", a.net_name, a.cob_unit);
+    }
+    for (const auto& d : result.route_details) {
+        debug::info_fmt(
+            "net \"{}\": bump(T{},B{},G{},I{}) -> j={}, k={}, s={}, orient={}, track={}, COBUnit={}",
+            d.net_name,
+            d.bump.TOB,
+            d.bump.Bank,
+            d.bump.Group,
+            d.bump.Index,
+            d.j,
+            d.k,
+            d.s_v,
+            d.use_straight ? "straight(QS)" : "wrap(QW)",
+            d.track,
+            d.cob_unit
+        );
+    }
+    debug::info_fmt("active W count: {}", result.active_w.size());
+    for (const auto& w : result.active_w) {
+        if (!w.has_track) {
+            debug::info_fmt(
+                "W active: bump(T{},B{},G{},I{}) j={}, k={} (track unresolved)",
+                w.bump.TOB,
+                w.bump.Bank,
+                w.bump.Group,
+                w.bump.Index,
+                w.j,
+                w.k
+            );
+            continue;
+        }
+        debug::info_fmt(
+            "W active: bump(T{},B{},G{},I{}) j={}, k={}, orient={}, track={}",
+            w.bump.TOB,
+            w.bump.Bank,
+            w.bump.Group,
+            w.bump.Index,
+            w.j,
+            w.k,
+            w.use_straight ? "straight" : "wrap",
+            w.track
+        );
+    }
+    debug::info_fmt("active S count: {}", result.active_s.size());
+    for (const auto& s : result.active_s) {
+        debug::info_fmt("S active: TOB={}, v={} (j={}, k={})", s.tob, s.v, s.j, s.k);
     }
     debug::info_fmt("objective value: {}", result.objective);
     debug::info_fmt("nets solved: {}", records.size());

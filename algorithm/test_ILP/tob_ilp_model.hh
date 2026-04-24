@@ -23,8 +23,12 @@ public:
 
     auto write_mps(const std::String& path) const -> void;
 
-    /// Fills `lp` and `z_col_index[n][c]` = HiGHS column index for `Z_{n,c}`.
-    auto to_highs_lp(HighsLp& lp, std::Vector<std::array<HighsInt, 16>>& z_col_index) const -> void;
+    /// Fills `lp`, `z_col_index[n][c]` and optionally `col_index` map.
+    auto to_highs_lp(
+        HighsLp& lp,
+        std::Vector<std::array<HighsInt, 16>>& z_col_index,
+        std::map<std::String, HighsInt>* col_index = nullptr
+    ) const -> void;
 
     auto set_net_count(std::size_t n) -> void {
         this->_net_count = n;
