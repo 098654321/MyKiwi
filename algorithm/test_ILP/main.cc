@@ -17,6 +17,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <fstream>
 #include <format>
 #include <map>
@@ -144,8 +145,10 @@ auto sort_and_unique(std::Vector<std::size_t>& values) -> void;
 auto sort_and_unique(std::Vector<Bump_coord>& values) -> void;
 auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record;
 auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vector<Net_cost_record>;
-auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<std::array<double, 16>>;
-auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<std::array<double, 16>>& costs, const std::String& output_mps) -> void;
+using Bump_cost_row = std::array<double, 16>;
+using Net_cost_matrix = std::map<Bump_coord, Bump_cost_row>;
+auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<Net_cost_matrix>;
+auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs, const std::String& output_mps) -> void;
 
 auto w_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String {
     return std::format("W_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
@@ -269,53 +272,11 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     else if (dynamic_cast<const circuit::TrackToBumpsNet*>(net.get()) != nullptr) {
         throw std::runtime_error(std::format("unsupported net type TrackToBumpsNet: '{}'", net->name()));
     }
-    else if (const auto* tsb_net = dynamic_cast<const circuit::TracksToBumpsNet*>(net.get())) {
-        record.type = Net_type::PNnet;
-        record.lambda = 5.0F;
-        for (auto* bump : tsb_net->end_bumps()) {
-            record.start_bumps.emplace_back(bump_to_ilp_coord(bump));
-        }
-        for (auto* track : tsb_net->begin_tracks()) {
-            record.candidate_cobunits.emplace_back(map_track(track->coord().index));
-        }
-        sort_and_unique(record.candidate_cobunits);
+    else if (dynamic_cast<const circuit::TracksToBumpsNet*>(net.get()) != nullptr) {
+        throw std::runtime_error(std::format("TracksToBumpsNet should be expanded in build_records: '{}'", net->name()));
     }
-    else if (auto* sync_net = dynamic_cast<circuit::SyncNet*>(net.get())) {
-        const auto has_bnet = !sync_net->btbnets().empty();
-        const auto has_tnet = !sync_net->bttnets().empty() || !sync_net->ttbnets().empty();
-
-        if (has_bnet && has_tnet) {
-            throw std::runtime_error(std::format("unsupported mixed SyncNet (B+T): '{}'", net->name()));
-        }
-        if (!has_bnet && !has_tnet) {
-            throw std::runtime_error(std::format("empty SyncNet: '{}'", net->name()));
-        }
-
-        if (has_bnet) {
-            record.type = Net_type::Bnet;
-            record.lambda = 10.0F;
-            for (const auto& btb : sync_net->btbnets()) {
-                record.start_bumps.emplace_back(bump_to_ilp_coord(btb->begin_bump()));
-                record.end_bumps.emplace_back(bump_to_ilp_coord(btb->end_bump()));
-            }
-            add_all_cobunits(record.candidate_cobunits);
-        }
-        else {
-            record.type = Net_type::Tnet;
-            record.lambda = 1.0F;
-            for (const auto& btt : sync_net->bttnets()) {
-                const auto cobunit = map_track(btt->end_track()->coord().index);
-                record.start_bumps.emplace_back(bump_to_ilp_coord(btt->begin_bump()));
-                record.candidate_cobunits.emplace_back(cobunit);
-                record.tnet_fixed_cobunits.emplace_back(cobunit);
-            }
-            for (const auto& ttb : sync_net->ttbnets()) {
-                const auto cobunit = map_track(ttb->begin_track()->coord().index);
-                record.start_bumps.emplace_back(bump_to_ilp_coord(ttb->end_bump()));
-                record.candidate_cobunits.emplace_back(cobunit);
-                record.tnet_fixed_cobunits.emplace_back(cobunit);
-            }
-        }
+    else if (dynamic_cast<circuit::SyncNet*>(net.get()) != nullptr) {
+        throw std::runtime_error(std::format("SyncNet should be expanded in build_records: '{}'", net->name()));
     }
     else {
         throw std::runtime_error(std::format("unknown net type: '{}'", net->name()));
@@ -339,12 +300,85 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
     auto records = std::Vector<Net_cost_record> {};
     records.reserve(nets.size());
     for (const auto& net : nets) {
+        if (const auto* tsb_net = dynamic_cast<const circuit::TracksToBumpsNet*>(net.get())) {
+            // Split one TracksToBumpsNet into multiple "bump -> tracks" pseudo nets.
+            auto candidate_cobunits = std::Vector<std::size_t> {};
+            for (auto* track : tsb_net->begin_tracks()) {
+                candidate_cobunits.emplace_back(map_track(track->coord().index));
+            }
+            sort_and_unique(candidate_cobunits);
+            for (auto* bump : tsb_net->end_bumps()) {
+                Net_cost_record record {
+                    std::String(std::format("{}__split_{}", net->name(), records.size())),
+                    Net_type::PNnet,
+                    static_cast<float>(net->port_number()) / 2.0F,
+                    5.0F,
+                    {bump_to_ilp_coord(bump)},
+                    {},
+                    candidate_cobunits,
+                    {}
+                };
+                records.emplace_back(std::move(record));
+            }
+            continue;
+        }
+
+        if (auto* sync_net = dynamic_cast<circuit::SyncNet*>(net.get())) {
+            // Split SyncNet into independent 2-pin nets for ILP modeling.
+            for (const auto& btb : sync_net->btbnets()) {
+                Net_cost_record record {
+                    std::String(std::format("{}__btb_{}", net->name(), records.size())),
+                    Net_type::Bnet,
+                    static_cast<float>(btb->port_number()) / 2.0F,
+                    10.0F,
+                    {bump_to_ilp_coord(btb->begin_bump())},
+                    {bump_to_ilp_coord(btb->end_bump())},
+                    {},
+                    {}
+                };
+                for (std::size_t c = 0; c < 16; ++c) {
+                    record.candidate_cobunits.emplace_back(c);
+                }
+                records.emplace_back(std::move(record));
+            }
+            for (const auto& btt : sync_net->bttnets()) {
+                const auto cobunit = map_track(btt->end_track()->coord().index);
+                Net_cost_record record {
+                    std::String(std::format("{}__btt_{}", net->name(), records.size())),
+                    Net_type::Tnet,
+                    static_cast<float>(btt->port_number()) / 2.0F,
+                    1.0F,
+                    {bump_to_ilp_coord(btt->begin_bump())},
+                    {},
+                    {cobunit},
+                    {cobunit}
+                };
+                records.emplace_back(std::move(record));
+            }
+            for (const auto& ttb : sync_net->ttbnets()) {
+                const auto cobunit = map_track(ttb->begin_track()->coord().index);
+                Net_cost_record record {
+                    std::String(std::format("{}__ttb_{}", net->name(), records.size())),
+                    Net_type::Tnet,
+                    static_cast<float>(ttb->port_number()) / 2.0F,
+                    1.0F,
+                    {bump_to_ilp_coord(ttb->end_bump())},
+                    {},
+                    {cobunit},
+                    {cobunit}
+                };
+                records.emplace_back(std::move(record));
+            }
+            continue;
+        }
+
+        // for other net types, classify them into Net_cost_record
         records.emplace_back(classify_net(net));
     }
     return records;
 }
 
-auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<std::array<double, 16>> {
+auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<Net_cost_matrix> {
     auto load = std::array<double, 16> {};
     load.fill(0.0);
 
@@ -366,6 +400,7 @@ auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vect
             continue;
         }
 
+        // Tnet
         const auto& fixed = record.tnet_fixed_cobunits.empty() ? record.candidate_cobunits : record.tnet_fixed_cobunits;
         const auto unit_num = static_cast<double>(fixed.size());
         const auto share = static_cast<double>(record.bits) / unit_num;
@@ -374,21 +409,34 @@ auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vect
         }
     }
 
-    auto costs = std::Vector<std::array<double, 16>> {};
+    // Per-COB load thresholds for piecewise cost: default +inf (linear Cost = load*lambda only).
+    static constexpr std::array<double, 16> kCobLoadThresholds = [] {
+        std::array<double, 16> t {};
+        t.fill(std::numeric_limits<double>::infinity());
+        return t;
+    }();
+    static constexpr double kLoadAboveThresholdMultiplier = 100.0;
+
+    auto costs = std::Vector<Net_cost_matrix> {};
     costs.reserve(records.size());
     for (const auto& record : records) {
-        auto row = std::array<double, 16> {};
-        row.fill(0.0);
-        const auto start_size = static_cast<double>(record.start_bumps.size());
-        for (std::size_t c = 0; c < 16; ++c) {
-            row[c] = start_size * load[c] * static_cast<double>(record.lambda);
+        auto per_net = Net_cost_matrix {};
+        for (const auto& bump : record.start_bumps) {
+            auto row = Bump_cost_row {};
+            row.fill(0.0);
+            for (std::size_t c = 0; c < 16; ++c) {
+                const double m = (load[c] > kCobLoadThresholds[c]) ? kLoadAboveThresholdMultiplier : 1.0;
+                row[c] = load[c] * static_cast<double>(record.lambda) * m;
+            }
+            per_net.emplace(bump, row);
         }
-        costs.emplace_back(row);
+        costs.emplace_back(std::move(per_net));
     }
     return costs;
 }
 
-auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<std::array<double, 16>>& costs, const std::String& output_mps) -> void {
+//MARK: write mps file
+auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs, const std::String& output_mps) -> void {
     if (records.size() != costs.size()) {
         throw std::runtime_error("records and costs size mismatch");
     }
@@ -397,7 +445,6 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
     mps.add_row("OBJ", 'N');
 
     auto active_bumps = std::set<Bump_coord> {};
-    auto bumps_in_bnet = std::set<Bump_coord> {};
     auto active_i = std::map<std::tuple<std::size_t, std::size_t, std::size_t>, std::set<std::size_t>> {};
 
     for (std::size_t n = 0; n < records.size(); ++n) {
@@ -410,7 +457,18 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
             const auto z = z_var(n, c);
             mps.add_binary(z);
             mps.add_coefficient(z, z_sum_row, 1.0);
-            mps.add_objective(z, costs[n][c]);
+            double coeff = 0.0;
+            for (const auto& bump : record.start_bumps) {
+                const auto it = costs[n].find(bump);
+                if (it == costs[n].end()) {
+                    throw std::runtime_error(std::format(
+                        "missing bump cost at net '{}' bump({}, {}, {}, {})",
+                        record.net_name, bump.TOB, bump.Bank, bump.Group, bump.Index
+                    ));
+                }
+                coeff += it->second[c];
+            }
+            mps.add_objective(z, coeff);
         }
 
         if (record.type == Net_type::Tnet) {
@@ -439,14 +497,6 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
         for (const auto& b : record.end_bumps) {
             active_bumps.insert(b);
             active_i[{b.TOB, b.Bank, b.Group}].insert(b.Index);
-            if (record.type == Net_type::Bnet) {
-                bumps_in_bnet.insert(b);
-            }
-        }
-        if (record.type == Net_type::Bnet) {
-            for (const auto& b : record.start_bumps) {
-                bumps_in_bnet.insert(b);
-            }
         }
     }
 
@@ -484,13 +534,22 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
         }
     }
 
-    // Constraint 4: each (t,b,j,k) chosen by at most one (g,i)
+    // Constraint 3: each (t,b,j,k) chosen by at most one (g,i) — skip (t,b) with no w variables
     for (std::size_t t = 0; t < 16; ++t) {
         for (std::size_t b = 0; b < 2; ++b) {
+            bool tb_active = false;
+            for (std::size_t g = 0; g < 8; ++g) {
+                if (active_i.contains(std::tuple<std::size_t, std::size_t, std::size_t>{t, b, g})) {
+                    tb_active = true;
+                    break;
+                }
+            }
+            if (!tb_active) {
+                continue;
+            }
             for (std::size_t j = 0; j < 8; ++j) {
                 for (std::size_t k = 0; k < 8; ++k) {
                     const auto row = std::format("R_VERT_{}_{}_{}_{}", t, b, j, k);
-                    bool has_term = false;
                     mps.add_row(row, 'L', 1.0);
                     for (std::size_t g = 0; g < 8; ++g) {
                         const auto key = std::tuple<std::size_t, std::size_t, std::size_t>{t, b, g};
@@ -499,11 +558,7 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
                         }
                         for (const auto i : active_i.at(key)) {
                             mps.add_coefficient(w_var(Bump_coord{t, b, g, i}, j, k), row, 1.0);
-                            has_term = true;
                         }
-                    }
-                    if (!has_term) {
-                        // keep an empty row harmlessly removed by solvers; do nothing else
                     }
                 }
             }
@@ -570,6 +625,7 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
         }
     };
 
+    // bank 0/1: straight / swap which physical track (v or v+64) reaches map_track; must match interposer/TOB spec.
     auto cob_from_jk = [](std::size_t bank, std::size_t j, std::size_t k, bool straight) -> std::size_t {
         const auto v = j * 8 + k;
         std::size_t track = 0;
@@ -583,6 +639,36 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
     };
 
     auto processed_q = std::set<std::tuple<Bump_coord, std::size_t, std::size_t>> {};
+
+    auto add_u_equals_z_rows = [&](std::size_t net_idx, const Bump_coord& b, const std::String& row_label) {
+        for (std::size_t c = 0; c < 16; ++c) {
+            const auto row = std::format("R_{}_{}_{}_{}_{}_{}_{}", row_label, net_idx, b.TOB, b.Bank, b.Group, b.Index, c);
+            mps.add_row(row, 'E', 0.0);
+            mps.add_coefficient(z_var(net_idx, c), row, -1.0);
+            for (std::size_t j = 0; j < 8; ++j) {
+                for (std::size_t k = 0; k < 8; ++k) {
+                    if (cob_from_jk(b.Bank, j, k, true) == c) {
+                        mps.add_coefficient(qs_var(b, j, k), row, 1.0);
+                    }
+                    if (cob_from_jk(b.Bank, j, k, false) == c) {
+                        mps.add_coefficient(qw_var(b, j, k), row, 1.0);
+                    }
+                }
+            }
+        }
+    };
+
+    auto ensure_qs_qw = [&](const Bump_coord& b) {
+        for (std::size_t j = 0; j < 8; ++j) {
+            for (std::size_t k = 0; k < 8; ++k) {
+                const auto key = std::tuple<Bump_coord, std::size_t, std::size_t>{b, j, k};
+                if (!processed_q.contains(key)) {
+                    ensure_q_linearization(b, j, k);
+                    processed_q.insert(key);
+                }
+            }
+        }
+    };
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
         if (record.type != Net_type::Bnet) {
@@ -595,37 +681,31 @@ auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vect
         sort_and_unique(relation_bumps);
 
         for (const auto& b : relation_bumps) {
-            for (std::size_t j = 0; j < 8; ++j) {
-                for (std::size_t k = 0; k < 8; ++k) {
-                    const auto key = std::tuple<Bump_coord, std::size_t, std::size_t>{b, j, k};
-                    if (!processed_q.contains(key)) {
-                        ensure_q_linearization(b, j, k);
-                        processed_q.insert(key);
-                    }
-                }
+            ensure_qs_qw(b);
+            add_u_equals_z_rows(n, b, "BEQ");
+        }
+    }
+
+    for (std::size_t n = 0; n < records.size(); ++n) {
+        const auto& record = records[n];
+        if (record.type != Net_type::Tnet && record.type != Net_type::PNnet) {
+            continue;
+        }
+        for (const auto& b : record.start_bumps) {
+            ensure_qs_qw(b);
+            if (record.type == Net_type::Tnet) {
+                add_u_equals_z_rows(n, b, "UEQ_T");
             }
-
-            for (std::size_t c = 0; c < 16; ++c) {
-                const auto row = std::format("R_BEQ_{}_{}_{}_{}_{}_{}", n, b.TOB, b.Bank, b.Group, b.Index, c);
-                mps.add_row(row, 'E', 0.0);
-                mps.add_coefficient(z_var(n, c), row, -1.0);
-
-                for (std::size_t j = 0; j < 8; ++j) {
-                    for (std::size_t k = 0; k < 8; ++k) {
-                        if (cob_from_jk(b.Bank, j, k, true) == c) {
-                            mps.add_coefficient(qs_var(b, j, k), row, 1.0);
-                        }
-                        if (cob_from_jk(b.Bank, j, k, false) == c) {
-                            mps.add_coefficient(qw_var(b, j, k), row, 1.0);
-                        }
-                    }
-                }
+            else {
+                add_u_equals_z_rows(n, b, "UEQ_P");
             }
         }
     }
 
     mps.write_to(output_mps);
 }
+// MARK: END of writing mps file
+
 
 } // namespace PR_tool
 

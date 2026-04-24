@@ -1,0 +1,42 @@
+{
+    "pose":{
+        "1": {
+            "dir": "vert",
+            "row": 0,
+            "col": 5,
+            "index": 10
+        },
+        "2": {
+            "dir": "vert",
+            "row": 0,
+            "col": 5,
+            "index": 19
+        },
+        "3": {
+            "dir": "vert",
+            "row": 0,
+            "col": 5,
+            "index": 28
+        }
+    },
+    "nege":{
+        "1": {
+            "dir": "vert",
+            "row": 0,
+            "col": 5,
+            "index": 17
+        },
+        "2": {
+            "dir": "vert",
+            "row": 0,
+            "col": 5,
+            "index": 26
+        },
+        "3": {
+            "dir": "vert",
+            "row": 0,
+            "col": 5,
+            "index": 35
+        }
+    }
+}

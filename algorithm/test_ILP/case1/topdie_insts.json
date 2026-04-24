@@ -1,0 +1,4 @@
+{
+    "muyan_0"  : { "topdie" : "muyan", "coord" : { "row" : 0, "col" : 0 } },
+    "muyan_1"  : { "topdie" : "muyan", "coord" : { "row" : 0, "col" : 1 } }
+}
