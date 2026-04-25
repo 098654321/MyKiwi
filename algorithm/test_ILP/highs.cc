@@ -17,7 +17,8 @@ namespace PR_tool {
 auto solve_tob_ilp_with_highs(
     const std::Vector<Net_cost_record>& records,
     const std::Vector<Net_cost_matrix>& costs,
-    const bool enable_objective
+    const bool enable_objective,
+    const bool enable_parallel
 )
     -> TobIlpResult {
     TobIlpResult out {};
@@ -32,9 +33,12 @@ auto solve_tob_ilp_with_highs(
     Highs highs {};
     highs.setOptionValue("output_flag", false);
     const unsigned int hw_threads = std::thread::hardware_concurrency();
-    const HighsInt threads = static_cast<HighsInt>(hw_threads > 1U ? hw_threads : 1U);
-    const HighsStatus parallel_st = highs.setOptionValue("parallel", "on");
-    if (parallel_st != HighsStatus::kOk) {
+    const HighsInt threads = enable_parallel
+                                 ? static_cast<HighsInt>(hw_threads > 1U ? hw_threads : 1U)
+                                 : static_cast<HighsInt>(1);
+    const HighsStatus parallel_st = enable_parallel ? highs.setOptionValue("parallel", "on")
+                                                    : highs.setOptionValue("parallel", "off");
+    if (parallel_st != HighsStatus::kOk && enable_parallel) {
         (void)highs.setOptionValue("parallel", "choose");
     }
     const HighsStatus thread_st = highs.setOptionValue("threads", threads);

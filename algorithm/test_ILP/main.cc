@@ -48,17 +48,22 @@ auto get_peak_rss_mb() -> double;
 auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
         debug::error("No config path given");
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective]");
+        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel]");
         return 1;
     }
 
     const auto config_path = std::String(argv[1]);
     auto output_mps = std::String {};
     bool enable_objective = false;
+    bool enable_parallel = false;
     for (int argi = 2; argi < argc; ++argi) {
         const auto arg = std::String(argv[argi]);
         if (arg == "--enable-objective") {
             enable_objective = true;
+            continue;
+        }
+        if (arg == "--enable-parallel") {
+            enable_parallel = true;
             continue;
         }
         if (output_mps.empty()) {
@@ -66,7 +71,7 @@ auto run_main(int argc, char** argv) -> int {
             continue;
         }
         debug::error_fmt("Unexpected argument '{}'", arg);
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective]");
+        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel]");
         return 1;
     }
 
@@ -84,7 +89,7 @@ auto run_main(int argc, char** argv) -> int {
     }
 
     const auto solve_begin = std::chrono::steady_clock::now();
-    const auto result = solve_tob_ilp_with_highs(records, costs, enable_objective);
+    const auto result = solve_tob_ilp_with_highs(records, costs, enable_objective, enable_parallel);
     const auto solve_end = std::chrono::steady_clock::now();
     const auto solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
     const auto peak_rss_mb = get_peak_rss_mb();

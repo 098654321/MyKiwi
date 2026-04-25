@@ -54,7 +54,8 @@ struct TobIlpResult {
 auto solve_tob_ilp_with_highs(
     const std::Vector<Net_cost_record>& records,
     const std::Vector<Net_cost_matrix>& costs,
-    bool enable_objective = false
+    bool enable_objective = false,
+    bool enable_parallel = false
 )
     -> TobIlpResult;
 
