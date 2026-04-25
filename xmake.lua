@@ -172,7 +172,8 @@ target("test_ILP")
         "algorithm/test_ILP/main.cc",
         "algorithm/test_ILP/tob_ilp_model.cc",
         "algorithm/test_ILP/highs.cc",
-        "algorithm/test_ILP/ilp_speedup.cc"
+        "algorithm/test_ILP/ilp_speedup.cc",
+        "algorithm/test_ILP/cob_mcf_router.cc"
     )
     add_files(
         "source/algo/**.cc",

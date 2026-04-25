@@ -1,5 +1,6 @@
 // Build ILP model from config, solve with HiGHS, optional MPS export.
 
+#include "cob_mcf_router.hh"
 #include "highs.hh"
 #include "ilp_types.hh"
 #include "tob_ilp_model.hh"
@@ -16,6 +17,8 @@
 #include <debug/debug.hh>
 #include <hardware/interposer.hh>
 #include <parse/reader/module.hh>
+
+#include <std/string.hh>
 
 #include <algorithm>
 #include <array>
@@ -48,7 +51,7 @@ auto get_peak_rss_mb() -> double;
 auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
         debug::error("No config path given");
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel]");
+        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] [--enable-mcf-global-routing]");
         return 1;
     }
 
@@ -56,6 +59,7 @@ auto run_main(int argc, char** argv) -> int {
     auto output_mps = std::String {};
     bool enable_objective = false;
     bool enable_parallel = false;
+    bool enable_mcf = false;
     for (int argi = 2; argi < argc; ++argi) {
         const auto arg = std::String(argv[argi]);
         if (arg == "--enable-objective") {
@@ -66,12 +70,16 @@ auto run_main(int argc, char** argv) -> int {
             enable_parallel = true;
             continue;
         }
+        if (arg == "--enable-mcf-global-routing") {
+            enable_mcf = true;
+            continue;
+        }
         if (output_mps.empty()) {
             output_mps = arg;
             continue;
         }
         debug::error_fmt("Unexpected argument '{}'", arg);
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel]");
+        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] [--enable-mcf-global-routing]");
         return 1;
     }
 
@@ -151,6 +159,14 @@ auto run_main(int argc, char** argv) -> int {
     }
     debug::info_fmt("objective value: {}", result.objective);
     debug::info_fmt("nets solved: {}", records.size());
+
+    if (enable_mcf) {
+        const auto mcf_sum = run_mcf_global_routing_cob_units(records, result.assignments, *interposer.get(), *basedie.get());
+        if (!mcf_sum.all_ok) {
+            debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
+            return 1;
+        }
+    }
     return 0;
 }
 
@@ -203,6 +219,8 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.start_bumps.emplace_back(bump_to_ilp_coord(bb_net->begin_bump()));
         record.end_bumps.emplace_back(bump_to_ilp_coord(bb_net->end_bump()));
         add_all_cobunits(record.candidate_cobunits);
+        record.mcf_start_kind = IlpEndpointKind::Bump;
+        record.mcf_end_kind = IlpEndpointKind::Bump;
     }
     else if (dynamic_cast<const circuit::BumpToBumpsNet*>(net.get()) != nullptr) {
         throw std::runtime_error(std::format("unsupported net type BumpToBumpsNet: '{}'", net->name()));
@@ -214,6 +232,10 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.start_bumps.emplace_back(bump_to_ilp_coord(bt_net->begin_bump()));
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
+        record.mcf_end_track = bt_net->end_track()->coord();
+        record.mcf_has_end_track = true;
+        record.mcf_start_kind = IlpEndpointKind::Bump;
+        record.mcf_end_kind = IlpEndpointKind::Track;
     }
     else if (dynamic_cast<const circuit::BumpToTracksNet*>(net.get()) != nullptr) {
         throw std::runtime_error(std::format("unsupported net type BumpToTracksNet: '{}'", net->name()));
@@ -225,6 +247,10 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.start_bumps.emplace_back(bump_to_ilp_coord(tb_net->end_bump()));
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
+        record.mcf_start_track = tb_net->begin_track()->coord();
+        record.mcf_has_start_track = true;
+        record.mcf_start_kind = IlpEndpointKind::Track;
+        record.mcf_end_kind = IlpEndpointKind::Bump;
     }
     else if (dynamic_cast<const circuit::TrackToBumpsNet*>(net.get()) != nullptr) {
         throw std::runtime_error(std::format("unsupported net type TrackToBumpsNet: '{}'", net->name()));
@@ -250,6 +276,7 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     if (record.candidate_cobunits.empty()) {
         throw std::runtime_error(std::format("net '{}' has empty candidate cobunits", net->name()));
     }
+    record.origin_key = net->name();
     return record;
 }
 
@@ -275,6 +302,10 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     candidate_cobunits,
                     {}
                 };
+                record.origin_key = net->name();
+                record.power_kind = (net->name() == std::String("Pose nets")) ? IlpPowerKind::Pose : IlpPowerKind::Nege;
+                record.mcf_start_kind = IlpEndpointKind::Bump;
+                record.mcf_end_kind = IlpEndpointKind::Bump;
                 records.emplace_back(std::move(record));
             }
             continue;
@@ -296,6 +327,9 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                 for (std::size_t c = 0; c < 16; ++c) {
                     record.candidate_cobunits.emplace_back(c);
                 }
+                record.origin_key = net->name();
+                record.mcf_start_kind = IlpEndpointKind::Bump;
+                record.mcf_end_kind = IlpEndpointKind::Bump;
                 records.emplace_back(std::move(record));
             }
             for (const auto& btt : sync_net->bttnets()) {
@@ -310,6 +344,11 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     {cobunit},
                     {cobunit}
                 };
+                record.mcf_end_track = btt->end_track()->coord();
+                record.mcf_has_end_track = true;
+                record.mcf_start_kind = IlpEndpointKind::Bump;
+                record.mcf_end_kind = IlpEndpointKind::Track;
+                record.origin_key = net->name();
                 records.emplace_back(std::move(record));
             }
             for (const auto& ttb : sync_net->ttbnets()) {
@@ -324,6 +363,11 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     {cobunit},
                     {cobunit}
                 };
+                record.mcf_start_track = ttb->begin_track()->coord();
+                record.mcf_has_start_track = true;
+                record.mcf_start_kind = IlpEndpointKind::Track;
+                record.mcf_end_kind = IlpEndpointKind::Bump;
+                record.origin_key = net->name();
                 records.emplace_back(std::move(record));
             }
             continue;

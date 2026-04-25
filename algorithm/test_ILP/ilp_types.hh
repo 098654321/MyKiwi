@@ -6,7 +6,20 @@
 #include <std/collection.hh>
 #include <std/string.hh>
 
+#include <hardware/track/trackcoord.hh>
+
 namespace PR_tool {
+
+enum class IlpPowerKind {
+    None,
+    Pose,
+    Nege
+};
+
+enum class IlpEndpointKind {
+    Bump,
+    Track
+};
 
 struct Bump_coord {
     std::size_t TOB;
@@ -38,6 +51,16 @@ struct Net_cost_record {
     std::Vector<Bump_coord> end_bumps;
     std::Vector<std::size_t> candidate_cobunits;
     std::Vector<std::size_t> tnet_fixed_cobunits;
+
+    /// Key to merge 2-pin fragments back to a logical net (prefix before first `__` in split names).
+    std::String origin_key {};
+    IlpPowerKind power_kind{IlpPowerKind::None};
+    IlpEndpointKind mcf_start_kind{IlpEndpointKind::Bump};
+    IlpEndpointKind mcf_end_kind{IlpEndpointKind::Bump};
+    hardware::TrackCoord mcf_start_track {};
+    hardware::TrackCoord mcf_end_track {};
+    bool mcf_has_start_track{false};
+    bool mcf_has_end_track{false};
 };
 
 using Bump_cost_row = std::array<double, 16>;
