@@ -51,7 +51,11 @@ struct TobIlpResult {
     std::Vector<TobIlpNetRouteDetail> route_details;
 };
 
-auto solve_tob_ilp_with_highs(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs)
+auto solve_tob_ilp_with_highs(
+    const std::Vector<Net_cost_record>& records,
+    const std::Vector<Net_cost_matrix>& costs,
+    bool enable_objective = false
+)
     -> TobIlpResult;
 
 } // namespace PR_tool

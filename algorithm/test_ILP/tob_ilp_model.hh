@@ -53,6 +53,11 @@ auto z_var(std::size_t n, std::size_t c) -> std::String;
 auto qs_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
 auto qw_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
 
-void build_tob_ilp_model(TobIlpModel& model, const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs);
+void build_tob_ilp_model(
+    TobIlpModel& model,
+    const std::Vector<Net_cost_record>& records,
+    const std::Vector<Net_cost_matrix>& costs,
+    bool enable_objective = false
+);
 
 } // namespace PR_tool

@@ -2,19 +2,6 @@
 
 namespace PR_tool {
 
-auto collect_net_bumps(const std::Vector<Net_cost_record>& records) -> std::set<Bump_coord> {
-    auto bumps = std::set<Bump_coord> {};
-    for (const auto& record : records) {
-        for (const auto& b : record.start_bumps) {
-            bumps.insert(b);
-        }
-        for (const auto& b : record.end_bumps) {
-            bumps.insert(b);
-        }
-    }
-    return bumps;
-}
-
 auto cobunit_to_tracks(const std::size_t cob_unit) -> std::Vector<std::size_t> {
     const auto bank = cob_unit < 8 ? 0UL : 1UL;
     const auto unit = cob_unit - (8UL * bank);

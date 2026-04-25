@@ -227,7 +227,12 @@ auto TobIlpModel::to_highs_lp(
 }
 
 // MARK: build_tob_ilp_model (from former write_mps_file)
-void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs) {
+void build_tob_ilp_model(
+    TobIlpModel& mps,
+    const std::Vector<Net_cost_record>& records,
+    const std::Vector<Net_cost_matrix>& costs,
+    const bool enable_objective
+) {
     if (records.size() != costs.size()) {
         throw std::runtime_error("records and costs size mismatch");
     }
@@ -237,7 +242,6 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
 
     auto active_bumps = std::set<Bump_coord> {};
     auto active_i = std::map<std::tuple<std::size_t, std::size_t, std::size_t>, std::set<std::size_t>> {};
-    const auto net_bumps = collect_net_bumps(records);
 
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
@@ -259,7 +263,9 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
                 }
                 coeff += it->second[c];
             }
-            mps.add_objective(z, coeff);    // 目标函数最内层
+            if (enable_objective) {
+                mps.add_objective(z, coeff); // 可选目标函数
+            }
         }
 
         // 约束5，分三种情况
@@ -320,28 +326,6 @@ void build_tob_ilp_model(TobIlpModel& mps, const std::Vector<Net_cost_record>& r
         for (const auto& b : record.end_bumps) {
             active_bumps.insert(b);
             active_i[{b.TOB, b.Bank, b.Group}].insert(b.Index);
-        }
-    }
-
-    for (std::size_t t = 0; t < 16; ++t) {
-        for (std::size_t b = 0; b < 2; ++b) {
-            for (std::size_t g = 0; g < 8; ++g) {
-                for (std::size_t i = 0; i < 8; ++i) {
-                    const auto bump = Bump_coord{t, b, g, i};
-                    if (net_bumps.contains(bump)) {
-                        continue;
-                    }
-                    for (std::size_t j = 0; j < 8; ++j) {
-                        for (std::size_t k = 0; k < 8; ++k) {
-                            const auto row = std::format("R_WZERO_{}_{}_{}_{}_{}_{}", t, b, g, i, j, k);
-                            const auto w = w_var(bump, j, k);
-                            mps.add_row(row, 'E', 0.0);
-                            mps.add_binary(w);
-                            mps.add_coefficient(w, row, 1.0);
-                        }
-                    }
-                }
-            }
         }
     }
 

@@ -9,14 +9,20 @@
 #include <map>
 #include <set>
 #include <thread>
+#include <debug/debug.hh>
+
 
 namespace PR_tool {
 
-auto solve_tob_ilp_with_highs(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs)
+auto solve_tob_ilp_with_highs(
+    const std::Vector<Net_cost_record>& records,
+    const std::Vector<Net_cost_matrix>& costs,
+    const bool enable_objective
+)
     -> TobIlpResult {
     TobIlpResult out {};
     TobIlpModel model {};
-    build_tob_ilp_model(model, records, costs);     // 建模ILP
+    build_tob_ilp_model(model, records, costs, enable_objective); // 建模ILP
 
     HighsLp lp {};
     std::Vector<std::array<HighsInt, 16>> z_col_index {};
@@ -41,6 +47,24 @@ auto solve_tob_ilp_with_highs(const std::Vector<Net_cost_record>& records, const
         out.message = std::format("HiGHS passModel failed (status={})", static_cast<int>(pass_st));
         return out;
     }
+    // show actual parallel setting accepted by HiGHS
+    HighsInt configured_threads = 1;
+    const HighsStatus get_threads_st = highs.getOptionValue("threads", configured_threads);
+    if (get_threads_st != HighsStatus::kOk || configured_threads < 1) {
+        configured_threads = 1;
+    }
+    std::string parallel_mode = "unknown";
+    const HighsStatus get_parallel_st = highs.getOptionValue("parallel", parallel_mode);
+    if (get_parallel_st != HighsStatus::kOk) {
+        parallel_mode = "unknown";
+    }
+    debug::info_fmt(
+        "HiGHS parallel setup: hw_threads={}, requested_threads={}, configured_threads={}, parallel={}",
+        hw_threads,
+        threads,
+        configured_threads,
+        parallel_mode
+    );
 
     const HighsStatus run_st = highs.run();    // 运行HiGHS
     if (run_st != HighsStatus::kOk) {

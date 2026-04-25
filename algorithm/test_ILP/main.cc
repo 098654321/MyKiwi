@@ -19,10 +19,12 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstddef>
 #include <limits>
 #include <format>
 #include <map>
+#include <sys/resource.h>
 #include <stdexcept>
 #include <string>
 #include <tuple>
@@ -35,17 +37,38 @@ auto sort_and_unique(std::Vector<Bump_coord>& values) -> void;
 auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record;
 auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vector<Net_cost_record>;
 auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<Net_cost_matrix>;
-auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs, const std::String& output_mps) -> void;
+auto write_mps_file(
+    const std::Vector<Net_cost_record>& records,
+    const std::Vector<Net_cost_matrix>& costs,
+    const std::String& output_mps,
+    bool enable_objective
+) -> void;
+auto get_peak_rss_mb() -> double;
 
 auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
         debug::error("No config path given");
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path]");
+        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective]");
         return 1;
     }
 
     const auto config_path = std::String(argv[1]);
-    const auto output_mps = argc >= 3 ? std::String(argv[2]) : std::String{};
+    auto output_mps = std::String {};
+    bool enable_objective = false;
+    for (int argi = 2; argi < argc; ++argi) {
+        const auto arg = std::String(argv[argi]);
+        if (arg == "--enable-objective") {
+            enable_objective = true;
+            continue;
+        }
+        if (output_mps.empty()) {
+            output_mps = arg;
+            continue;
+        }
+        debug::error_fmt("Unexpected argument '{}'", arg);
+        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective]");
+        return 1;
+    }
 
     debug::initial_log("./debug.log");
     auto [interposer, basedie] = PR_tool::parse::read_config(config_path, 0, false);
@@ -56,11 +79,18 @@ auto run_main(int argc, char** argv) -> int {
     const auto costs = build_cost_matrix(records);
 
     if (!output_mps.empty()) {
-        write_mps_file(records, costs, output_mps);
+        write_mps_file(records, costs, output_mps, enable_objective);
         debug::info_fmt("MPS written: {}", output_mps);
     }
 
-    const auto result = solve_tob_ilp_with_highs(records, costs);
+    const auto solve_begin = std::chrono::steady_clock::now();
+    const auto result = solve_tob_ilp_with_highs(records, costs, enable_objective);
+    const auto solve_end = std::chrono::steady_clock::now();
+    const auto solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
+    const auto peak_rss_mb = get_peak_rss_mb();
+    debug::info_fmt("ILP solve elapsed: {} ms", solve_ms);
+    debug::info_fmt("Process peak RSS: {:.2f} MB", peak_rss_mb);
+
     if (!result.ok) {
         debug::error_fmt("HiGHS: {}", result.message);
         return 1;
@@ -297,6 +327,27 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
         // for other net types, classify them into Net_cost_record
         records.emplace_back(classify_net(net));
     }
+
+    // show number of all net types
+    std::size_t bnet_count = 0;
+    std::size_t pnnet_count = 0;
+    std::size_t tnet_count = 0;
+    for (const auto& record : records) {
+        if (record.type == Net_type::Bnet) {
+            ++bnet_count;
+        }
+        else if (record.type == Net_type::PNnet) {
+            ++pnnet_count;
+        }
+        else if (record.type == Net_type::Tnet) {
+            ++tnet_count;
+        }
+    }
+    debug::info_fmt("number of Bnet: {}", bnet_count);
+    debug::info_fmt("number of PNnet: {}", pnnet_count);
+    debug::info_fmt("number of Tnet: {}", tnet_count);
+    debug::info_fmt("total number of nets: {}", records.size());
+
     return records;
 }
 
@@ -358,12 +409,33 @@ auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vect
 }
 
 // MARK: write mps file (optional; same model as HiGHS)
-auto write_mps_file(const std::Vector<Net_cost_record>& records, const std::Vector<Net_cost_matrix>& costs, const std::String& output_mps) -> void {
+auto write_mps_file(
+    const std::Vector<Net_cost_record>& records,
+    const std::Vector<Net_cost_matrix>& costs,
+    const std::String& output_mps,
+    const bool enable_objective
+) -> void {
     TobIlpModel m {};
-    build_tob_ilp_model(m, records, costs);
+    build_tob_ilp_model(m, records, costs, enable_objective);
     m.write_mps(output_mps);
 }
 // MARK: END of writing mps file
+
+auto get_peak_rss_mb() -> double {
+    struct rusage usage {};
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        return -1.0;
+    }
+#if defined(__APPLE__)
+    // macOS reports ru_maxrss in bytes.
+    constexpr double kBytesPerMb = 1024.0 * 1024.0;
+    return static_cast<double>(usage.ru_maxrss) / kBytesPerMb;
+#else
+    // Linux reports ru_maxrss in kilobytes.
+    constexpr double kKbPerMb = 1024.0;
+    return static_cast<double>(usage.ru_maxrss) / kKbPerMb;
+#endif
+}
 
 } // namespace PR_tool
 
