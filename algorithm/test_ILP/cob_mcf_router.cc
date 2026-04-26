@@ -20,6 +20,7 @@
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <sys/resource.h>
 #include <vector>
 
 #include <debug/debug.hh>
@@ -76,6 +77,18 @@ auto mcf_merge_key(const Net_cost_record& r) -> std::String {
 auto demand_bits_ceil(const Net_cost_record& r) -> int {
     const int b = static_cast<int>(std::lround(static_cast<double>(r.bits)));
     return b < 1 ? 1 : b;
+}
+
+auto get_peak_rss_mb() -> double {
+    rusage usage {};
+    if (getrusage(RUSAGE_SELF, &usage) != 0) {
+        return 0.0;
+    }
+#if defined(__APPLE__)
+    return static_cast<double>(usage.ru_maxrss) / (1024.0 * 1024.0);
+#else
+    return static_cast<double>(usage.ru_maxrss) / 1024.0;
+#endif
 }
 
 void build_base_arcs(std::Vector<Arc>& arcs) {
@@ -602,12 +615,45 @@ static auto path_length_without_virtual_nodes(const std::Vector<int>& nodes) -> 
     return len;
 }
 
+static auto is_tob_node(int n) -> bool {
+    return n >= kTob0i && n < kVPi;
+}
+
+static auto is_cob_node_any(int n) -> bool {
+    return n >= 0 && n < kTob0i;
+}
+
+static auto is_physically_adjacent_path_step(int u, int v) -> bool {
+    if (u == kVPi || u == kVNi || v == kVPi || v == kVNi) {
+        return true;
+    }
+    if (is_cob_node_any(u) && is_cob_node_any(v)) {
+        const auto cu = linear_to_cob(static_cast<std::size_t>(u));
+        const auto cv = linear_to_cob(static_cast<std::size_t>(v));
+        const auto dr = std::llabs(cu.row - cv.row);
+        const auto dc = std::llabs(cu.col - cv.col);
+        return dr + dc == 1;
+    }
+    if (is_tob_node(u) && is_cob_node_any(v)) {
+        const auto [tr, tc] = tob_index_from_linear(static_cast<std::size_t>(u - kTob0i));
+        const auto [a, b] = tob_pair_cob_coords(tr, tc);
+        const auto cv = linear_to_cob(static_cast<std::size_t>(v));
+        return (cv.row == a.row && cv.col == a.col) || (cv.row == b.row && cv.col == b.col);
+    }
+    if (is_cob_node_any(u) && is_tob_node(v)) {
+        return is_physically_adjacent_path_step(v, u);
+    }
+    return true;
+}
+
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
     const std::Vector<TobIlpNetAssignment>& ilp_assignments,
     const hardware::Interposer& interposer,
     const circuit::BaseDie& basedie,
     const bool enable_mcf_parallel) -> CobMcfRunSummary {
+    const auto mcf_start = std::chrono::steady_clock::now();
+    const double mcf_peak_before_mb = get_peak_rss_mb();
     CobMcfRunSummary out {};
     if (records.size() != ilp_assignments.size()) {
         for (std::size_t u = 0; u < 16; ++u) {
@@ -699,10 +745,30 @@ auto run_mcf_global_routing_cob_units(
                 for (std::size_t pi = 0; pi < info.unit_paths.size(); ++pi) {
                     const int plen = path_length_without_virtual_nodes(info.unit_paths[pi]);
                     debug::info_fmt("      path#{} (length={}) {}", pi, plen, path_to_text(info.unit_paths[pi]));
+                    const auto& nodes = info.unit_paths[pi];
+                    for (std::size_t ni = 0; ni + 1 < nodes.size(); ++ni) {
+                        if (is_physically_adjacent_path_step(nodes[ni], nodes[ni + 1])) {
+                            continue;
+                        }
+                        debug::warning_fmt(
+                            "      adjacency warning: path#{} has non-adjacent step {} -> {}",
+                            pi,
+                            node_to_text(nodes[ni]),
+                            node_to_text(nodes[ni + 1]));
+                    }
                 }
             }
         }
     }
+    const auto mcf_end = std::chrono::steady_clock::now();
+    const auto mcf_ms = std::chrono::duration_cast<std::chrono::milliseconds>(mcf_end - mcf_start).count();
+    const double mcf_peak_after_mb = get_peak_rss_mb();
+    const double mcf_stage_peak_delta_mb = std::max(0.0, mcf_peak_after_mb - mcf_peak_before_mb);
+    debug::info_fmt(
+        "MCF global routing summary: elapsed={} ms, peak_rss={:.2f} MB, stage_peak_delta={:.2f} MB",
+        mcf_ms,
+        mcf_peak_after_mb,
+        mcf_stage_peak_delta_mb);
     return out;
 }
 

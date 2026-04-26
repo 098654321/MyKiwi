@@ -49,11 +49,18 @@ auto write_mps_file(
 auto get_peak_rss_mb() -> double;
 
 auto run_main(int argc, char** argv) -> int {
+    const auto run_begin = std::chrono::steady_clock::now();
+    const auto log_total_runtime = [&]() {
+        const auto run_end = std::chrono::steady_clock::now();
+        const auto run_ms = std::chrono::duration_cast<std::chrono::milliseconds>(run_end - run_begin).count();
+        debug::info_fmt("run_main total elapsed: {} ms", run_ms);
+    };
     if (argc < 2) {
         debug::error("No config path given");
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] "
             "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
+        log_total_runtime();
         return 1;
     }
 
@@ -89,6 +96,7 @@ auto run_main(int argc, char** argv) -> int {
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-ilp-parallel] "
             "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
+        log_total_runtime();
         return 1;
     }
 
@@ -115,6 +123,7 @@ auto run_main(int argc, char** argv) -> int {
 
     if (!result.ok) {
         debug::error_fmt("HiGHS: {}", result.message);
+        log_total_runtime();
         return 1;
     }
     for (const auto& a : result.assignments) {
@@ -182,9 +191,11 @@ auto run_main(int argc, char** argv) -> int {
             records, result.assignments, *interposer.get(), *basedie.get(), enable_mcf_parallel);
         if (!mcf_sum.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
+            log_total_runtime();
             return 1;
         }
     }
+    log_total_runtime();
     return 0;
 }
 
