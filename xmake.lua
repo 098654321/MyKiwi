@@ -187,6 +187,7 @@ target("test_ILP")
     if is_plat("linux") then
       add_linkdirs("local/lib64")
       add_ldflags("-Wl,-rpath,$ORIGIN/../local/lib64")
+      add_links("pthread")
     else
       add_linkdirs("local/lib")
       add_rpathdirs("local/lib")
