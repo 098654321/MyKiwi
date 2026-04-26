@@ -31,11 +31,11 @@ namespace {
 using namespace mcf;
 
 const double kCapNormal = 8.0;
-const std::size_t kTob0 = 108U;
-const int kTob0i = 108;
-const int kVPi = 124;
-const int kVNi = 125;
-const int kNumNi = 126;
+const std::size_t kTob0 = 108U; // TOB node 的编号跟在108个COB后面
+const int kTob0i = 108;         // 和kTob0一样的意思
+const int kVPi = 124;           // P-class node 的编号  
+const int kVNi = 125;           // N-class node 的编号
+const int kNumNi = 126;         // 总节点数
 
 struct Arc {
     int u{0};
@@ -237,7 +237,7 @@ void build_commodities(
                 break;
             }
         }
-        if (all_same) {
+        if (all_same) {         // 所有的起始/终止bump都在同一个COBUnit上
             int ssum = 0;
             for (const auto i : gids) {
                 ssum += demand_bits_ceil(records[i]);
@@ -251,7 +251,7 @@ void build_commodities(
                 cls_b()});
             return;
         }
-        for (const auto i : gids) {
+        for (const auto i : gids) { // 分成几个不同的COBUnit
             const auto& r = records[i];
             int ss = static_cast<int>(kTob0 + r.start_bumps[0].TOB);
             int tt = static_cast<int>(kTob0 + r.end_bumps[0].TOB);
@@ -541,7 +541,7 @@ static auto solve_prepared_cob_unit(
     std::Vector<Arc> arcs = base_arcs;
     std::set<int> p_cob;
     std::set<int> n_cob;
-    add_port_arcs(interposer, basedie, cobu, arcs, p_cob, n_cob);
+    add_port_arcs(interposer, basedie, cobu, arcs, p_cob, n_cob);      // add port arcs for pose/nege ports
     const auto t0 = std::chrono::steady_clock::now();
     const auto res = solve_mcf_lp(arcs, p_cob, n_cob, coms);
     const auto t1 = std::chrono::steady_clock::now();
@@ -619,11 +619,11 @@ auto run_mcf_global_routing_cob_units(
         return out;
     }
     std::Vector<Arc> base_arcs;
-    build_base_arcs(base_arcs);
+    build_base_arcs(base_arcs);     // build graph 
 
     std::array<std::Vector<McfK>, 16> prep {};
     for (std::size_t cobu = 0; cobu < 16; ++cobu) {
-        prep[cobu] = prepare_cob_unit_commodities(records, ilp_assignments, cobu);
+        prep[cobu] = prepare_cob_unit_commodities(records, ilp_assignments, cobu);      // make MCF
     }
 
     out.per_cob.resize(16);
@@ -633,7 +633,7 @@ auto run_mcf_global_routing_cob_units(
         futs.reserve(16);
         for (std::size_t cobu = 0; cobu < 16; ++cobu) {
             futs.push_back(std::async(std::launch::async, [&, cobu, coms = prep[cobu]]() {
-                return solve_prepared_cob_unit(base_arcs, interposer, basedie, cobu, coms);
+                return solve_prepared_cob_unit(base_arcs, interposer, basedie, cobu, coms);       // solve MCF
             }));
         }
         for (std::size_t cobu = 0; cobu < 16; ++cobu) {
