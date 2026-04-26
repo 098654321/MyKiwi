@@ -28,12 +28,14 @@ struct CobMcfRunSummary {
     bool all_ok{true};
 };
 
-/// Per-cobunit MCF: getNetinCOBUnit → makeNodeforPNnet → splitNet → build LP + HiGHS.
+/// Per-cobunit MCF: getNetinCOBUnit → merge → build_commodities → build LP + HiGHS.
+/// When \p enable_mcf_parallel is true, each unit is solved concurrently (separate HiGHS instances).
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
     const std::Vector<TobIlpNetAssignment>& ilp_assignments,
     const hardware::Interposer& interposer,
-    const circuit::BaseDie& basedie
+    const circuit::BaseDie& basedie,
+    bool enable_mcf_parallel = false
 ) -> CobMcfRunSummary;
 
 } // namespace PR_tool

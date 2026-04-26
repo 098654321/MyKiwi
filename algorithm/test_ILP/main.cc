@@ -51,27 +51,34 @@ auto get_peak_rss_mb() -> double;
 auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
         debug::error("No config path given");
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] [--enable-mcf-global-routing]");
+        debug::info(
+            "Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] "
+            "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
         return 1;
     }
 
     const auto config_path = std::String(argv[1]);
     auto output_mps = std::String {};
     bool enable_objective = false;
-    bool enable_parallel = false;
+    bool enable_ilp_parallel = false;
     bool enable_mcf = false;
+    bool enable_mcf_parallel = false;
     for (int argi = 2; argi < argc; ++argi) {
         const auto arg = std::String(argv[argi]);
         if (arg == "--enable-objective") {
             enable_objective = true;
             continue;
         }
-        if (arg == "--enable-parallel") {
-            enable_parallel = true;
+        if (arg == "--enable-ilp-parallel") {
+            enable_ilp_parallel = true;
             continue;
         }
         if (arg == "--enable-mcf-global-routing") {
             enable_mcf = true;
+            continue;
+        }
+        if (arg == "--enable-mcf-parallel") {
+            enable_mcf_parallel = true;
             continue;
         }
         if (output_mps.empty()) {
@@ -79,7 +86,9 @@ auto run_main(int argc, char** argv) -> int {
             continue;
         }
         debug::error_fmt("Unexpected argument '{}'", arg);
-        debug::info("Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] [--enable-mcf-global-routing]");
+        debug::info(
+            "Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-ilp-parallel] "
+            "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
         return 1;
     }
 
@@ -97,7 +106,7 @@ auto run_main(int argc, char** argv) -> int {
     }
 
     const auto solve_begin = std::chrono::steady_clock::now();
-    const auto result = solve_tob_ilp_with_highs(records, costs, enable_objective, enable_parallel);
+    const auto result = solve_tob_ilp_with_highs(records, costs, enable_objective, enable_ilp_parallel);
     const auto solve_end = std::chrono::steady_clock::now();
     const auto solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
     const auto peak_rss_mb = get_peak_rss_mb();
@@ -113,7 +122,7 @@ auto run_main(int argc, char** argv) -> int {
     }
     for (const auto& d : result.route_details) {
         debug::info_fmt(
-            "net \"{}\": bump(T{},B{},G{},I{}) -> j={}, k={}, s={}, orient={}, track={}, COBUnit={}",
+            "net \"{}\": bump(T{},B{},G{},I{}) -> j={} (horizontal line), k={} (vertical line), s={}, orient={}, track={}, COBUnit={}",
             d.net_name,
             d.bump.TOB,
             d.bump.Bank,
@@ -131,7 +140,7 @@ auto run_main(int argc, char** argv) -> int {
     for (const auto& w : result.active_w) {
         if (!w.has_track) {
             debug::info_fmt(
-                "W active: bump(T{},B{},G{},I{}) j={}, k={} (track unresolved)",
+                "W active: bump(T{},B{},G{},I{}) j={} (horizontal line), k={} (vertical line) (track unresolved)",
                 w.bump.TOB,
                 w.bump.Bank,
                 w.bump.Group,
@@ -142,7 +151,7 @@ auto run_main(int argc, char** argv) -> int {
             continue;
         }
         debug::info_fmt(
-            "W active: bump(T{},B{},G{},I{}) j={}, k={}, orient={}, track={}",
+            "W active: bump(T{},B{},G{},I{}) j={} (horizontal line), k={} (vertical line), orient={}, track={}",
             w.bump.TOB,
             w.bump.Bank,
             w.bump.Group,
@@ -155,13 +164,22 @@ auto run_main(int argc, char** argv) -> int {
     }
     debug::info_fmt("active S count: {}", result.active_s.size());
     for (const auto& s : result.active_s) {
-        debug::info_fmt("S active: TOB={}, v={} (j={}, k={})", s.tob, s.v, s.j, s.k);
+        debug::info_fmt(
+            "S active: TOB={}, v={} (j={} horizontal line, k={} vertical line)",
+            s.tob,
+            s.v,
+            s.j,
+            s.k);
     }
     debug::info_fmt("objective value: {}", result.objective);
     debug::info_fmt("nets solved: {}", records.size());
 
     if (enable_mcf) {
-        const auto mcf_sum = run_mcf_global_routing_cob_units(records, result.assignments, *interposer.get(), *basedie.get());
+        if (enable_mcf_parallel) {
+            debug::info("MCF: solving 16 COB units in parallel (std::async)");
+        }
+        const auto mcf_sum = run_mcf_global_routing_cob_units(
+            records, result.assignments, *interposer.get(), *basedie.get(), enable_mcf_parallel);
         if (!mcf_sum.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
             return 1;
