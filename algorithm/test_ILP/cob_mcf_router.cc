@@ -582,6 +582,22 @@ static auto solve_prepared_cob_unit(
     const int ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
     debug::info_fmt("MCF cob unit {}: commodities={} ok={} obj={:.4g} time={}ms", cobu, coms.size(), res.ok, res.objective, ms);
     if (!res.ok) {
+        const auto node_name = [](int n) -> std::String {
+            if (n == kVPi) {
+                return "V_P";
+            }
+            if (n == kVNi) {
+                return "V_N";
+            }
+            if (n >= kTob0i && n < kVPi) {
+                return std::format("TOB{}", n - kTob0i);
+            }
+            if (n >= 0 && n < kTob0i) {
+                const auto c = linear_to_cob(static_cast<std::size_t>(n));
+                return std::format("COB({},{})", c.row, c.col);
+            }
+            return std::format("N{}", n);
+        };
         debug::debug_fmt(
             "MCF cob unit {} failure detail: model_status={}, p_cob_count={}, n_cob_count={}, commodities={}",
             cobu,
@@ -607,10 +623,10 @@ static auto solve_prepared_cob_unit(
                 if (res.has_primal_flow) {
                     auto it = res.directed_edge_usage.find({u, v});
                     const double used = (it == res.directed_edge_usage.end()) ? 0.0 : it->second;
-                    debug::debug_fmt("  edge {} -> {} : use={:.0f}/INF", u, v, used);
+                    debug::debug_fmt("  edge {} -> {} : use={:.0f}/INF", node_name(u), node_name(v), used);
                 }
                 else {
-                    debug::debug_fmt("  edge {} -> {} : use=N/A/INF", u, v);
+                    debug::debug_fmt("  edge {} -> {} : use=N/A/INF", node_name(u), node_name(v));
                 }
                 continue;
             }
@@ -622,10 +638,15 @@ static auto solve_prepared_cob_unit(
             if (res.has_primal_flow) {
                 auto it = res.undirected_edge_usage.find({u1, v1});
                 const double used = (it == res.undirected_edge_usage.end()) ? 0.0 : it->second;
-                debug::debug_fmt("  edge {} <-> {} : use={:.0f}/{:.0f}", u1, v1, used, kCapNormal);
+                debug::debug_fmt(
+                    "  edge {} <-> {} : use={:.0f}/{:.0f}",
+                    node_name(u1),
+                    node_name(v1),
+                    used,
+                    kCapNormal);
             }
             else {
-                debug::debug_fmt("  edge {} <-> {} : use=N/A/{:.0f}", u1, v1, kCapNormal);
+                debug::debug_fmt("  edge {} <-> {} : use=N/A/{:.0f}", node_name(u1), node_name(v1), kCapNormal);
             }
         }
     }
