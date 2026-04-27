@@ -65,6 +65,10 @@ struct McfPathInfo {
 struct McfSolveResult {
     bool ok{false};
     double objective{0.0};
+    int model_status{-1};
+    bool has_primal_flow{false};
+    std::map<std::pair<int, int>, double> undirected_edge_usage;
+    std::map<std::pair<int, int>, double> directed_edge_usage;
     std::Vector<McfPathInfo> paths;
 };
 
@@ -344,7 +348,7 @@ auto flow_row_id(int k, int node) -> int {
 auto solve_mcf_lp(
     const std::Vector<Arc>& arcs, const std::set<int>& p_cob, const std::set<int>& n_cob, const std::Vector<McfK>& com) -> McfSolveResult {
     if (com.empty()) {
-        return McfSolveResult {true, 0.0, {}};
+        return McfSolveResult {true, 0.0, static_cast<int>(HighsModelStatus::kOptimal), true, {}, {}, {}};
     }
     const int A = static_cast<int>(arcs.size());
     const int K = static_cast<int>(com.size());
@@ -374,7 +378,7 @@ auto solve_mcf_lp(
     }
     const int num_col = static_cast<int>(vars.size());
     if (num_col == 0) {
-        return McfSolveResult {false, 0.0, {}};
+        return McfSolveResult {false, 0.0, static_cast<int>(HighsModelStatus::kNotset), false, {}, {}, {}};
     }
     std::map<std::pair<int, int>, int> e2id;
     {
@@ -460,18 +464,21 @@ auto solve_mcf_lp(
     h.setOptionValue("presolve", "on");
     const auto ps = h.passModel(std::move(lp));
     if (ps != HighsStatus::kOk) {
-        return McfSolveResult {false, 0.0, {}};
+        return McfSolveResult {false, 0.0, static_cast<int>(HighsModelStatus::kNotset), false, {}, {}, {}};
     }
     if (h.run() != HighsStatus::kOk) {
-        return McfSolveResult {false, 0.0, {}};
+        return McfSolveResult {false, 0.0, static_cast<int>(h.getModelStatus()), false, {}, {}, {}};
     }
-    if (h.getModelStatus() != HighsModelStatus::kOptimal) {
-        return McfSolveResult {false, 0.0, {}};
+    const auto model_status = h.getModelStatus();
+    if (model_status != HighsModelStatus::kOptimal) {
+        return McfSolveResult {false, 0.0, static_cast<int>(model_status), false, {}, {}, {}};
     }
 
     std::Vector<McfPathInfo> all_paths;
     all_paths.resize(static_cast<std::size_t>(K));
     std::vector<std::map<std::pair<int, int>, int>> edge_count(static_cast<std::size_t>(K));
+    std::map<std::pair<int, int>, double> undirected_usage;
+    std::map<std::pair<int, int>, double> directed_usage;
     const auto sol = h.getSolution();
     for (int j = 0; j < num_col; ++j) {
         const int f = static_cast<int>(std::lround(sol.col_value[static_cast<std::size_t>(j)]));
@@ -482,6 +489,13 @@ auto solve_mcf_lp(
         const int a = vars[static_cast<std::size_t>(j)].a;
         const int u = arcs[static_cast<std::size_t>(a)].u;
         const int v = arcs[static_cast<std::size_t>(a)].v;
+        directed_usage[{u, v}] += static_cast<double>(f);
+        int u1 = u;
+        int v1 = v;
+        if (u1 > v1) {
+            std::swap(u1, v1);
+        }
+        undirected_usage[{u1, v1}] += static_cast<double>(f);
         edge_count[static_cast<std::size_t>(k)][{u, v}] += f;
     }
     for (int k = 0; k < K; ++k) {
@@ -535,7 +549,14 @@ auto solve_mcf_lp(
             info.unit_paths.push_back(std::move(nodes));
         }
     }
-    return McfSolveResult {true, h.getObjectiveValue(), std::move(all_paths)};
+    return McfSolveResult {
+        true,
+        h.getObjectiveValue(),
+        static_cast<int>(model_status),
+        true,
+        std::move(undirected_usage),
+        std::move(directed_usage),
+        std::move(all_paths)};
 }
 
 } // namespace
@@ -560,6 +581,54 @@ static auto solve_prepared_cob_unit(
     const auto t1 = std::chrono::steady_clock::now();
     const int ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
     debug::info_fmt("MCF cob unit {}: commodities={} ok={} obj={:.4g} time={}ms", cobu, coms.size(), res.ok, res.objective, ms);
+    if (!res.ok) {
+        debug::debug_fmt(
+            "MCF cob unit {} failure detail: model_status={}, p_cob_count={}, n_cob_count={}, commodities={}",
+            cobu,
+            res.model_status,
+            p_cob.size(),
+            n_cob.size(),
+            coms.size());
+        for (std::size_t i = 0; i < coms.size(); ++i) {
+            const auto& c = coms[i];
+            debug::debug_fmt(
+                "  commodity[{}] label={} src={} snk={} demand={}",
+                i,
+                c.label,
+                c.src,
+                c.snk,
+                c.demand);
+        }
+        debug::debug_fmt("MCF cob unit {} edge usage/capacity:", cobu);
+        for (const auto& a : arcs) {
+            const int u = a.u;
+            const int v = a.v;
+            if (a.is_virt) {
+                if (res.has_primal_flow) {
+                    auto it = res.directed_edge_usage.find({u, v});
+                    const double used = (it == res.directed_edge_usage.end()) ? 0.0 : it->second;
+                    debug::debug_fmt("  edge {} -> {} : use={:.0f}/INF", u, v, used);
+                }
+                else {
+                    debug::debug_fmt("  edge {} -> {} : use=N/A/INF", u, v);
+                }
+                continue;
+            }
+            int u1 = u;
+            int v1 = v;
+            if (u1 > v1) {
+                std::swap(u1, v1);
+            }
+            if (res.has_primal_flow) {
+                auto it = res.undirected_edge_usage.find({u1, v1});
+                const double used = (it == res.undirected_edge_usage.end()) ? 0.0 : it->second;
+                debug::debug_fmt("  edge {} <-> {} : use={:.0f}/{:.0f}", u1, v1, used, kCapNormal);
+            }
+            else {
+                debug::debug_fmt("  edge {} <-> {} : use=N/A/{:.0f}", u1, v1, kCapNormal);
+            }
+        }
+    }
     return CobSolveDetail {
         CobMcfCobUnitSummary {
             cobu,

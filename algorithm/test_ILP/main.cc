@@ -58,7 +58,7 @@ auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
         debug::error("No config path given");
         debug::info(
-            "Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-parallel] "
+            "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-objective] [--enable-ilp-parallel] "
             "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
         log_total_runtime();
         return 1;
@@ -70,8 +70,22 @@ auto run_main(int argc, char** argv) -> int {
     bool enable_ilp_parallel = false;
     bool enable_mcf = false;
     bool enable_mcf_parallel = false;
+    int verbose_v_count = 0;
     for (int argi = 2; argi < argc; ++argi) {
         const auto arg = std::String(argv[argi]);
+        if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'v') {
+            bool all_v = true;
+            for (std::size_t i = 1; i < arg.size(); ++i) {
+                if (arg[i] != 'v') {
+                    all_v = false;
+                    break;
+                }
+            }
+            if (all_v) {
+                verbose_v_count += static_cast<int>(arg.size() - 1);
+                continue;
+            }
+        }
         if (arg == "--enable-objective") {
             enable_objective = true;
             continue;
@@ -94,13 +108,17 @@ auto run_main(int argc, char** argv) -> int {
         }
         debug::error_fmt("Unexpected argument '{}'", arg);
         debug::info(
-            "Usage: xmake run test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-ilp-parallel] "
+            "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-objective] [--enable-ilp-parallel] "
             "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
         log_total_runtime();
         return 1;
     }
 
     debug::initial_log("./debug.log");
+    if (verbose_v_count > 0) {
+        debug::set_debug_level(debug::DebugLevel::Debug);
+        debug::info_fmt("verbose mode enabled: -v count={}", verbose_v_count);
+    }
     auto [interposer, basedie] = PR_tool::parse::read_config(config_path, 0, false);
     algo::build_nets(basedie.get(), interposer.get());
 
