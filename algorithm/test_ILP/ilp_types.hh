@@ -52,8 +52,12 @@ struct Net_cost_record {
     std::Vector<std::size_t> candidate_cobunits;
     std::Vector<std::size_t> tnet_fixed_cobunits;
 
-    /// Key to merge 2-pin fragments back to a logical net (prefix before first `__` in split names).
+    /// Key to merge 2-pin fragments back to a logical net.
     std::String origin_key {};
+    /// Bit index in one logical/origin net.
+    std::size_t bit_id{0};
+    /// Stable global id in `build_records` output order.
+    std::size_t record_id{0};
     IlpPowerKind power_kind{IlpPowerKind::None};
     IlpEndpointKind mcf_start_kind{IlpEndpointKind::Bump};
     IlpEndpointKind mcf_end_kind{IlpEndpointKind::Bump};

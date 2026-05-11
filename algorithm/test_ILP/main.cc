@@ -3,6 +3,7 @@
 #include "cob_mcf_router.hh"
 #include "highs.hh"
 #include "ilp_types.hh"
+#include "ilp_maze_finalize.hh"
 #include "tob_ilp_model.hh"
 
 #include <algo/netbuilder/netbuilder.hh>
@@ -24,6 +25,7 @@
 #include <array>
 #include <chrono>
 #include <cstddef>
+#include <cstdlib>
 #include <limits>
 #include <format>
 #include <map>
@@ -59,7 +61,7 @@ auto run_main(int argc, char** argv) -> int {
         debug::error("No config path given");
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-objective] [--enable-ilp-parallel] "
-            "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
+            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]");
         log_total_runtime();
         return 1;
     }
@@ -70,7 +72,12 @@ auto run_main(int argc, char** argv) -> int {
     bool enable_ilp_parallel = false;
     bool enable_mcf = false;
     bool enable_mcf_parallel = false;
+    bool enable_maze = false;
     int verbose_v_count = 0;
+    bool cob_rows_set = false;
+    bool cob_cols_set = false;
+    int cob_rows_cli = 0;
+    int cob_cols_cli = 0;
     for (int argi = 2; argi < argc; ++argi) {
         const auto arg = std::String(argv[argi]);
         if (arg.size() >= 2 && arg[0] == '-' && arg[1] == 'v') {
@@ -94,12 +101,38 @@ auto run_main(int argc, char** argv) -> int {
             enable_ilp_parallel = true;
             continue;
         }
-        if (arg == "--enable-mcf-global-routing") {
+        if (arg == "--enable-mcf-routing") {
             enable_mcf = true;
             continue;
         }
         if (arg == "--enable-mcf-parallel") {
             enable_mcf_parallel = true;
+            continue;
+        }
+        if (arg == "--enable-maze") {
+            enable_maze = true;
+            continue;
+        }
+        if (arg == "--cob-rows") {
+            if (argi + 1 >= argc) {
+                debug::error("--cob-rows requires an integer argument");
+                log_total_runtime();
+                return 1;
+            }
+            cob_rows_cli = std::atoi(argv[argi + 1]);
+            cob_rows_set = true;
+            argi += 1;
+            continue;
+        }
+        if (arg == "--cob-cols") {
+            if (argi + 1 >= argc) {
+                debug::error("--cob-cols requires an integer argument");
+                log_total_runtime();
+                return 1;
+            }
+            cob_cols_cli = std::atoi(argv[argi + 1]);
+            cob_cols_set = true;
+            argi += 1;
             continue;
         }
         if (output_mps.empty()) {
@@ -109,10 +142,35 @@ auto run_main(int argc, char** argv) -> int {
         debug::error_fmt("Unexpected argument '{}'", arg);
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-objective] [--enable-ilp-parallel] "
-            "[--enable-mcf-global-routing] [--enable-mcf-parallel]");
+            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]");
         log_total_runtime();
         return 1;
     }
+
+    const int cob_rows_hw = static_cast<int>(hardware::Interposer::COB_ARRAY_HEIGHT);
+    const int cob_cols_hw = static_cast<int>(hardware::Interposer::COB_ARRAY_WIDTH);
+    int cob_rows = cob_rows_hw;
+    int cob_cols = cob_cols_hw;
+    if (cob_rows_set != cob_cols_set) {
+        debug::error("COB grid: specify both --cob-rows and --cob-cols, or neither (defaults to Interposer dimensions)");
+        log_total_runtime();
+        return 1;
+    }
+    if (cob_rows_set) {
+        if (cob_rows_cli != cob_rows_hw || cob_cols_cli != cob_cols_hw) {
+            debug::error_fmt(
+                "COB grid from CLI ({}, {}) must match hardware::Interposer (rows={}, cols={})",
+                cob_rows_cli,
+                cob_cols_cli,
+                cob_rows_hw,
+                cob_cols_hw);
+            log_total_runtime();
+            return 1;
+        }
+        cob_rows = cob_rows_cli;
+        cob_cols = cob_cols_cli;
+    }
+    const CobMcfGridDims cob_grid {cob_rows, cob_cols};
 
     debug::initial_log("./debug.log");
     if (verbose_v_count > 0) {
@@ -201,16 +259,31 @@ auto run_main(int argc, char** argv) -> int {
     debug::info_fmt("objective value: {}", result.objective);
     debug::info_fmt("nets solved: {}", records.size());
 
+    if (enable_maze && !enable_mcf) {
+        debug::error("--enable-maze requires --enable-mcf-routing");
+        log_total_runtime();
+        return 1;
+    }
+
     if (enable_mcf) {
         if (enable_mcf_parallel) {
             debug::info("MCF: solving 16 COB units in parallel (std::async)");
         }
-        const auto mcf_sum = run_mcf_global_routing_cob_units(
-            records, result.assignments, *interposer.get(), *basedie.get(), enable_mcf_parallel);
-        if (!mcf_sum.all_ok) {
+        const auto mcf_full = run_mcf_global_routing_cob_units(
+            records, result.assignments, *interposer.get(), *basedie.get(), cob_grid, enable_mcf_parallel);
+        if (!mcf_full.summary.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
             log_total_runtime();
             return 1;
+        }
+        if (enable_maze) {
+            const auto maze_ok = run_ilp_maze_finalize(
+                records, result, mcf_full, interposer.get(), basedie.get(), cob_grid);
+            if (!maze_ok) {
+                debug::error("Maze finalize failed for one or more bit paths");
+                log_total_runtime();
+                return 1;
+            }
         }
     }
     log_total_runtime();
@@ -443,6 +516,15 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
     debug::info_fmt("number of PNnet: {}", pnnet_count);
     debug::info_fmt("number of Tnet: {}", tnet_count);
     debug::info_fmt("total number of nets: {}", records.size());
+
+    // Assign stable ids for downstream ILP/MCF/maze alignment.
+    auto origin_bit_counter = std::map<std::String, std::size_t> {};
+    for (std::size_t i = 0; i < records.size(); ++i) {
+        records[i].record_id = i;
+        const auto& origin = records[i].origin_key.empty() ? records[i].net_name : records[i].origin_key;
+        records[i].bit_id = origin_bit_counter[origin];
+        origin_bit_counter[origin] += 1;
+    }
 
     return records;
 }

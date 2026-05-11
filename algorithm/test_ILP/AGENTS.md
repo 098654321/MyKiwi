@@ -24,7 +24,7 @@
 
 ```bash
 xmake build test_ILP
-./output/test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-ilp-parallel] [--enable-mcf-global-routing] [--enable-mcf-parallel]
+./output/test_ILP <config_path> [output_mps_path] [--enable-objective] [--enable-ilp-parallel] [--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]
 ```
 
 参数语义（以 `main.cc` 为准）：
@@ -33,8 +33,10 @@ xmake build test_ILP
 - `output_mps_path`：可选，导出 ILP MPS 文件
 - `--enable-objective`：启用 ILP 目标项
 - `--enable-ilp-parallel`：HiGHS 并行求解 ILP
-- `--enable-mcf-global-routing`：在 ILP 分配成功后继续执行 MCF 阶段
-- `--enable-mcf-parallel`：在已启用 MCF 阶段时，对 16 个 `COBUnit` 的 HiGHS 求解使用 `std::async` 并发调度（每个 unit 独立模型与 `Highs` 实例）。未同时打开 `--enable-mcf-global-routing` 时该开关无效
+- `--cob-rows N` / `--cob-cols M`：可选，**必须成对出现或均省略**。省略时 MCF 构图使用 `hardware::Interposer::COB_ARRAY_HEIGHT` 与 `COB_ARRAY_WIDTH`。若显式传入，数值必须与上述常量完全一致，否则程序报错退出（保证 `track_to_cob`、Bump/TOB 坐标与 MCF 物理假设一致）
+- `--enable-mcf-routing`：在 ILP 分配成功后继续执行 MCF 阶段
+- `--enable-mcf-parallel`：在已启用 MCF 阶段时，对 16 个 `COBUnit` 的 HiGHS 求解使用 `std::async` 并发调度（每个 unit 独立模型与 `Highs` 实例）。未同时打开 `--enable-mcf-routing` 时该开关无效
+- `--enable-maze`：在 ILP+MCF 均成功后，按 bit 粒度执行受 MCF 路径走廊约束的 track 层 BFS maze；必须与 `--enable-mcf-routing` 同时使用
 
 ---
 
@@ -46,7 +48,7 @@ xmake build test_ILP
 2) `build_records()`：将 `circuit::Net` 展平为 2-pin 级 `Net_cost_record`  
 3) `build_cost_matrix()`：按负载估计构造成本矩阵  
 4) `solve_tob_ilp_with_highs()`：ILP 求解，输出每条 2-pin net 的 `COBUnit` 分配  
-5) 若启用 `--enable-mcf-global-routing`：  
+5) 若启用 `--enable-mcf-routing`：  
    `run_mcf_global_routing_cob_units()`，按 cobunit 做 MCF 求解  
 
 建议把该链路理解为：
@@ -146,11 +148,11 @@ xmake build test_ILP
 
 路径约束（模型第 4 类）：除仅允许 P-class commodity 使用 `V_P` 关联弧、N-class 使用 `V_N` 关联弧外，**非 P-class 的 commodity 禁止占用任一端点在 `p_cob` 上的边；非 N-class 禁止占用任一端点在 `n_cob` 上的边**（`arc_class_ok`）。
 
-图节点固定为：
+图节点编号由 COB 网格尺寸与 `hardware::Interposer` 的 TOB 阵列尺寸推导（`cob_mcf_router.cc` 内 `McfGraphDims::from_grid`）：
 
-- COB 节点：`9 * 12 = 108`
-- TOB 节点：`16`（偏移从 108 开始）
-- 虚拟节点：`V_P = 124`，`V_N = 125`
+- COB 节点：`0 .. num_cob-1`，其中 `num_cob = rows * cols`；`rows`/`cols` 缺省为 `Interposer::COB_ARRAY_HEIGHT` / `COB_ARRAY_WIDTH`，也可通过 CLI `--cob-rows` / `--cob-cols` 显式指定（须与 Interposer 一致）
+- TOB 节点：`num_tob = TOB_ARRAY_WIDTH * TOB_ARRAY_HEIGHT` 个，线性下标从 `k_tob0 = num_cob` 起
+- 虚拟节点：`V_P = num_cob + num_tob`，`V_N = V_P + 1`；节点总数 `num_nodes = V_N + 1`
 
 边容量：
 
@@ -206,7 +208,7 @@ xmake build test_ILP
 ## 8. 关键不变量（修改前后都要守住）
 
 1. **ILP 回归不破坏**  
-   不加 `--enable-mcf-global-routing` 时，流程与结果应可独立成功。
+   不加 `--enable-mcf-routing` 时，流程与结果应可独立成功。
 
 2. **record 与 assignment 数量一致**  
    MCF 假设 `records.size() == result.assignments.size()`。
@@ -234,13 +236,27 @@ xmake build test_ILP
 3) ILP + MCF：
 
 ```bash
-./output/test_ILP <config_path> --enable-mcf-global-routing
+./output/test_ILP <config_path> --enable-mcf-routing
 ```
+
+可选：显式传入与 Interposer 一致的 COB 行列（行为应与省略该参数相同）：
+
+```bash
+./output/test_ILP <config_path> --cob-rows <H> --cob-cols <W> --enable-mcf-routing
+```
+
+（将 `<H>`/`<W>` 替换为当前 `Interposer::COB_ARRAY_HEIGHT` / `COB_ARRAY_WIDTH` 的数值。）
 
 可选并行验证：
 
 ```bash
-./output/test_ILP <config_path> --enable-mcf-global-routing --enable-mcf-parallel
+./output/test_ILP <config_path> --enable-mcf-routing --enable-mcf-parallel
+
+可选：启用最终 constrained maze 阶段：
+
+```bash
+./output/test_ILP <config_path> --enable-mcf-routing --enable-maze
+```
 ```
 
 4) 若改了模型结构，建议附带：

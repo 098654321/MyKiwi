@@ -5,6 +5,7 @@
 #include <hardware/interposer.hh>
 #include <std/collection.hh>
 #include <std/string.hh>
+#include <array>
 
 namespace PR_tool::circuit {
 class BaseDie;
@@ -13,6 +14,12 @@ class BaseDie;
 namespace PR_tool {
 
 struct TobIlpNetAssignment;
+
+/// COB tile grid size for MCF graph construction (must match `hardware::Interposer::COB_ARRAY_*` when passed from CLI).
+struct CobMcfGridDims {
+    int rows{0};
+    int cols{0};
+};
 
 struct CobMcfCobUnitSummary {
     std::size_t cob_unit{0};
@@ -28,6 +35,22 @@ struct CobMcfRunSummary {
     bool all_ok{true};
 };
 
+struct McfPathInfo {
+    std::String label;
+    std::String origin_name;
+    int src{0};
+    int snk{0};
+    int demand{0};
+    std::size_t cob_unit{0};
+    std::Vector<std::size_t> record_indices;
+    std::Vector<std::Vector<int>> unit_paths;
+};
+
+struct CobMcfFullResult {
+    CobMcfRunSummary summary;
+    std::array<std::Vector<McfPathInfo>, 16> paths_by_unit {};
+};
+
 /// Per-cobunit MCF: getNetinCOBUnit → merge → build_commodities → build LP + HiGHS.
 /// When \p enable_mcf_parallel is true, each unit is solved concurrently (separate HiGHS instances).
 auto run_mcf_global_routing_cob_units(
@@ -35,7 +58,8 @@ auto run_mcf_global_routing_cob_units(
     const std::Vector<TobIlpNetAssignment>& ilp_assignments,
     const hardware::Interposer& interposer,
     const circuit::BaseDie& basedie,
+    CobMcfGridDims cob_grid,
     bool enable_mcf_parallel = false
-) -> CobMcfRunSummary;
+) -> CobMcfFullResult;
 
 } // namespace PR_tool
