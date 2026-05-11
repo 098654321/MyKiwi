@@ -1,5 +1,6 @@
 #pragma once
 
+#include "highs.hh"
 #include "ilp_types.hh"
 
 #include <hardware/interposer.hh>
@@ -12,8 +13,6 @@ class BaseDie;
 } // namespace PR_tool::circuit
 
 namespace PR_tool {
-
-struct TobIlpNetAssignment;
 
 /// COB tile grid size for MCF graph construction (must match `hardware::Interposer::COB_ARRAY_*` when passed from CLI).
 struct CobMcfGridDims {
@@ -38,12 +37,16 @@ struct CobMcfRunSummary {
 struct McfPathInfo {
     std::String label;
     std::String origin_name;
+    std::size_t record_id{0};
     int src{0};
     int snk{0};
     int demand{0};
     std::size_t cob_unit{0};
+    std::size_t start_track{0};
+    std::size_t end_track{0};
     std::Vector<std::size_t> record_indices;
     std::Vector<std::Vector<int>> unit_paths;
+    std::Vector<std::Vector<std::size_t>> track_paths;
 };
 
 struct CobMcfFullResult {
@@ -55,7 +58,7 @@ struct CobMcfFullResult {
 /// When \p enable_mcf_parallel is true, each unit is solved concurrently (separate HiGHS instances).
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
-    const std::Vector<TobIlpNetAssignment>& ilp_assignments,
+    const TobIlpResult& ilp_result,
     const hardware::Interposer& interposer,
     const circuit::BaseDie& basedie,
     CobMcfGridDims cob_grid,

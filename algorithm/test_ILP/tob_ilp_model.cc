@@ -38,6 +38,10 @@ auto qw_var(const Bump_coord& b, const std::size_t j, const std::size_t k) -> st
     return std::format("QW_{}_{}_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index, j, k);
 }
 
+auto y_var(const std::size_t n, const std::size_t r) -> std::String {
+    return std::format("Y_{}_{}", n, r);
+}
+
 auto TobIlpModel::add_row(std::String name, const char type, const double rhs) -> void {
     if (this->_row_types.contains(name)) {
         return;
@@ -446,16 +450,16 @@ void build_tob_ilp_model(
         }
     };
 
-    const auto cob_from_jk = [](const std::size_t bank, const std::size_t j, const std::size_t k, const bool straight) -> std::size_t {
+    const auto track_from_jk = [](const std::size_t bank, const std::size_t j, const std::size_t k, const bool straight) -> std::size_t {
         const auto v = j * 8 + k;
-        std::size_t track = 0;
         if (bank == 0) {
-            track = straight ? v : (v + 64);
+            return straight ? v : (v + 64);
         }
-        else {
-            track = straight ? (v + 64) : v;
-        }
-        return map_track(track);
+        return straight ? (v + 64) : v;
+    };
+
+    const auto cob_from_jk = [&](const std::size_t bank, const std::size_t j, const std::size_t k, const bool straight) -> std::size_t {
+        return map_track(track_from_jk(bank, j, k, straight));
     };
 
     auto processed_q = std::set<std::tuple<Bump_coord, std::size_t, std::size_t>> {};
@@ -490,6 +494,30 @@ void build_tob_ilp_model(
         }
     };
 
+    const auto add_u_track_expr = [&](const Bump_coord& b, const std::size_t track, const std::String& row, const double coef) {
+        for (std::size_t j = 0; j < 8; ++j) {
+            for (std::size_t k = 0; k < 8; ++k) {
+                if (track_from_jk(b.Bank, j, k, true) == track) {
+                    mps.add_coefficient(qs_var(b, j, k), row, coef);
+                }
+                if (track_from_jk(b.Bank, j, k, false) == track) {
+                    mps.add_coefficient(qw_var(b, j, k), row, coef);
+                }
+            }
+        }
+    };
+
+    const auto build_allow_mask = [](const std::Vector<std::size_t>& allow_tracks) {
+        auto allow = std::array<bool, 128> {};
+        allow.fill(false);
+        for (const auto r : allow_tracks) {
+            if (r < 128) {
+                allow[r] = true;
+            }
+        }
+        return allow;
+    };
+
     // Bnet 的约束5
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
@@ -520,6 +548,110 @@ void build_tob_ilp_model(
             }
             else {
                 add_u_equals_z_rows(n, b, "UEQ_P");
+            }
+        }
+    }
+
+    // First-mod constraints: track-level reachability + PN end-track selection.
+    for (std::size_t n = 0; n < records.size(); ++n) {
+        const auto& record = records[n];
+        if (record.type == Net_type::Bnet) {
+            if (record.start_bumps.empty() || record.end_bumps.empty()) {
+                continue;
+            }
+            const auto start_bump = record.start_bumps.front();
+            const auto end_bump = record.end_bumps.front();
+            ensure_qs_qw(start_bump);
+            ensure_qs_qw(end_bump);
+
+            const auto end_allow = build_allow_mask(record.end_tracks);
+            for (std::size_t r = 0; r < 128; ++r) {
+                if (end_allow[r]) {
+                    continue;
+                }
+                const auto row = std::format("R_BEND0_{}_{}", n, r);
+                mps.add_row(row, 'E', 0.0);
+                add_u_track_expr(end_bump, r, row, 1.0);
+            }
+
+            for (std::size_t r_end = 0; r_end < 128; ++r_end) {
+                if (!end_allow[r_end]) {
+                    continue;
+                }
+                const auto it_allow = record.starttrack_by_endtrack.find(r_end);
+                const auto start_allow = (it_allow == record.starttrack_by_endtrack.end())
+                                             ? std::Vector<std::size_t> {}
+                                             : it_allow->second;
+                const auto start_allow_mask = build_allow_mask(start_allow);
+                for (std::size_t r_start = 0; r_start < 128; ++r_start) {
+                    if (start_allow_mask[r_start]) {
+                        continue;
+                    }
+                    const auto row = std::format("R_BREACH_{}_{}_{}", n, r_end, r_start);
+                    mps.add_row(row, 'L', 1.0);
+                    add_u_track_expr(start_bump, r_start, row, 1.0);
+                    add_u_track_expr(end_bump, r_end, row, 1.0);
+                }
+            }
+            continue;
+        }
+
+        if (record.type == Net_type::Tnet) {
+            if (record.start_bumps.empty()) {
+                continue;
+            }
+            const auto start_bump = record.start_bumps.front();
+            ensure_qs_qw(start_bump);
+            if (record.end_tracks.empty()) {
+                continue;
+            }
+            const auto fixed_end = record.end_tracks.front();
+            const auto it_allow = record.starttrack_by_endtrack.find(fixed_end);
+            const auto start_allow = (it_allow == record.starttrack_by_endtrack.end())
+                                         ? std::Vector<std::size_t> {}
+                                         : it_allow->second;
+            const auto start_allow_mask = build_allow_mask(start_allow);
+            for (std::size_t r = 0; r < 128; ++r) {
+                if (start_allow_mask[r]) {
+                    continue;
+                }
+                const auto row = std::format("R_TREACH0_{}_{}", n, r);
+                mps.add_row(row, 'E', 0.0);
+                add_u_track_expr(start_bump, r, row, 1.0);
+            }
+            continue;
+        }
+
+        if (record.type == Net_type::PNnet) {
+            if (record.start_bumps.empty() || record.end_tracks.empty()) {
+                continue;
+            }
+            const auto start_bump = record.start_bumps.front();
+            ensure_qs_qw(start_bump);
+
+            const auto ysum_row = std::format("R_PNYSUM_{}", n);
+            mps.add_row(ysum_row, 'E', 1.0);
+            for (const auto r_end : record.end_tracks) {
+                const auto y = y_var(n, r_end);
+                mps.add_binary(y);
+                mps.add_coefficient(y, ysum_row, 1.0);
+            }
+
+            for (const auto r_end : record.end_tracks) {
+                const auto it_allow = record.starttrack_by_endtrack.find(r_end);
+                const auto start_allow = (it_allow == record.starttrack_by_endtrack.end())
+                                             ? std::Vector<std::size_t> {}
+                                             : it_allow->second;
+                const auto start_allow_mask = build_allow_mask(start_allow);
+                for (std::size_t r_start = 0; r_start < 128; ++r_start) {
+                    if (start_allow_mask[r_start]) {
+                        continue;
+                    }
+                    const auto row = std::format("R_PNREACH_{}_{}_{}", n, r_end, r_start);
+                    mps.add_row(row, 'L', 1.0);
+                    add_u_track_expr(start_bump, r_start, row, 1.0);
+                    mps.add_coefficient(y_var(n, r_end), row, 1.0);
+                }
             }
         }
     }

@@ -3,7 +3,7 @@
 #include "cob_mcf_router.hh"
 #include "highs.hh"
 #include "ilp_types.hh"
-#include "ilp_maze_finalize.hh"
+#include "ilp_reach_precompute.hh"
 #include "tob_ilp_model.hh"
 
 #include <algo/netbuilder/netbuilder.hh>
@@ -181,7 +181,16 @@ auto run_main(int argc, char** argv) -> int {
     algo::build_nets(basedie.get(), interposer.get());
 
     const auto nets = basedie->nets_to_vector();
-    const auto records = build_records(nets);
+    auto records = build_records(nets);
+    const auto reach_stats = precompute_reach_for_records(records);
+    debug::info_fmt(
+        "reach precompute: records={} (B={}, T={}, PN={}), total_endtracks={}, total_starttrack_edges={}",
+        reach_stats.total_records,
+        reach_stats.bnet_records,
+        reach_stats.tnet_records,
+        reach_stats.pnnet_records,
+        reach_stats.total_endtracks,
+        reach_stats.total_starttrack_edges);
     const auto costs = build_cost_matrix(records);
 
     if (!output_mps.empty()) {
@@ -270,20 +279,14 @@ auto run_main(int argc, char** argv) -> int {
             debug::info("MCF: solving 16 COB units in parallel (std::async)");
         }
         const auto mcf_full = run_mcf_global_routing_cob_units(
-            records, result.assignments, *interposer.get(), *basedie.get(), cob_grid, enable_mcf_parallel);
+            records, result, *interposer.get(), *basedie.get(), cob_grid, enable_mcf_parallel);
         if (!mcf_full.summary.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
             log_total_runtime();
             return 1;
         }
         if (enable_maze) {
-            const auto maze_ok = run_ilp_maze_finalize(
-                records, result, mcf_full, interposer.get(), basedie.get(), cob_grid);
-            if (!maze_ok) {
-                debug::error("Maze finalize failed for one or more bit paths");
-                log_total_runtime();
-                return 1;
-            }
+            debug::warning("Maze finalize is skipped: detailed MCF already outputs final track-level paths.");
         }
     }
     log_total_runtime();
@@ -352,6 +355,7 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.start_bumps.emplace_back(bump_to_ilp_coord(bt_net->begin_bump()));
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
+        record.end_tracks.emplace_back(bt_net->end_track()->coord().index);
         record.mcf_end_track = bt_net->end_track()->coord();
         record.mcf_has_end_track = true;
         record.mcf_start_kind = IlpEndpointKind::Bump;
@@ -367,6 +371,7 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.start_bumps.emplace_back(bump_to_ilp_coord(tb_net->end_bump()));
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
+        record.end_tracks.emplace_back(tb_net->begin_track()->coord().index);
         record.mcf_start_track = tb_net->begin_track()->coord();
         record.mcf_has_start_track = true;
         record.mcf_start_kind = IlpEndpointKind::Track;
@@ -389,6 +394,7 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     sort_and_unique(record.end_bumps);
     sort_and_unique(record.candidate_cobunits);
     sort_and_unique(record.tnet_fixed_cobunits);
+    sort_and_unique(record.end_tracks);
 
     if (record.start_bumps.empty()) {
         throw std::runtime_error(std::format("net '{}' has empty start bump set", net->name()));
@@ -407,10 +413,17 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
         if (const auto* tsb_net = dynamic_cast<const circuit::TracksToBumpsNet*>(net.get())) {
             // Split one TracksToBumpsNet into multiple "bump -> tracks" pseudo nets.
             auto candidate_cobunits = std::Vector<std::size_t> {};
+            auto pn_end_tracks = std::Vector<std::size_t> {};
+            auto pn_end_track_coord_by_index = std::map<std::size_t, hardware::TrackCoord> {};
             for (auto* track : tsb_net->begin_tracks()) {
                 candidate_cobunits.emplace_back(map_track(track->coord().index));
+                pn_end_tracks.emplace_back(track->coord().index);
+                if (!pn_end_track_coord_by_index.contains(track->coord().index)) {
+                    pn_end_track_coord_by_index.emplace(track->coord().index, track->coord());
+                }
             }
             sort_and_unique(candidate_cobunits);
+            sort_and_unique(pn_end_tracks);
             for (auto* bump : tsb_net->end_bumps()) {
                 Net_cost_record record {
                     std::String(std::format("{}__split_{}", net->name(), records.size())),
@@ -422,6 +435,8 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     candidate_cobunits,
                     {}
                 };
+                record.pn_end_tracks = pn_end_tracks;
+                record.pn_end_track_coord_by_index = pn_end_track_coord_by_index;
                 record.origin_key = net->name();
                 record.power_kind = (net->name() == std::String("Pose nets")) ? IlpPowerKind::Pose : IlpPowerKind::Nege;
                 record.mcf_start_kind = IlpEndpointKind::Bump;
@@ -464,6 +479,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     {cobunit},
                     {cobunit}
                 };
+                record.end_tracks.emplace_back(btt->end_track()->coord().index);
                 record.mcf_end_track = btt->end_track()->coord();
                 record.mcf_has_end_track = true;
                 record.mcf_start_kind = IlpEndpointKind::Bump;
@@ -483,6 +499,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     {cobunit},
                     {cobunit}
                 };
+                record.end_tracks.emplace_back(ttb->begin_track()->coord().index);
                 record.mcf_start_track = ttb->begin_track()->coord();
                 record.mcf_has_start_track = true;
                 record.mcf_start_kind = IlpEndpointKind::Track;

@@ -42,6 +42,13 @@ enum class Net_type {
     PNnet
 };
 
+struct IlpReachStep {
+    char from_dir{'L'};
+    char to_dir{'U'};
+    std::size_t index_in{0};
+    std::size_t index_out{0};
+};
+
 struct Net_cost_record {
     std::String net_name;
     Net_type type;
@@ -65,6 +72,15 @@ struct Net_cost_record {
     hardware::TrackCoord mcf_end_track {};
     bool mcf_has_start_track{false};
     bool mcf_has_end_track{false};
+
+    /// Optional endpoint tracks for PN nets (from TracksToBumps begin tracks).
+    std::Vector<std::size_t> pn_end_tracks {};
+    std::map<std::size_t, hardware::TrackCoord> pn_end_track_coord_by_index {};
+
+    /// First-mod precompute payload.
+    std::Vector<std::size_t> end_tracks {};
+    std::map<std::size_t, std::Vector<std::size_t>> starttrack_by_endtrack {};
+    std::map<std::size_t, std::map<std::size_t, std::Vector<IlpReachStep>>> reach_by_end_start {};
 };
 
 using Bump_cost_row = std::array<double, 16>;

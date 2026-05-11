@@ -1,13 +1,14 @@
 #include "cob_mcf_router.hh"
 
-#include "highs.hh"
-#include "ilp_types.hh"
+#include "ilp_speedup.hh"
 #include "mcf_hw_map.hh"
+
+#include "circuit/basedie.hh"
+#include "debug/debug.hh"
+#include "hardware/cob/cobunit.hh"
 #include "highs/Highs.h"
 #include "highs/lp_data/HConst.h"
 #include "highs/lp_data/HighsLp.h"
-
-#include "circuit/basedie.hh"
 
 #include <algorithm>
 #include <array>
@@ -15,81 +16,96 @@
 #include <cmath>
 #include <cstddef>
 #include <format>
-#include <future>
-#include <queue>
 #include <map>
+#include <queue>
 #include <set>
 #include <stdexcept>
+#include <string>
 #include <sys/resource.h>
+#include <tuple>
+#include <utility>
 #include <vector>
 
-#include <debug/debug.hh>
-
 namespace PR_tool {
-
-struct McfGraphDims {
-    int rows{0};
-    int cols{0};
-    int num_cob{0};
-    int k_tob0{0};
-    int num_tob{0};
-    int k_vp{0};
-    int k_vn{0};
-    int num_nodes{0};
-
-    static auto from_grid(const CobMcfGridDims& g) -> McfGraphDims {
-        const int num_cob = g.rows * g.cols;
-        const int num_tob = hardware::Interposer::TOB_ARRAY_WIDTH * hardware::Interposer::TOB_ARRAY_HEIGHT;
-        const int k_tob0 = num_cob;
-        const int k_vp = k_tob0 + num_tob;
-        const int k_vn = k_vp + 1;
-        const int num_nodes = k_vn + 1;
-        return McfGraphDims {g.rows, g.cols, num_cob, k_tob0, num_tob, k_vp, k_vn, num_nodes};
-    }
-};
 
 namespace {
 
 using namespace mcf;
 
-const double kCapNormal = 8.0;
+enum class McfClass : int {
+    Plain = 0,
+    P = 1,
+    N = 2
+};
+
+struct NodeMeta {
+    bool is_virtual{false};
+    int virtual_kind{0}; // 0: physical, 1: VP, 2: VN
+    std::size_t unit{0};
+    int cob{-1};
+    std::size_t track{0};
+};
 
 struct Arc {
     int u{0};
     int v{0};
-    bool is_virt{false};
+    bool is_virtual{false};
+    bool is_turn{false};
+    std::size_t unit{0};
+    int cob{-1};
+    std::size_t track_in{0};
+    std::size_t track_out{0};
 };
 
-struct McfK {
+struct GlobalGraph {
+    int rows{0};
+    int cols{0};
+    int num_cob{0};
+    int vp_node{-1};
+    int vn_node{-1};
+    std::Vector<NodeMeta> nodes;
+    std::Vector<Arc> arcs;
+    std::map<std::tuple<std::size_t, int, std::size_t>, int> node_id_by_key;
+    std::set<std::pair<int, int>> directed_arc_set;
+};
+
+struct PreparedCommodity {
     std::String label;
     std::String origin_name;
-    int src{0};
-    int snk{0};
-    int demand{0};
-    int class_id{0};
-    std::Vector<std::size_t> record_indices;
+    std::size_t record_index{0};
+    std::size_t record_id{0};
+    std::size_t cob_unit{0};
+    std::size_t start_track{0};
+    std::size_t end_track{0};
+    int src{-1};
+    int snk{-1};
+    int demand{1};
+    McfClass cls{McfClass::Plain};
+    bool is_bus{false};
+    std::String bus_key;
+    std::Vector<IlpReachStep> reach_steps;
+    std::Vector<int> bbox_cobs;
 };
 
-struct McfSolveResult {
+struct StageSolveResult {
     bool ok{false};
+    std::String message;
     double objective{0.0};
-    int model_status{-1};
-    bool has_primal_flow{false};
-    std::map<std::pair<int, int>, double> undirected_edge_usage;
-    std::map<std::pair<int, int>, double> directed_edge_usage;
+    int model_status{static_cast<int>(HighsModelStatus::kNotset)};
+    std::map<std::pair<int, int>, int> used_edges;
+    std::map<int, int> used_nodes;
     std::Vector<McfPathInfo> paths;
 };
 
-// 合并 net
-auto mcf_merge_key(const Net_cost_record& r) -> std::String {
-    const auto& o = r.origin_key.empty() ? r.net_name : r.origin_key;
-    return std::format("{}#{}", o, static_cast<int>(r.type));
-}
+struct ArcVar {
+    int k{0};
+    int a{0};
+};
 
-auto demand_bits_ceil(const Net_cost_record& r) -> int {
-    const int b = static_cast<int>(std::lround(static_cast<double>(r.bits)));
-    return b < 1 ? 1 : b;
-}
+struct OVar {
+    int k{0};
+    int node{0};
+};
 
 auto get_peak_rss_mb() -> double {
     rusage usage {};
@@ -103,804 +119,965 @@ auto get_peak_rss_mb() -> double {
 #endif
 }
 
-void build_base_arcs(std::Vector<Arc>& arcs, const McfGraphDims& g) {
-    for (int r = 0; r < g.rows; ++r) {
-        for (int c = 0; c < g.cols; ++c) {
-            const int u = r * g.cols + c;
-            if (r + 1 < g.rows) {
-                const int d = (r + 1) * g.cols + c;
-                arcs.push_back(Arc{u, d, false});
-                arcs.push_back(Arc{d, u, false});
-            }
-            if (c + 1 < g.cols) {
-                const int ri = u + 1;
-                arcs.push_back(Arc{u, ri, false});
-                arcs.push_back(Arc{ri, u, false});
-            }
-        }
-    }
-    for (int tr = 0; tr < 4; ++tr) {
-        for (int tc = 0; tc < 4; ++tc) {
-            const auto p = tob_pair_cob_coords(static_cast<std::size_t>(tr), static_cast<std::size_t>(tc));
-            const int tnode = g.k_tob0 + tr * 4 + tc;
-            const int a = static_cast<int>(cob_to_linear(p.first));
-            const int b = static_cast<int>(cob_to_linear(p.second));
-            arcs.push_back(Arc{tnode, a, false});
-            arcs.push_back(Arc{a, tnode, false});
-            arcs.push_back(Arc{tnode, b, false});
-            arcs.push_back(Arc{b, tnode, false});
-        }
-    }
+auto unit_bank(const std::size_t unit) -> std::size_t {
+    return unit < 8 ? 0 : 1;
 }
 
-void add_port_arcs(
-    const hardware::Interposer& interposer,
-    const circuit::BaseDie& basedie,
-    std::size_t cob_unit,
-    std::Vector<Arc>& arcs,
-    std::set<int>& p_cob,
-    std::set<int>& n_cob,
-    const McfGraphDims& g) {
-    (void)interposer;
-    p_cob.clear();
-    n_cob.clear();
-    for (const auto& tc : basedie.pose_ports()) {
-        if (map_track(tc.index) != cob_unit) {
+auto unit_local(const std::size_t unit) -> std::size_t {
+    return unit % 8;
+}
+
+auto track_from_unit_inner(const std::size_t unit, const std::size_t inner) -> std::size_t {
+    return unit_bank(unit) * 64 + inner * 8 + unit_local(unit);
+}
+
+auto node_text(const GlobalGraph& g, const int node) -> std::String {
+    if (node < 0 || node >= static_cast<int>(g.nodes.size())) {
+        return std::format("N{}", node);
+    }
+    const auto& meta = g.nodes[static_cast<std::size_t>(node)];
+    if (meta.is_virtual) {
+        return meta.virtual_kind == 1 ? std::String("V_P") : std::String("V_N");
+    }
+    const auto c = linear_to_cob(static_cast<std::size_t>(meta.cob));
+    return std::format("U{} COB({},{}) T{}", meta.unit, c.row, c.col, meta.track);
+}
+
+auto add_node(GlobalGraph& g, const NodeMeta& node) -> int {
+    const int id = static_cast<int>(g.nodes.size());
+    g.nodes.push_back(node);
+    if (!node.is_virtual) {
+        g.node_id_by_key[{node.unit, node.cob, node.track}] = id;
+    }
+    return id;
+}
+
+auto get_node_id(const GlobalGraph& g, const std::size_t unit, const int cob, const std::size_t track) -> int {
+    const auto it = g.node_id_by_key.find({unit, cob, track});
+    if (it == g.node_id_by_key.end()) {
+        return -1;
+    }
+    return it->second;
+}
+
+auto add_arc(
+    GlobalGraph& g,
+    const int u,
+    const int v,
+    const bool is_virtual,
+    const bool is_turn,
+    const std::size_t unit,
+    const int cob,
+    const std::size_t track_in,
+    const std::size_t track_out
+) -> void {
+    if (u < 0 || v < 0 || u >= static_cast<int>(g.nodes.size()) || v >= static_cast<int>(g.nodes.size())) {
+        return;
+    }
+    if (g.directed_arc_set.contains({u, v})) {
+        return;
+    }
+    g.directed_arc_set.insert({u, v});
+    g.arcs.push_back(Arc {u, v, is_virtual, is_turn, unit, cob, track_in, track_out});
+}
+
+auto build_track_graph(const CobMcfGridDims& grid) -> GlobalGraph {
+    GlobalGraph g {};
+    g.rows = grid.rows;
+    g.cols = grid.cols;
+    g.num_cob = grid.rows * grid.cols;
+
+    for (std::size_t unit = 0; unit < 16; ++unit) {
+        const auto tracks = cobunit_to_tracks(unit);
+        for (int cob = 0; cob < g.num_cob; ++cob) {
+            for (const auto tr : tracks) {
+                add_node(g, NodeMeta {false, 0, unit, cob, tr});
+            }
+        }
+    }
+    g.vp_node = add_node(g, NodeMeta {true, 1, 0, -1, 0});
+    g.vn_node = add_node(g, NodeMeta {true, 2, 0, -1, 0});
+
+    // Mesh edges between neighboring COB tiles: same track index.
+    for (std::size_t unit = 0; unit < 16; ++unit) {
+        const auto tracks = cobunit_to_tracks(unit);
+        for (int r = 0; r < g.rows; ++r) {
+            for (int c = 0; c < g.cols; ++c) {
+                const int cob = r * g.cols + c;
+                for (const auto tr : tracks) {
+                    const int u = get_node_id(g, unit, cob, tr);
+                    if (r + 1 < g.rows) {
+                        const int cob_d = (r + 1) * g.cols + c;
+                        const int v = get_node_id(g, unit, cob_d, tr);
+                        add_arc(g, u, v, false, false, unit, -1, tr, tr);
+                        add_arc(g, v, u, false, false, unit, -1, tr, tr);
+                    }
+                    if (c + 1 < g.cols) {
+                        const int cob_r = r * g.cols + (c + 1);
+                        const int v = get_node_id(g, unit, cob_r, tr);
+                        add_arc(g, u, v, false, false, unit, -1, tr, tr);
+                        add_arc(g, v, u, false, false, unit, -1, tr, tr);
+                    }
+                }
+            }
+        }
+    }
+
+    // Intra-COB Wilton turn edges.
+    constexpr auto dirs = std::array {
+        hardware::COBDirection::Left,
+        hardware::COBDirection::Right,
+        hardware::COBDirection::Up,
+        hardware::COBDirection::Down
+    };
+    for (std::size_t unit = 0; unit < 16; ++unit) {
+        const auto u_local = unit_local(unit);
+        const auto bank = unit_bank(unit);
+        for (int cob = 0; cob < g.num_cob; ++cob) {
+            for (std::size_t inner = 0; inner < 8; ++inner) {
+                const auto track_in = bank * 64 + inner * 8 + u_local;
+                for (const auto from : dirs) {
+                    for (const auto to : dirs) {
+                        if (from == to) {
+                            continue;
+                        }
+                        const auto mapped = static_cast<std::size_t>(hardware::COBUnit::index_map(from, inner, to));
+                        const auto track_out = bank * 64 + mapped * 8 + u_local;
+                        if (track_in == track_out) {
+                            continue;
+                        }
+                        const int u = get_node_id(g, unit, cob, track_in);
+                        const int v = get_node_id(g, unit, cob, track_out);
+                        add_arc(g, u, v, false, true, unit, cob, track_in, track_out);
+                    }
+                }
+            }
+        }
+    }
+    return g;
+}
+
+auto tob_from_linear(const std::size_t tob_linear) -> hardware::TOBCoord {
+    const auto width = static_cast<std::size_t>(hardware::Interposer::TOB_ARRAY_WIDTH);
+    return hardware::TOBCoord {
+        static_cast<std::i64>(tob_linear / width),
+        static_cast<std::i64>(tob_linear % width)};
+}
+
+auto tob_anchor_cob(const std::size_t tob_linear) -> hardware::COBCoord {
+    const auto tob = tob_from_linear(tob_linear);
+    return hardware::COBCoord {
+        static_cast<std::i64>(1 + 2 * tob.row),
+        static_cast<std::i64>(3 * tob.col)};
+}
+
+auto bbox_cob_indices(
+    const CobMcfGridDims& grid,
+    const hardware::COBCoord& a,
+    const hardware::COBCoord& b
+) -> std::Vector<int> {
+    std::Vector<int> out {};
+    const auto r0 = std::max<std::i64>(0, std::min(a.row, b.row));
+    const auto r1 = std::min<std::i64>(grid.rows - 1, std::max(a.row, b.row));
+    const auto c0 = std::max<std::i64>(0, std::min(a.col, b.col));
+    const auto c1 = std::min<std::i64>(grid.cols - 1, std::max(a.col, b.col));
+    for (std::i64 r = r0; r <= r1; ++r) {
+        for (std::i64 c = c0; c <= c1; ++c) {
+            out.push_back(static_cast<int>(r * grid.cols + c));
+        }
+    }
+    return out;
+}
+
+auto node_from_bump_track(
+    const GlobalGraph& g,
+    const std::size_t unit,
+    const std::size_t tob_linear,
+    const std::size_t track
+) -> int {
+    const auto [tr, tc] = tob_index_from_linear(tob_linear);
+    const auto pair = tob_pair_cob_coords(tr, tc);
+    const auto c0 = static_cast<int>(cob_to_linear(pair.first));
+    const auto c1 = static_cast<int>(cob_to_linear(pair.second));
+    const int n0 = get_node_id(g, unit, c0, track);
+    if (n0 >= 0) {
+        return n0;
+    }
+    return get_node_id(g, unit, c1, track);
+}
+
+auto node_from_track_coord(
+    const GlobalGraph& g,
+    const std::size_t unit,
+    const hardware::TrackCoord& tc,
+    const std::size_t track
+) -> int {
+    const auto c = track_to_cob(tc);
+    return get_node_id(g, unit, static_cast<int>(cob_to_linear(c)), track);
+}
+
+auto prepare_commodities(
+    const std::Vector<Net_cost_record>& records,
+    const TobIlpResult& ilp_result,
+    const CobMcfGridDims& grid,
+    GlobalGraph& graph
+) -> std::Vector<PreparedCommodity> {
+    auto out = std::Vector<PreparedCommodity> {};
+    if (records.size() != ilp_result.record_track_endpoints.size()) {
+        throw std::runtime_error("MCF prepare: record_track_endpoints size mismatch");
+    }
+
+    auto split_count = std::map<std::String, int> {};
+    for (const auto& record : records) {
+        if (record.type == Net_type::PNnet) {
             continue;
         }
-        const auto c = track_to_cob(tc);
-        const int lin = static_cast<int>(cob_to_linear(c));
-        p_cob.insert(lin);
-        arcs.push_back(Arc{lin, g.k_vp, true});
+        const auto origin = record.origin_key.empty() ? record.net_name : record.origin_key;
+        split_count[std::format("{}#{}", origin, static_cast<int>(record.type))] += 1;
     }
-    for (const auto& tc : basedie.nege_ports()) {
-        if (map_track(tc.index) != cob_unit) {
+
+    for (std::size_t i = 0; i < records.size(); ++i) {
+        const auto& record = records[i];
+        const auto& endpoint = ilp_result.record_track_endpoints[i];
+        PreparedCommodity c {};
+        c.label = std::format("{}#{}", record.net_name, record.record_id);
+        c.origin_name = record.origin_key.empty() ? record.net_name : record.origin_key;
+        c.record_index = i;
+        c.record_id = record.record_id;
+        c.cob_unit = endpoint.cob_unit;
+        c.start_track = endpoint.start_track;
+        c.end_track = endpoint.end_track;
+        c.demand = 1;
+        c.bus_key = c.origin_name;
+        c.is_bus = (record.type != Net_type::PNnet)
+                   && split_count[std::format("{}#{}", c.origin_name, static_cast<int>(record.type))] > 1;
+
+        if (!endpoint.has_start_track) {
+            debug::warning_fmt("MCF prepare: record {} has no start track", record.net_name);
             continue;
         }
-        const auto c = track_to_cob(tc);
-        const int lin = static_cast<int>(cob_to_linear(c));
-        n_cob.insert(lin);
-        arcs.push_back(Arc{lin, g.k_vn, true});
+        if (map_track(endpoint.start_track) != c.cob_unit) {
+            debug::warning_fmt(
+                "MCF prepare: start track {} not in assigned cobunit {} for record {}",
+                endpoint.start_track,
+                c.cob_unit,
+                record.net_name);
+            continue;
+        }
+
+        hardware::COBCoord bbox_start {};
+        hardware::COBCoord bbox_end {};
+        if (record.type == Net_type::Tnet && record.mcf_has_start_track) {
+            c.src = node_from_track_coord(graph, c.cob_unit, record.mcf_start_track, endpoint.start_track);
+            bbox_start = track_to_cob(record.mcf_start_track);
+        }
+        else {
+            if (record.start_bumps.empty()) {
+                continue;
+            }
+            c.src = node_from_bump_track(graph, c.cob_unit, record.start_bumps.front().TOB, endpoint.start_track);
+            bbox_start = tob_anchor_cob(record.start_bumps.front().TOB);
+        }
+
+        if (record.type == Net_type::PNnet) {
+            if (record.power_kind == IlpPowerKind::Pose) {
+                c.cls = McfClass::P;
+                c.snk = graph.vp_node;
+            }
+            else {
+                c.cls = McfClass::N;
+                c.snk = graph.vn_node;
+            }
+
+            auto virtual_edges_added = 0;
+            for (const auto& [end_track, start_tracks] : record.starttrack_by_endtrack) {
+                if (!std::binary_search(start_tracks.begin(), start_tracks.end(), endpoint.start_track)) {
+                    continue;
+                }
+                if (map_track(end_track) != c.cob_unit) {
+                    continue;
+                }
+                if (!record.pn_end_track_coord_by_index.contains(end_track)) {
+                    continue;
+                }
+                const auto& tc = record.pn_end_track_coord_by_index.at(end_track);
+                const auto n_end = node_from_track_coord(graph, c.cob_unit, tc, end_track);
+                if (n_end < 0) {
+                    continue;
+                }
+                add_arc(
+                    graph,
+                    n_end,
+                    c.snk,
+                    true,
+                    false,
+                    c.cob_unit,
+                    -1,
+                    end_track,
+                    end_track);
+                add_arc(
+                    graph,
+                    c.snk,
+                    n_end,
+                    true,
+                    false,
+                    c.cob_unit,
+                    -1,
+                    end_track,
+                    end_track);
+                bbox_end = track_to_cob(tc);
+                c.end_track = end_track;
+                virtual_edges_added += 1;
+            }
+            if (virtual_edges_added == 0 && endpoint.has_end_track
+                && record.pn_end_track_coord_by_index.contains(endpoint.end_track)) {
+                const auto& tc = record.pn_end_track_coord_by_index.at(endpoint.end_track);
+                const auto n_end = node_from_track_coord(graph, c.cob_unit, tc, endpoint.end_track);
+                if (n_end >= 0) {
+                    add_arc(graph, n_end, c.snk, true, false, c.cob_unit, -1, endpoint.end_track, endpoint.end_track);
+                    add_arc(graph, c.snk, n_end, true, false, c.cob_unit, -1, endpoint.end_track, endpoint.end_track);
+                    bbox_end = track_to_cob(tc);
+                    c.end_track = endpoint.end_track;
+                }
+            }
+        }
+        else if (record.type == Net_type::Tnet) {
+            c.cls = McfClass::Plain;
+            if (record.mcf_has_end_track) {
+                if (!endpoint.has_end_track) {
+                    continue;
+                }
+                c.snk = node_from_track_coord(graph, c.cob_unit, record.mcf_end_track, endpoint.end_track);
+                bbox_end = track_to_cob(record.mcf_end_track);
+            }
+            else {
+                if (!endpoint.has_end_track || record.start_bumps.empty()) {
+                    continue;
+                }
+                c.snk = node_from_bump_track(graph, c.cob_unit, record.start_bumps.front().TOB, endpoint.end_track);
+                bbox_end = tob_anchor_cob(record.start_bumps.front().TOB);
+            }
+        }
+        else {
+            c.cls = McfClass::Plain;
+            if (record.end_bumps.empty() || !endpoint.has_end_track) {
+                continue;
+            }
+            c.snk = node_from_bump_track(graph, c.cob_unit, record.end_bumps.front().TOB, endpoint.end_track);
+            bbox_end = tob_anchor_cob(record.end_bumps.front().TOB);
+        }
+
+        if (c.src < 0 || c.snk < 0) {
+            debug::warning_fmt(
+                "MCF prepare: unresolved endpoint node for record {} (src={}, snk={})",
+                record.net_name,
+                c.src,
+                c.snk);
+            continue;
+        }
+
+        c.bbox_cobs = bbox_cob_indices(grid, bbox_start, bbox_end);
+        if (endpoint.has_end_track) {
+            const auto it_end = record.reach_by_end_start.find(endpoint.end_track);
+            if (it_end != record.reach_by_end_start.end()) {
+                const auto it_start = it_end->second.find(endpoint.start_track);
+                if (it_start != it_end->second.end()) {
+                    c.reach_steps = it_start->second;
+                }
+            }
+        }
+        out.push_back(std::move(c));
     }
+    return out;
 }
 
-static auto cls_b() -> int {
-    return 0;
-}
-static auto cls_t() -> int {
-    return 1;
-}
-static auto cls_p() -> int {
-    return 2;
-}
-static auto cls_n() -> int {
-    return 3;
-}
-
-static auto is_cob_index(int n, const McfGraphDims& g) -> bool {
-    return n >= 0 && n < g.k_tob0;
-}
-
-auto arc_class_ok(int cid, int u, int v, const std::set<int>& p_cob, const std::set<int>& n_cob, const McfGraphDims& g) -> bool {
-    if (u < 0 || v < 0 || u >= g.num_nodes || v >= g.num_nodes) {
+auto arc_usable_for_class(
+    const Arc& arc,
+    const McfClass cls,
+    const std::size_t unit,
+    const int vp,
+    const int vn
+) -> bool {
+    if (arc.unit != unit) {
         return false;
     }
-    if (u == g.k_vp || u == g.k_vn || v == g.k_vp || v == g.k_vn) {
-        if (u == g.k_vp || v == g.k_vp) {
-            return cid == cls_p();
-        }
-        if (u == g.k_vn || v == g.k_vn) {
-            return cid == cls_n();
-        }
+    if (arc.u == vp || arc.v == vp) {
+        return cls == McfClass::P;
     }
-    // Constraint set 4: only P-class commodities may use edges incident to COBs in P; only N-class for N.
-    if (cid != cls_p()) {
-        if ((is_cob_index(u, g) && p_cob.count(u) != 0) || (is_cob_index(v, g) && p_cob.count(v) != 0)) {
-            return false;
-        }
-    }
-    if (cid != cls_n()) {
-        if ((is_cob_index(u, g) && n_cob.count(u) != 0) || (is_cob_index(v, g) && n_cob.count(v) != 0)) {
-            return false;
-        }
+    if (arc.u == vn || arc.v == vn) {
+        return cls == McfClass::N;
     }
     return true;
 }
 
-void build_commodities(
-    const std::Vector<Net_cost_record>& records,
-    const std::Vector<std::size_t>& gids,
-    std::Vector<McfK>& out,
-    const McfGraphDims& g) {
-    if (gids.empty()) {
-        return;
-    }
-    const auto& t0 = records[gids[0]];
-
-    // 目前不考虑混合类型的net
-    for (const auto i : gids) {
-        if (records[i].type != t0.type) {
-            throw std::runtime_error(std::format("MCF: mixed type in group at {}", records[i].net_name));
+auto extract_path(
+    const int src,
+    const int snk,
+    std::map<std::pair<int, int>, int>& edge_count,
+    const int num_nodes
+) -> std::Vector<int> {
+    auto prev = std::Vector<int>(static_cast<std::size_t>(num_nodes), -1);
+    std::queue<int> q;
+    q.push(src);
+    prev[static_cast<std::size_t>(src)] = src;
+    while (!q.empty() && prev[static_cast<std::size_t>(snk)] < 0) {
+        const auto u = q.front();
+        q.pop();
+        for (const auto& [e, cnt] : edge_count) {
+            if (cnt <= 0 || e.first != u) {
+                continue;
+            }
+            const auto v = e.second;
+            if (prev[static_cast<std::size_t>(v)] >= 0) {
+                continue;
+            }
+            prev[static_cast<std::size_t>(v)] = u;
+            q.push(v);
         }
     }
-    if (t0.type == Net_type::PNnet) {
-        if (t0.power_kind == IlpPowerKind::None) {
-            throw std::runtime_error(std::format("MCF: PN power kind unset: {}", t0.net_name));
-        }
-        const int vdst = t0.power_kind == IlpPowerKind::Pose ? g.k_vp : g.k_vn;
-        const int cls = t0.power_kind == IlpPowerKind::Pose ? cls_p() : cls_n();
-        std::map<std::size_t, int> tob_bumps;
-        for (const auto i : gids) {
-            const auto& r = records[i];
-            for (const auto& b : r.start_bumps) {
-                tob_bumps[b.TOB] += 1;
-            }
-        }
-        for (const auto& [tob_lin, d] : tob_bumps) {
-            auto rec_ids = std::Vector<std::size_t> {};
-            for (const auto i : gids) {
-                if (records[i].start_bumps.empty()) {
-                    continue;
-                }
-                if (records[i].start_bumps[0].TOB == tob_lin) {
-                    rec_ids.push_back(records[i].record_id);
-                }
-            }
-            out.push_back(McfK {
-                std::format("{}#T{}", t0.net_name, tob_lin),
-                t0.origin_key.empty() ? t0.net_name : t0.origin_key,
-                static_cast<int>(g.k_tob0 + static_cast<int>(tob_lin)),
-                vdst,
-                d,
-                cls,
-                std::move(rec_ids)});
-        }
-        return;
+    if (prev[static_cast<std::size_t>(snk)] < 0) {
+        return {};
     }
-    if (t0.type == Net_type::Bnet) {
-        const auto& r0 = records[gids[0]];
-        if (r0.start_bumps.empty() || r0.end_bumps.empty()) {
-            throw std::runtime_error(std::format("MCF: Bnet no bump: {}", r0.net_name));
-        }
-        int s0 = static_cast<int>(g.k_tob0 + static_cast<int>(r0.start_bumps[0].TOB));
-        int t0b = static_cast<int>(g.k_tob0 + static_cast<int>(r0.end_bumps[0].TOB));
-        bool all_same = true;
-        for (const auto i : gids) {
-            const auto& r = records[i];
-            if (r.start_bumps.empty() || r.end_bumps.empty()) {
-                throw std::runtime_error(std::format("MCF: Bnet no bump: {}", r.net_name));
-            }
-            if (static_cast<int>(g.k_tob0 + static_cast<int>(r.start_bumps[0].TOB)) != s0
-                || static_cast<int>(g.k_tob0 + static_cast<int>(r.end_bumps[0].TOB)) != t0b) {
-                all_same = false;
-                break;
-            }
-        }
-        if (all_same) {         // 所有的起始/终止bump都在同一个COBUnit上
-            int ssum = 0;
-            for (const auto i : gids) {
-                ssum += demand_bits_ceil(records[i]);
-            }
-            out.push_back(McfK {
-                t0.net_name,
-                t0.origin_key.empty() ? t0.net_name : t0.origin_key,
-                s0,
-                t0b,
-                ssum,
-                cls_b(),
-                std::Vector<std::size_t> {}});
-            for (const auto i : gids) {
-                out.back().record_indices.push_back(records[i].record_id);
-            }
-            return;
-        }
-        for (const auto i : gids) { // 分成几个不同的COBUnit
-            const auto& r = records[i];
-            int ss = static_cast<int>(g.k_tob0 + static_cast<int>(r.start_bumps[0].TOB));
-            int tt = static_cast<int>(g.k_tob0 + static_cast<int>(r.end_bumps[0].TOB));
-            out.push_back(McfK {
-                r.net_name,
-                r.origin_key.empty() ? r.net_name : r.origin_key,
-                ss,
-                tt,
-                demand_bits_ceil(r),
-                cls_b(),
-                {r.record_id}});
-        }
-        return;
+    auto nodes = std::Vector<int> {};
+    auto cur = snk;
+    while (cur != src) {
+        nodes.push_back(cur);
+        cur = prev[static_cast<std::size_t>(cur)];
     }
-    if (t0.type == Net_type::Tnet) {
-        for (const auto i : gids) {
-            const auto& r = records[i];
-            if (r.mcf_has_end_track) {
-                // BumpToTrack: source TOB, sink track COB
-                if (r.start_bumps.empty()) {
-                    throw std::runtime_error(std::format("MCF: Tnet no start bump: {}", r.net_name));
-                }
-                const int src = static_cast<int>(g.k_tob0 + static_cast<int>(r.start_bumps[0].TOB));
-                const int snk = static_cast<int>(cob_to_linear(track_to_cob(r.mcf_end_track)));
-                out.push_back(McfK {
-                    r.net_name,
-                    r.origin_key.empty() ? r.net_name : r.origin_key,
-                    src,
-                    snk,
-                    demand_bits_ceil(r),
-                    cls_t(),
-                    {r.record_id}});
-            }
-            else if (r.mcf_has_start_track) {
-                // TrackToBump: ILP model stores the lone bump in start_bumps
-                if (r.start_bumps.empty()) {
-                    throw std::runtime_error(std::format("MCF: Tnet no bump (track->bump): {}", r.net_name));
-                }
-                const int src = static_cast<int>(cob_to_linear(track_to_cob(r.mcf_start_track)));
-                const int snk = static_cast<int>(g.k_tob0 + static_cast<int>(r.start_bumps[0].TOB));
-                out.push_back(McfK {
-                    r.net_name,
-                    r.origin_key.empty() ? r.net_name : r.origin_key,
-                    src,
-                    snk,
-                    demand_bits_ceil(r),
-                    cls_t(),
-                    {r.record_id}});
-            }
-            else {
-                throw std::runtime_error(std::format("MCF: Tnet no track endpoint: {}", r.net_name));
-            }
+    nodes.push_back(src);
+    std::reverse(nodes.begin(), nodes.end());
+    for (std::size_t i = 0; i + 1 < nodes.size(); ++i) {
+        auto key = std::make_pair(nodes[i], nodes[i + 1]);
+        if (edge_count.contains(key) && edge_count[key] > 0) {
+            edge_count[key] -= 1;
         }
     }
+    return nodes;
 }
 
-auto prepare_cob_unit_commodities(
-    const std::Vector<Net_cost_record>& records,
-    const std::Vector<TobIlpNetAssignment>& ilp_assignments,
-    std::size_t cob_unit,
-    const McfGraphDims& g) -> std::Vector<McfK> {
-    std::map<std::String, std::Vector<std::size_t>> by_key;
-    for (std::size_t i = 0; i < records.size(); ++i) {
-        if (ilp_assignments[i].cob_unit != cob_unit) {
-            continue;
-        }
-        by_key[mcf_merge_key(records[i])].push_back(i);
+auto solve_stage(
+    const std::String& stage_name,
+    const GlobalGraph& graph,
+    const std::Vector<PreparedCommodity>& commodities,
+    const std::Vector<std::size_t>& commodity_ids,
+    const std::map<std::pair<int, int>, int>& edge_capacity_override,
+    const std::map<int, int>& node_capacity_override,
+    const bool enforce_bus_equal_length
+) -> StageSolveResult {
+    StageSolveResult out {};
+    if (commodity_ids.empty()) {
+        out.ok = true;
+        out.message = "empty stage";
+        out.model_status = static_cast<int>(HighsModelStatus::kOptimal);
+        return out;
     }
-    std::Vector<McfK> coms;
-    for (const auto& [key, grp] : by_key) {
-        (void)key;
-        build_commodities(records, grp, coms, g);
-    }
-    return coms;
-}
 
-auto flow_row_id(int k, int node, const McfGraphDims& g) -> int {
-    return k * g.num_nodes + node;
-}
+    const auto K = static_cast<int>(commodity_ids.size());
+    const auto A = static_cast<int>(graph.arcs.size());
+    const auto N = static_cast<int>(graph.nodes.size());
 
-auto solve_mcf_lp(
-    const std::Vector<Arc>& arcs,
-    const std::set<int>& p_cob,
-    const std::set<int>& n_cob,
-    const std::Vector<McfK>& com,
-    const McfGraphDims& g) -> McfSolveResult {
-    if (com.empty()) {
-        return McfSolveResult {true, 0.0, static_cast<int>(HighsModelStatus::kOptimal), true, {}, {}, {}};
+    auto local_com = std::Vector<PreparedCommodity> {};
+    local_com.reserve(commodity_ids.size());
+    for (const auto cid : commodity_ids) {
+        local_com.push_back(commodities[cid]);
     }
-    const int A = static_cast<int>(arcs.size());
-    const int K = static_cast<int>(com.size());
-    struct VarE {
-        int k;
-        int a;
-    };
-    std::vector<VarE> vars;
-    std::set<std::pair<int, int>> cap_edge_keys;
+
+    auto x_vars = std::Vector<ArcVar> {};
+    auto x_by_k = std::Vector<std::Vector<int>>(static_cast<std::size_t>(K));
+    x_vars.reserve(static_cast<std::size_t>(K * A / 8 + 1));
     for (int k = 0; k < K; ++k) {
         for (int a = 0; a < A; ++a) {
-            if (arc_class_ok(
-                    com[static_cast<std::size_t>(k)].class_id, arcs[static_cast<std::size_t>(a)].u, arcs[static_cast<std::size_t>(a)].v,
-                    p_cob, n_cob,
-                    g
-                )) {
-                vars.push_back(VarE{k, a});
-                if (!arcs[static_cast<std::size_t>(a)].is_virt) {
-                    int u1 = arcs[static_cast<std::size_t>(a)].u;
-                    int v1 = arcs[static_cast<std::size_t>(a)].v;
-                    if (u1 > v1) {
-                        std::swap(u1, v1);
+            if (!arc_usable_for_class(
+                    graph.arcs[static_cast<std::size_t>(a)],
+                    local_com[static_cast<std::size_t>(k)].cls,
+                    local_com[static_cast<std::size_t>(k)].cob_unit,
+                    graph.vp_node,
+                    graph.vn_node)) {
+                continue;
+            }
+            const auto var_id = static_cast<int>(x_vars.size());
+            x_vars.push_back(ArcVar {k, a});
+            x_by_k[static_cast<std::size_t>(k)].push_back(var_id);
+        }
+    }
+    if (x_vars.empty()) {
+        out.ok = false;
+        out.message = std::format("{}: no feasible arc-variable pairs", stage_name);
+        return out;
+    }
+
+    auto row_lo = std::vector<double> {};
+    auto row_up = std::vector<double> {};
+    auto add_eq = [&](const double rhs) -> int {
+        const auto id = static_cast<int>(row_lo.size());
+        row_lo.push_back(rhs);
+        row_up.push_back(rhs);
+        return id;
+    };
+    auto add_le = [&](const double rhs) -> int {
+        const auto id = static_cast<int>(row_lo.size());
+        row_lo.push_back(-kHighsInf);
+        row_up.push_back(rhs);
+        return id;
+    };
+
+    auto flow_row = std::map<std::pair<int, int>, int> {};
+    const auto ensure_flow_row = [&](const int k, const int n) -> int {
+        const auto key = std::make_pair(k, n);
+        if (flow_row.contains(key)) {
+            return flow_row.at(key);
+        }
+        const auto row = add_eq(0.0);
+        flow_row[key] = row;
+        return row;
+    };
+
+    auto edge_row = std::map<std::pair<int, int>, int> {};
+    for (const auto& arc : graph.arcs) {
+        if (arc.is_virtual) {
+            continue;
+        }
+        auto u = arc.u;
+        auto v = arc.v;
+        if (u > v) {
+            std::swap(u, v);
+        }
+        if (edge_row.contains({u, v})) {
+            continue;
+        }
+        auto cap = 8;
+        if (edge_capacity_override.contains({u, v})) {
+            cap = edge_capacity_override.at({u, v});
+        }
+        edge_row[{u, v}] = add_le(static_cast<double>(cap));
+    }
+
+    auto x_entries = std::Vector<std::Vector<std::pair<int, double>>>(x_vars.size());
+    auto incident_x = std::map<std::pair<int, int>, std::Vector<int>> {};
+    for (std::size_t j = 0; j < x_vars.size(); ++j) {
+        const auto k = x_vars[j].k;
+        const auto a = x_vars[j].a;
+        const auto& arc = graph.arcs[static_cast<std::size_t>(a)];
+        x_entries[j].push_back({ensure_flow_row(k, arc.u), 1.0});
+        x_entries[j].push_back({ensure_flow_row(k, arc.v), -1.0});
+        if (!arc.is_virtual) {
+            auto u = arc.u;
+            auto v = arc.v;
+            if (u > v) {
+                std::swap(u, v);
+            }
+            x_entries[j].push_back({edge_row.at({u, v}), 1.0});
+        }
+        if (!graph.nodes[static_cast<std::size_t>(arc.u)].is_virtual) {
+            incident_x[{k, arc.u}].push_back(static_cast<int>(j));
+        }
+        if (!graph.nodes[static_cast<std::size_t>(arc.v)].is_virtual) {
+            incident_x[{k, arc.v}].push_back(static_cast<int>(j));
+        }
+    }
+
+    for (int k = 0; k < K; ++k) {
+        const auto s = local_com[static_cast<std::size_t>(k)].src;
+        const auto t = local_com[static_cast<std::size_t>(k)].snk;
+        const auto d = local_com[static_cast<std::size_t>(k)].demand;
+        const auto rs = ensure_flow_row(k, s);
+        const auto rt = ensure_flow_row(k, t);
+        row_lo[static_cast<std::size_t>(rs)] = static_cast<double>(d);
+        row_up[static_cast<std::size_t>(rs)] = static_cast<double>(d);
+        row_lo[static_cast<std::size_t>(rt)] = static_cast<double>(-d);
+        row_up[static_cast<std::size_t>(rt)] = static_cast<double>(-d);
+    }
+
+    auto o_entries = std::Vector<std::Vector<std::pair<int, double>>> {};
+    auto o_vars = std::Vector<OVar> {};
+    auto node_row = std::map<int, int> {};
+    auto physical_nodes_in_use = std::set<int> {};
+    for (const auto& [kn, vars] : incident_x) {
+        (void)vars;
+        physical_nodes_in_use.insert(kn.second);
+    }
+    for (const auto n : physical_nodes_in_use) {
+        if (graph.nodes[static_cast<std::size_t>(n)].is_virtual) {
+            continue;
+        }
+        auto cap = 8;
+        if (node_capacity_override.contains(n)) {
+            cap = node_capacity_override.at(n);
+        }
+        node_row[n] = add_le(static_cast<double>(cap));
+    }
+    for (const auto& [kn, vars] : incident_x) {
+        const auto k = kn.first;
+        const auto n = kn.second;
+        if (vars.empty()) {
+            continue;
+        }
+        const auto row_link = add_le(0.0);
+        for (const auto j : vars) {
+            x_entries[static_cast<std::size_t>(j)].push_back({row_link, 1.0});
+        }
+        o_vars.push_back(OVar {k, n});
+        auto col = std::Vector<std::pair<int, double>> {};
+        col.push_back({row_link, -2.0});
+        col.push_back({node_row.at(n), 1.0});
+        o_entries.push_back(std::move(col));
+    }
+
+    for (int k = 0; k < K; ++k) {
+        const auto& c = local_com[static_cast<std::size_t>(k)];
+        if (c.reach_steps.empty()) {
+            continue;
+        }
+        const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
+        for (const auto& step : c.reach_steps) {
+            const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
+            const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
+            auto matched = std::Vector<int> {};
+            for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
+                const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
+                if (!arc.is_turn) {
+                    continue;
+                }
+                if (arc.track_in != tr_in || arc.track_out != tr_out) {
+                    continue;
+                }
+                if (!bbox.empty() && arc.cob >= 0 && !bbox.contains(arc.cob)) {
+                    continue;
+                }
+                matched.push_back(j);
+            }
+            if (matched.empty()) {
+                continue;
+            }
+            const auto row = add_le(1.0);
+            for (const auto j : matched) {
+                x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
+            }
+        }
+    }
+
+    if (enforce_bus_equal_length) {
+        auto by_bus = std::map<std::String, std::Vector<int>> {};
+        for (int k = 0; k < K; ++k) {
+            if (!local_com[static_cast<std::size_t>(k)].is_bus) {
+                continue;
+            }
+            by_bus[local_com[static_cast<std::size_t>(k)].bus_key].push_back(k);
+        }
+        for (const auto& [key, group] : by_bus) {
+            (void)key;
+            if (group.size() <= 1) {
+                continue;
+            }
+            const auto ref = group.front();
+            for (std::size_t gi = 1; gi < group.size(); ++gi) {
+                const auto row = add_eq(0.0);
+                const auto cur = group[gi];
+                for (const auto j : x_by_k[static_cast<std::size_t>(cur)]) {
+                    const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
+                    if (arc.is_virtual) {
+                        continue;
                     }
-                    cap_edge_keys.insert(std::make_pair(u1, v1));
+                    x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
+                }
+                for (const auto j : x_by_k[static_cast<std::size_t>(ref)]) {
+                    const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
+                    if (arc.is_virtual) {
+                        continue;
+                    }
+                    x_entries[static_cast<std::size_t>(j)].push_back({row, -1.0});
                 }
             }
         }
     }
-    const int num_col = static_cast<int>(vars.size());
-    if (num_col == 0) {
-        return McfSolveResult {false, 0.0, static_cast<int>(HighsModelStatus::kNotset), false, {}, {}, {}};
-    }
-    std::map<std::pair<int, int>, int> e2id;
-    {
-        int eid = 0;
-        for (const auto& p : cap_edge_keys) {
-            e2id[p] = eid++;
+
+    const auto num_x = static_cast<int>(x_vars.size());
+    const auto num_o = static_cast<int>(o_vars.size());
+    const auto num_col = num_x + num_o;
+    const auto num_row = static_cast<int>(row_lo.size());
+
+    auto col_cost = std::vector<double>(static_cast<std::size_t>(num_col), 0.0);
+    auto col_lo = std::vector<double>(static_cast<std::size_t>(num_col), 0.0);
+    auto col_up = std::vector<double>(static_cast<std::size_t>(num_col), 1.0);
+    auto a_start = std::vector<HighsInt>(static_cast<std::size_t>(num_col) + 1, 0);
+    auto a_index = std::vector<HighsInt> {};
+    auto a_value = std::vector<double> {};
+    a_index.reserve(static_cast<std::size_t>(num_col * 8));
+    a_value.reserve(static_cast<std::size_t>(num_col * 8));
+
+    for (int j = 0; j < num_x; ++j) {
+        a_start[static_cast<std::size_t>(j)] = static_cast<HighsInt>(a_index.size());
+        const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
+        col_cost[static_cast<std::size_t>(j)] = arc.is_virtual ? 0.0 : 1.0;
+        for (const auto& [r, v] : x_entries[static_cast<std::size_t>(j)]) {
+            a_index.push_back(static_cast<HighsInt>(r));
+            a_value.push_back(v);
         }
     }
-    const int n_cap = static_cast<int>(e2id.size());
-    const int n_flow = K * g.num_nodes;
-    const int num_row = n_flow + n_cap;
-    std::vector<HighsInt> astart(static_cast<std::size_t>(num_col) + 1, 0);
-    std::vector<HighsInt> aind;
-    std::vector<double> aval;
-    aind.reserve(static_cast<std::size_t>(num_col) * 5u);
-    aval.reserve(static_cast<std::size_t>(num_col) * 5u);
-    for (int j = 0; j < num_col; ++j) {
-        astart[static_cast<std::size_t>(j)] = static_cast<HighsInt>(aind.size());
-        const int k = vars[static_cast<std::size_t>(j)].k;
-        const int a = vars[static_cast<std::size_t>(j)].a;
-        const int u = arcs[static_cast<std::size_t>(a)].u;
-        const int v = arcs[static_cast<std::size_t>(a)].v;
-        aind.push_back(static_cast<HighsInt>(flow_row_id(k, u, g)));
-        aval.push_back(1.0);
-        aind.push_back(static_cast<HighsInt>(flow_row_id(k, v, g)));
-        aval.push_back(-1.0);
-        if (!arcs[static_cast<std::size_t>(a)].is_virt) {
-            int u1 = u;
-            int v1 = v;
-            if (u1 > v1) {
-                std::swap(u1, v1);
-            }
-            aind.push_back(static_cast<HighsInt>(n_flow + e2id.at({u1, v1})));
-            aval.push_back(1.0);
+    for (int j = 0; j < num_o; ++j) {
+        const auto col = num_x + j;
+        a_start[static_cast<std::size_t>(col)] = static_cast<HighsInt>(a_index.size());
+        for (const auto& [r, v] : o_entries[static_cast<std::size_t>(j)]) {
+            a_index.push_back(static_cast<HighsInt>(r));
+            a_value.push_back(v);
         }
     }
-    astart[static_cast<std::size_t>(num_col)] = static_cast<HighsInt>(aind.size());
-    std::vector<double> row_lo(static_cast<std::size_t>(num_row), -kHighsInf);
-    std::vector<double> row_up(static_cast<std::size_t>(num_row), kHighsInf);
-    std::vector<double> col_lo(static_cast<std::size_t>(num_col), 0.0);
-    std::vector<double> col_up(static_cast<std::size_t>(num_col), kHighsInf);
-    for (int k = 0; k < K; ++k) {
-        for (int n = 0; n < g.num_nodes; ++n) {
-            const int r = flow_row_id(k, n, g);
-            row_lo[static_cast<std::size_t>(r)] = 0.0;
-            row_up[static_cast<std::size_t>(r)] = 0.0;
-        }
-    }
-    for (int k = 0; k < K; ++k) {
-        const int d = com[static_cast<std::size_t>(k)].demand;
-        const int s = com[static_cast<std::size_t>(k)].src;
-        const int t = com[static_cast<std::size_t>(k)].snk;
-        row_lo[static_cast<std::size_t>(flow_row_id(k, s, g))] = d;
-        row_up[static_cast<std::size_t>(flow_row_id(k, s, g))] = d;
-        row_lo[static_cast<std::size_t>(flow_row_id(k, t, g))] = -d;
-        row_up[static_cast<std::size_t>(flow_row_id(k, t, g))] = -d;
-    }
-    for (int e = 0; e < n_cap; ++e) {
-        row_up[static_cast<std::size_t>(n_flow + e)] = kCapNormal;
-    }
-    std::vector<double> cost(static_cast<std::size_t>(num_col), 1.0);
+    a_start[static_cast<std::size_t>(num_col)] = static_cast<HighsInt>(a_index.size());
+
     HighsLp lp {};
     lp.num_col_ = static_cast<HighsInt>(num_col);
     lp.num_row_ = static_cast<HighsInt>(num_row);
     lp.sense_ = ObjSense::kMinimize;
     lp.offset_ = 0.0;
-    lp.col_cost_ = std::move(cost);
+    lp.col_cost_ = std::move(col_cost);
     lp.col_lower_ = std::move(col_lo);
     lp.col_upper_ = std::move(col_up);
     lp.row_lower_ = std::move(row_lo);
     lp.row_upper_ = std::move(row_up);
     lp.integrality_.assign(static_cast<std::size_t>(num_col), HighsVarType::kInteger);
-    lp.model_name_ = "MCF_COB";
+    lp.model_name_ = std::string(stage_name);
     lp.a_matrix_.format_ = MatrixFormat::kColwise;
     lp.a_matrix_.num_col_ = lp.num_col_;
     lp.a_matrix_.num_row_ = lp.num_row_;
-    lp.a_matrix_.start_ = std::move(astart);
-    lp.a_matrix_.index_ = std::move(aind);
-    lp.a_matrix_.value_ = std::move(aval);
+    lp.a_matrix_.start_ = std::move(a_start);
+    lp.a_matrix_.index_ = std::move(a_index);
+    lp.a_matrix_.value_ = std::move(a_value);
     lp.setMatrixDimensions();
-    Highs h {};
-    h.setOptionValue("output_flag", false);
-    h.setOptionValue("presolve", "on");
-    const auto ps = h.passModel(std::move(lp));
-    if (ps != HighsStatus::kOk) {
-        return McfSolveResult {false, 0.0, static_cast<int>(HighsModelStatus::kNotset), false, {}, {}, {}};
-    }
-    if (h.run() != HighsStatus::kOk) {
-        return McfSolveResult {false, 0.0, static_cast<int>(h.getModelStatus()), false, {}, {}, {}};
-    }
-    const auto model_status = h.getModelStatus();
-    if (model_status != HighsModelStatus::kOptimal) {
-        return McfSolveResult {false, 0.0, static_cast<int>(model_status), false, {}, {}, {}};
-    }
 
-    std::Vector<McfPathInfo> all_paths;
-    all_paths.resize(static_cast<std::size_t>(K));
-    std::vector<std::map<std::pair<int, int>, int>> edge_count(static_cast<std::size_t>(K));
-    std::map<std::pair<int, int>, double> undirected_usage;
-    std::map<std::pair<int, int>, double> directed_usage;
-    const auto sol = h.getSolution();
-    for (int j = 0; j < num_col; ++j) {
-        const int f = static_cast<int>(std::lround(sol.col_value[static_cast<std::size_t>(j)]));
-        if (f <= 0) {
+    Highs highs {};
+    highs.setOptionValue("output_flag", false);
+    highs.setOptionValue("presolve", "on");
+    if (highs.passModel(std::move(lp)) != HighsStatus::kOk) {
+        out.ok = false;
+        out.message = std::format("{}: passModel failed", stage_name);
+        return out;
+    }
+    if (highs.run() != HighsStatus::kOk) {
+        out.ok = false;
+        out.message = std::format("{}: solver run failed", stage_name);
+        out.model_status = static_cast<int>(highs.getModelStatus());
+        return out;
+    }
+    const auto status = highs.getModelStatus();
+    out.model_status = static_cast<int>(status);
+    if (status != HighsModelStatus::kOptimal) {
+        out.ok = false;
+        out.message = std::format("{}: model not optimal ({})", stage_name, static_cast<int>(status));
+        return out;
+    }
+    out.ok = true;
+    out.message = "ok";
+    out.objective = highs.getObjectiveValue();
+
+    const auto sol = highs.getSolution();
+    auto x_values = std::Vector<int>(x_vars.size(), 0);
+    for (std::size_t j = 0; j < x_vars.size(); ++j) {
+        x_values[j] = static_cast<int>(std::lround(sol.col_value[j]));
+        if (x_values[j] <= 0) {
             continue;
         }
-        const int k = vars[static_cast<std::size_t>(j)].k;
-        const int a = vars[static_cast<std::size_t>(j)].a;
-        const int u = arcs[static_cast<std::size_t>(a)].u;
-        const int v = arcs[static_cast<std::size_t>(a)].v;
-        directed_usage[{u, v}] += static_cast<double>(f);
-        int u1 = u;
-        int v1 = v;
-        if (u1 > v1) {
-            std::swap(u1, v1);
+        const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[j].a)];
+        if (!arc.is_virtual) {
+            auto u = arc.u;
+            auto v = arc.v;
+            if (u > v) {
+                std::swap(u, v);
+            }
+            out.used_edges[{u, v}] = 1;
         }
-        undirected_usage[{u1, v1}] += static_cast<double>(f);
-        edge_count[static_cast<std::size_t>(k)][{u, v}] += f;
     }
+    for (std::size_t j = 0; j < o_vars.size(); ++j) {
+        const auto col = static_cast<std::size_t>(num_x + static_cast<int>(j));
+        const auto val = static_cast<int>(std::lround(sol.col_value[col]));
+        if (val > 0) {
+            out.used_nodes[o_vars[j].node] = 1;
+        }
+    }
+
+    auto edge_count_by_k = std::Vector<std::map<std::pair<int, int>, int>>(static_cast<std::size_t>(K));
+    for (std::size_t j = 0; j < x_vars.size(); ++j) {
+        const auto val = x_values[j];
+        if (val <= 0) {
+            continue;
+        }
+        const auto k = x_vars[j].k;
+        const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[j].a)];
+        edge_count_by_k[static_cast<std::size_t>(k)][{arc.u, arc.v}] += val;
+    }
+
+    out.paths.reserve(static_cast<std::size_t>(K));
     for (int k = 0; k < K; ++k) {
-        const auto& c = com[static_cast<std::size_t>(k)];
-        auto& info = all_paths[static_cast<std::size_t>(k)];
+        const auto& c = local_com[static_cast<std::size_t>(k)];
+        McfPathInfo info {};
         info.label = c.label;
         info.origin_name = c.origin_name;
+        info.record_id = c.record_id;
         info.src = c.src;
         info.snk = c.snk;
         info.demand = c.demand;
-        info.record_indices = c.record_indices;
-        auto& ec = edge_count[static_cast<std::size_t>(k)];
-        for (int flow_id = 0; flow_id < c.demand; ++flow_id) {
-            std::Vector<int> prev(static_cast<std::size_t>(g.num_nodes), -1);
-            std::queue<int> q;
-            q.push(c.src);
-            prev[static_cast<std::size_t>(c.src)] = c.src;
-            while (!q.empty() && prev[static_cast<std::size_t>(c.snk)] < 0) {
-                const int u = q.front();
-                q.pop();
-                for (const auto& [e, cnt] : ec) {
-                    if (cnt <= 0 || e.first != u) {
-                        continue;
-                    }
-                    const int v = e.second;
-                    if (prev[static_cast<std::size_t>(v)] >= 0) {
-                        continue;
-                    }
-                    prev[static_cast<std::size_t>(v)] = u;
-                    q.push(v);
+        info.cob_unit = c.cob_unit;
+        info.start_track = c.start_track;
+        info.end_track = c.end_track;
+        info.record_indices.push_back(c.record_id);
+
+        auto path = extract_path(c.src, c.snk, edge_count_by_k[static_cast<std::size_t>(k)], N);
+        if (!path.empty()) {
+            info.unit_paths.push_back(path);
+            auto track_path = std::Vector<std::size_t> {};
+            for (const auto n : path) {
+                if (graph.nodes[static_cast<std::size_t>(n)].is_virtual) {
+                    continue;
+                }
+                const auto track = graph.nodes[static_cast<std::size_t>(n)].track;
+                if (track_path.empty() || track_path.back() != track) {
+                    track_path.push_back(track);
                 }
             }
-            if (prev[static_cast<std::size_t>(c.snk)] < 0) {
-                break;
-            }
-            std::Vector<int> nodes;
-            int cur = c.snk;
-            while (cur != c.src) {
-                nodes.push_back(cur);
-                cur = prev[static_cast<std::size_t>(cur)];
-            }
-            nodes.push_back(c.src);
-            std::reverse(nodes.begin(), nodes.end());
-            for (std::size_t i = 0; i + 1 < nodes.size(); ++i) {
-                auto key = std::make_pair(nodes[i], nodes[i + 1]);
-                auto it = ec.find(key);
-                if (it != ec.end() && it->second > 0) {
-                    it->second -= 1;
-                }
-            }
-            info.unit_paths.push_back(std::move(nodes));
-        }
-    }
-    return McfSolveResult {
-        true,
-        h.getObjectiveValue(),
-        static_cast<int>(model_status),
-        true,
-        std::move(undirected_usage),
-        std::move(directed_usage),
-        std::move(all_paths)};
-}
-
-} // namespace
-
-struct CobSolveDetail {
-    CobMcfCobUnitSummary summary;
-    std::Vector<McfPathInfo> paths;
-};
-
-static auto solve_prepared_cob_unit(
-    const std::Vector<Arc>& base_arcs,
-    const hardware::Interposer& interposer,
-    const circuit::BaseDie& basedie,
-    std::size_t cobu,
-    const std::Vector<McfK>& coms,
-    const McfGraphDims& g) -> CobSolveDetail {
-    std::Vector<Arc> arcs = base_arcs;
-    std::set<int> p_cob;
-    std::set<int> n_cob;
-    add_port_arcs(interposer, basedie, cobu, arcs, p_cob, n_cob, g);      // add port arcs for pose/nege ports
-    const auto t0 = std::chrono::steady_clock::now();
-    auto res = solve_mcf_lp(arcs, p_cob, n_cob, coms, g);
-    const auto t1 = std::chrono::steady_clock::now();
-    const int ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count());
-    debug::info_fmt("MCF cob unit {}: commodities={} ok={} obj={:.4g} time={}ms", cobu, coms.size(), res.ok, res.objective, ms);
-    if (!res.ok) {
-        const auto node_name = [&g](int n) -> std::String {
-            if (n == g.k_vp) {
-                return "V_P";
-            }
-            if (n == g.k_vn) {
-                return "V_N";
-            }
-            if (n >= g.k_tob0 && n < g.k_vp) {
-                return std::format("TOB{}", n - g.k_tob0);
-            }
-            if (n >= 0 && n < g.k_tob0) {
-                const auto c = linear_to_cob(static_cast<std::size_t>(n));
-                return std::format("COB({},{})", c.row, c.col);
-            }
-            return std::format("N{}", n);
-        };
-        debug::debug_fmt(
-            "MCF cob unit {} failure detail: model_status={}, p_cob_count={}, n_cob_count={}, commodities={}",
-            cobu,
-            res.model_status,
-            p_cob.size(),
-            n_cob.size(),
-            coms.size());
-        for (std::size_t i = 0; i < coms.size(); ++i) {
-            const auto& c = coms[i];
-            debug::debug_fmt(
-                "  commodity[{}] label={} src={} snk={} demand={}",
-                i,
-                c.label,
-                c.src,
-                c.snk,
-                c.demand);
-        }
-        debug::debug_fmt("MCF cob unit {} edge usage/capacity:", cobu);
-        for (const auto& a : arcs) {
-            const int u = a.u;
-            const int v = a.v;
-            if (a.is_virt) {
-                if (res.has_primal_flow) {
-                    auto it = res.directed_edge_usage.find({u, v});
-                    const double used = (it == res.directed_edge_usage.end()) ? 0.0 : it->second;
-                    debug::debug_fmt("  edge {} -> {} : use={:.0f}/INF", node_name(u), node_name(v), used);
-                }
-                else {
-                    debug::debug_fmt("  edge {} -> {} : use=N/A/INF", node_name(u), node_name(v));
-                }
-                continue;
-            }
-            int u1 = u;
-            int v1 = v;
-            if (u1 > v1) {
-                std::swap(u1, v1);
-            }
-            if (res.has_primal_flow) {
-                auto it = res.undirected_edge_usage.find({u1, v1});
-                const double used = (it == res.undirected_edge_usage.end()) ? 0.0 : it->second;
-                debug::debug_fmt(
-                    "  edge {} <-> {} : use={:.0f}/{:.0f}",
-                    node_name(u1),
-                    node_name(v1),
-                    used,
-                    kCapNormal);
-            }
-            else {
-                debug::debug_fmt("  edge {} <-> {} : use=N/A/{:.0f}", node_name(u1), node_name(v1), kCapNormal);
+            if (!track_path.empty()) {
+                info.track_paths.push_back(std::move(track_path));
             }
         }
-    }
-    for (auto& p : res.paths) {
-        p.cob_unit = cobu;
-    }
-    return CobSolveDetail {
-        CobMcfCobUnitSummary {
-            cobu,
-            static_cast<int>(coms.size()),
-            res.ok,
-            res.objective,
-            ms,
-            res.ok ? std::String("ok") : std::String("infeasible or empty")},
-        std::move(res.paths)};
-}
-
-static auto node_to_text(int n, const McfGraphDims& g) -> std::String {
-    if (n == g.k_vp) {
-        return "V_P";
-    }
-    if (n == g.k_vn) {
-        return "V_N";
-    }
-    if (n >= g.k_tob0 && n < g.k_vp) {
-        return std::format("TOB{}", n - g.k_tob0);
-    }
-    if (n >= 0 && n < g.k_tob0) {
-        const auto c = linear_to_cob(static_cast<std::size_t>(n));
-        return std::format("COB({},{})", c.row, c.col);
-    }
-    return std::format("N{}", n);
-}
-
-static auto path_to_text(const std::Vector<int>& nodes, const McfGraphDims& g) -> std::String {
-    if (nodes.empty()) {
-        return "(empty)";
-    }
-    auto out = std::String {};
-    for (std::size_t i = 0; i < nodes.size(); ++i) {
-        if (i != 0) {
-            out += " -> ";
-        }
-        out += node_to_text(nodes[i], g);
+        out.paths.push_back(std::move(info));
     }
     return out;
 }
 
-static auto path_length_without_virtual_nodes(const std::Vector<int>& nodes, const McfGraphDims& g) -> int {
-    int len = 0;
-    for (const auto n : nodes) {
-        if (n == g.k_vp || n == g.k_vn) {
-            continue;
+auto path_to_text(const GlobalGraph& graph, const std::Vector<int>& path) -> std::String {
+    if (path.empty()) {
+        return "(empty)";
+    }
+    auto s = std::String {};
+    for (std::size_t i = 0; i < path.size(); ++i) {
+        if (i != 0) {
+            s += " -> ";
         }
-        if ((n >= 0 && n < g.k_tob0) || (n >= g.k_tob0 && n < g.k_vp)) {
-            len += 1;
-        }
+        s += node_text(graph, path[i]);
     }
-    return len;
+    return s;
 }
 
-static auto is_tob_node(int n, const McfGraphDims& g) -> bool {
-    return n >= g.k_tob0 && n < g.k_vp;
-}
-
-static auto is_cob_node_any(int n, const McfGraphDims& g) -> bool {
-    return n >= 0 && n < g.k_tob0;
-}
-
-static auto is_physically_adjacent_path_step(int u, int v, const McfGraphDims& g) -> bool {
-    if (u == g.k_vp || u == g.k_vn || v == g.k_vp || v == g.k_vn) {
-        return true;
-    }
-    if (is_cob_node_any(u, g) && is_cob_node_any(v, g)) {
-        const auto cu = linear_to_cob(static_cast<std::size_t>(u));
-        const auto cv = linear_to_cob(static_cast<std::size_t>(v));
-        const auto dr = std::llabs(cu.row - cv.row);
-        const auto dc = std::llabs(cu.col - cv.col);
-        return dr + dc == 1;
-    }
-    if (is_tob_node(u, g) && is_cob_node_any(v, g)) {
-        const auto [tr, tc] = tob_index_from_linear(static_cast<std::size_t>(u - g.k_tob0));
-        const auto [a, b] = tob_pair_cob_coords(tr, tc);
-        const auto cv = linear_to_cob(static_cast<std::size_t>(v));
-        return (cv.row == a.row && cv.col == a.col) || (cv.row == b.row && cv.col == b.col);
-    }
-    if (is_cob_node_any(u, g) && is_tob_node(v, g)) {
-        return is_physically_adjacent_path_step(v, u, g);
-    }
-    return true;
-}
+} // namespace
 
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
-    const std::Vector<TobIlpNetAssignment>& ilp_assignments,
+    const TobIlpResult& ilp_result,
     const hardware::Interposer& interposer,
     const circuit::BaseDie& basedie,
     const CobMcfGridDims cob_grid,
-    const bool enable_mcf_parallel) -> CobMcfFullResult {
-    const auto gd = McfGraphDims::from_grid(cob_grid);
+    const bool enable_mcf_parallel
+) -> CobMcfFullResult {
+    (void)interposer;
+    (void)basedie;
+    (void)enable_mcf_parallel;
+
     const auto mcf_start = std::chrono::steady_clock::now();
-    const double mcf_peak_before_mb = get_peak_rss_mb();
+    const auto peak_before = get_peak_rss_mb();
+
     CobMcfFullResult out {};
-    if (records.size() != ilp_assignments.size()) {
+    out.summary.per_cob.resize(16);
+    if (records.size() != ilp_result.assignments.size() || records.size() != ilp_result.record_track_endpoints.size()) {
         for (std::size_t u = 0; u < 16; ++u) {
-            out.summary.per_cob.push_back(
-                CobMcfCobUnitSummary {
-                    u, 0, false, 0.0, 0, std::String("assignment size mismatch with records")});
+            out.summary.per_cob[u] = CobMcfCobUnitSummary {
+                u,
+                0,
+                false,
+                0.0,
+                0,
+                std::String("record/ilp result size mismatch")};
         }
         out.summary.all_ok = false;
         return out;
     }
-    std::Vector<Arc> base_arcs;
-    build_base_arcs(base_arcs, gd);     // build graph 
 
-    std::array<std::Vector<McfK>, 16> prep {};
-    for (std::size_t cobu = 0; cobu < 16; ++cobu) {
-        prep[cobu] = prepare_cob_unit_commodities(records, ilp_assignments, cobu, gd);      // make MCF
-    }
-
-    out.summary.per_cob.resize(16);
-    std::array<std::Vector<McfPathInfo>, 16> unit_paths {};
-    if (enable_mcf_parallel) {
-        std::Vector<std::future<CobSolveDetail>> futs;
-        futs.reserve(16);
-        for (std::size_t cobu = 0; cobu < 16; ++cobu) {
-            futs.push_back(std::async(std::launch::async, [&, gd, cobu, coms = prep[cobu]]() {
-                return solve_prepared_cob_unit(base_arcs, interposer, basedie, cobu, coms, gd);       // solve MCF
-            }));
+    auto graph = build_track_graph(cob_grid);
+    auto commodities = prepare_commodities(records, ilp_result, cob_grid, graph);
+    auto bus_ids = std::Vector<std::size_t> {};
+    auto simple_ids = std::Vector<std::size_t> {};
+    auto bus_count_by_unit = std::array<int, 16> {};
+    auto simple_count_by_unit = std::array<int, 16> {};
+    bus_count_by_unit.fill(0);
+    simple_count_by_unit.fill(0);
+    for (std::size_t i = 0; i < commodities.size(); ++i) {
+        if (commodities[i].is_bus) {
+            bus_ids.push_back(i);
+            bus_count_by_unit[commodities[i].cob_unit] += 1;
         }
-        for (std::size_t cobu = 0; cobu < 16; ++cobu) {
-            auto detail = futs[cobu].get();
-            out.summary.per_cob[cobu] = std::move(detail.summary);
-            unit_paths[cobu] = std::move(detail.paths);
-            if (!out.summary.per_cob[cobu].ok) {
-                out.summary.all_ok = false;
-            }
-        }
-    }
-    else {
-        for (std::size_t cobu = 0; cobu < 16; ++cobu) {
-            auto detail = solve_prepared_cob_unit(base_arcs, interposer, basedie, cobu, prep[cobu], gd);
-            out.summary.per_cob[cobu] = std::move(detail.summary);
-            unit_paths[cobu] = std::move(detail.paths);
-            if (!out.summary.per_cob[cobu].ok) {
-                out.summary.all_ok = false;
-            }
+        else {
+            simple_ids.push_back(i);
+            simple_count_by_unit[commodities[i].cob_unit] += 1;
         }
     }
 
-    std::map<std::String, std::set<std::size_t>> net_units;
-    for (std::size_t i = 0; i < records.size(); ++i) {
-        const auto& net = records[i].origin_key.empty() ? records[i].net_name : records[i].origin_key;
-        net_units[net].insert(ilp_assignments[i].cob_unit);
+    const auto solve_t0 = std::chrono::steady_clock::now();
+    auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true);
+    auto edge_cap_for_simple = std::map<std::pair<int, int>, int> {};
+    for (const auto& [e, used] : bus_res.used_edges) {
+        edge_cap_for_simple[e] = std::max(0, 8 - used);
     }
-    std::map<std::String, std::map<std::size_t, std::Vector<McfPathInfo>>> net_paths;
-    for (std::size_t cobu = 0; cobu < 16; ++cobu) {
-        for (const auto& p : unit_paths[cobu]) {
-            net_paths[p.origin_name][cobu].push_back(p);
-        }
+    auto node_cap_for_simple = std::map<int, int> {};
+    for (const auto& [n, used] : bus_res.used_nodes) {
+        node_cap_for_simple[n] = std::max(0, 8 - used);
     }
-    for (const auto& [net_name, units] : net_units) {
-        auto unit_text = std::String {};
-        bool first = true;
-        for (const auto u : units) {
-            if (!first) {
-                unit_text += ",";
+    auto simple_res = solve_stage("SimpleMCF", graph, commodities, simple_ids, edge_cap_for_simple, node_cap_for_simple, false);
+    const auto solve_t1 = std::chrono::steady_clock::now();
+    const auto solve_ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(solve_t1 - solve_t0).count());
+
+    if (!bus_res.ok) {
+        debug::error_fmt("BusMCF failed: {}", bus_res.message);
+    }
+    if (!simple_res.ok) {
+        debug::error_fmt("SimpleMCF failed: {}", simple_res.message);
+    }
+    out.summary.all_ok = bus_res.ok && simple_res.ok;
+
+    for (std::size_t u = 0; u < 16; ++u) {
+        const auto obj = bus_res.objective + simple_res.objective;
+        out.summary.per_cob[u] = CobMcfCobUnitSummary {
+            u,
+            bus_count_by_unit[u] + simple_count_by_unit[u],
+            out.summary.all_ok,
+            obj,
+            solve_ms,
+            out.summary.all_ok ? std::String("ok") : std::String("stage failed")};
+    }
+
+    for (auto& p : bus_res.paths) {
+        out.paths_by_unit[p.cob_unit].push_back(std::move(p));
+    }
+    for (auto& p : simple_res.paths) {
+        out.paths_by_unit[p.cob_unit].push_back(std::move(p));
+    }
+
+    for (std::size_t u = 0; u < 16; ++u) {
+        debug::info_fmt(
+            "MCF unit {}: bus_com={} simple_com={} ok={}",
+            u,
+            bus_count_by_unit[u],
+            simple_count_by_unit[u],
+            out.summary.all_ok);
+        for (const auto& info : out.paths_by_unit[u]) {
+            debug::info_fmt(
+                "  commodity {} rec={} start_track={} end_track={} path_count={}",
+                info.label,
+                info.record_id,
+                info.start_track,
+                info.end_track,
+                info.unit_paths.size());
+            for (std::size_t pi = 0; pi < info.unit_paths.size(); ++pi) {
+                debug::info_fmt("    path#{} {}", pi, path_to_text(graph, info.unit_paths[pi]));
             }
-            first = false;
-            unit_text += std::format("{}", u);
-        }
-        debug::info_fmt("MCF net \"{}\": used COBUnits [{}]", net_name, unit_text);
-        const auto np_it = net_paths.find(net_name);
-        if (np_it == net_paths.end()) {
-            debug::info_fmt("  unit detail: no MCF commodity generated");
-            continue;
-        }
-        for (const auto& [cobu, infos] : np_it->second) {
-            debug::info_fmt("  COBUnit {}:", cobu);
-            for (const auto& info : infos) {
-                debug::info_fmt(
-                    "    commodity \"{}\" demand={} start={} end={}",
-                    info.label,
-                    info.demand,
-                    node_to_text(info.src, gd),
-                    node_to_text(info.snk, gd));
-                if (info.unit_paths.empty()) {
-                    debug::info("      path: (no extractable unit path from solution)");
-                    continue;
-                }
-                for (std::size_t pi = 0; pi < info.unit_paths.size(); ++pi) {
-                    const int plen = path_length_without_virtual_nodes(info.unit_paths[pi], gd);
-                    debug::info_fmt("      path#{} (length={}) {}", pi, plen, path_to_text(info.unit_paths[pi], gd));
-                    const auto& nodes = info.unit_paths[pi];
-                    for (std::size_t ni = 0; ni + 1 < nodes.size(); ++ni) {
-                        if (is_physically_adjacent_path_step(nodes[ni], nodes[ni + 1], gd)) {
-                            continue;
-                        }
-                        debug::warning_fmt(
-                            "      adjacency warning: path#{} has non-adjacent step {} -> {}",
-                            pi,
-                            node_to_text(nodes[ni], gd),
-                            node_to_text(nodes[ni + 1], gd));
-                    }
-                }
-            }
         }
     }
+
     const auto mcf_end = std::chrono::steady_clock::now();
-    const auto mcf_ms = std::chrono::duration_cast<std::chrono::milliseconds>(mcf_end - mcf_start).count();
-    const double mcf_peak_after_mb = get_peak_rss_mb();
-    const double mcf_stage_peak_delta_mb = std::max(0.0, mcf_peak_after_mb - mcf_peak_before_mb);
+    const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(mcf_end - mcf_start).count();
+    const auto peak_after = get_peak_rss_mb();
+    const auto stage_peak_delta = std::max(0.0, peak_after - peak_before);
     debug::info_fmt(
-        "MCF global routing summary: elapsed={} ms, peak_rss={:.2f} MB, stage_peak_delta={:.2f} MB",
-        mcf_ms,
-        mcf_peak_after_mb,
-        mcf_stage_peak_delta_mb);
-    out.paths_by_unit = std::move(unit_paths);
+        "MCF detailed(track-level) summary: elapsed={} ms, peak_rss={:.2f} MB, stage_peak_delta={:.2f} MB",
+        elapsed_ms,
+        peak_after,
+        stage_peak_delta);
     return out;
 }
 

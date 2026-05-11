@@ -52,6 +52,7 @@ auto s_var(std::size_t t, std::size_t v) -> std::String;
 auto z_var(std::size_t n, std::size_t c) -> std::String;
 auto qs_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
 auto qw_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
+auto y_var(std::size_t n, std::size_t r) -> std::String;
 
 void build_tob_ilp_model(
     TobIlpModel& model,

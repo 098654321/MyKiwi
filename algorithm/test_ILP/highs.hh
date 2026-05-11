@@ -40,6 +40,15 @@ struct TobIlpNetRouteDetail {
     bool use_straight;
 };
 
+struct TobIlpRecordTrackEndpoint {
+    std::size_t record_id{0};
+    std::size_t cob_unit{0};
+    bool has_start_track{false};
+    std::size_t start_track{0};
+    bool has_end_track{false};
+    std::size_t end_track{0};
+};
+
 struct TobIlpResult {
     bool ok{false};
     std::String message;
@@ -49,6 +58,7 @@ struct TobIlpResult {
     std::Vector<TobIlpWAssignment> active_w;
     std::Vector<TobIlpSAssignment> active_s;
     std::Vector<TobIlpNetRouteDetail> route_details;
+    std::Vector<TobIlpRecordTrackEndpoint> record_track_endpoints;
 };
 
 auto solve_tob_ilp_with_highs(

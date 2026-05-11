@@ -130,7 +130,8 @@ auto solve_tob_ilp_with_highs(
         return relation_bumps;
     };
 
-    out.assignments.reserve(records.size());
+    auto z_choice = std::Vector<std::size_t> {};
+    z_choice.resize(records.size(), std::numeric_limits<std::size_t>::max());
     for (std::size_t n = 0; n < records.size(); ++n) {
         std::size_t chosen = std::numeric_limits<std::size_t>::max();
         int count = 0;
@@ -162,7 +163,34 @@ auto solve_tob_ilp_with_highs(
             );
             return out;
         }
-        out.assignments.push_back(TobIlpNetAssignment {records[n].net_name, chosen});
+        z_choice[n] = chosen;
+    }
+
+    auto pn_selected_end_track = std::Vector<std::size_t> {};
+    pn_selected_end_track.resize(records.size(), std::numeric_limits<std::size_t>::max());
+    for (std::size_t n = 0; n < records.size(); ++n) {
+        if (records[n].type != Net_type::PNnet) {
+            continue;
+        }
+        int selected = 0;
+        std::size_t selected_track = std::numeric_limits<std::size_t>::max();
+        for (const auto r_end : records[n].end_tracks) {
+            if (!is_active(y_var(n, r_end))) {
+                continue;
+            }
+            selected += 1;
+            selected_track = r_end;
+        }
+        if (selected != 1) {
+            out.ok = false;
+            out.message = std::format(
+                "expected exactly one active Y for PN net index {} ('{}'), got {}",
+                n,
+                records[n].net_name,
+                selected);
+            return out;
+        }
+        pn_selected_end_track[n] = selected_track;
     }
 
     auto all_related_bumps = std::set<Bump_coord> {};
@@ -185,6 +213,7 @@ auto solve_tob_ilp_with_highs(
         }
     }
 
+    auto chosen_track_by_bump = std::map<Bump_coord, std::size_t> {};
     for (const auto& bump : all_related_bumps) {
         for (std::size_t j = 0; j < 8; ++j) {
             for (std::size_t k = 0; k < 8; ++k) {
@@ -197,9 +226,144 @@ auto solve_tob_ilp_with_highs(
                 const bool use_straight = qs_active && !qw_active;
                 const std::size_t track = has_track ? track_from_jk(bump.Bank, j, k, use_straight)
                                                     : std::numeric_limits<std::size_t>::max();
+                if (!has_track) {
+                    out.ok = false;
+                    out.message = std::format(
+                        "active W without resolved track for bump(T{},B{},G{},I{})",
+                        bump.TOB,
+                        bump.Bank,
+                        bump.Group,
+                        bump.Index);
+                    return out;
+                }
+                if (const auto it = chosen_track_by_bump.find(bump); it == chosen_track_by_bump.end()) {
+                    chosen_track_by_bump.emplace(bump, track);
+                }
+                else if (it->second != track) {
+                    out.ok = false;
+                    out.message = std::format(
+                        "bump(T{},B{},G{},I{}) selects multiple tracks ({}, {})",
+                        bump.TOB,
+                        bump.Bank,
+                        bump.Group,
+                        bump.Index,
+                        it->second,
+                        track);
+                    return out;
+                }
                 out.active_w.push_back(TobIlpWAssignment {bump, j, k, track, has_track, use_straight});
             }
         }
+    }
+    for (const auto& bump : all_related_bumps) {
+        if (!chosen_track_by_bump.contains(bump)) {
+            out.ok = false;
+            out.message = std::format(
+                "no selected track for bump(T{},B{},G{},I{})",
+                bump.TOB,
+                bump.Bank,
+                bump.Group,
+                bump.Index);
+            return out;
+        }
+    }
+
+    out.assignments.reserve(records.size());
+    out.record_track_endpoints.clear();
+    out.record_track_endpoints.reserve(records.size());
+    for (std::size_t n = 0; n < records.size(); ++n) {
+        const auto relation_bumps = relation_bumps_for(records[n]);
+        if (relation_bumps.empty()) {
+            out.ok = false;
+            out.message = std::format("net '{}' has no relation bump", records[n].net_name);
+            return out;
+        }
+        std::size_t derived_cob = std::numeric_limits<std::size_t>::max();
+        for (const auto& bump : relation_bumps) {
+            const auto tr_it = chosen_track_by_bump.find(bump);
+            if (tr_it == chosen_track_by_bump.end()) {
+                out.ok = false;
+                out.message = std::format(
+                    "missing selected track for bump(T{},B{},G{},I{}) in net '{}'",
+                    bump.TOB,
+                    bump.Bank,
+                    bump.Group,
+                    bump.Index,
+                    records[n].net_name);
+                return out;
+            }
+            const auto cob = map_track(tr_it->second);
+            if (derived_cob == std::numeric_limits<std::size_t>::max()) {
+                derived_cob = cob;
+            }
+            else if (derived_cob != cob) {
+                out.ok = false;
+                out.message = std::format(
+                    "track-derived cobunit mismatch in net '{}': {} vs {}",
+                    records[n].net_name,
+                    derived_cob,
+                    cob);
+                return out;
+            }
+        }
+        if (z_choice[n] == std::numeric_limits<std::size_t>::max()) {
+            out.ok = false;
+            out.message = std::format("missing active Z for net '{}'", records[n].net_name);
+            return out;
+        }
+        if (z_choice[n] != derived_cob) {
+            out.ok = false;
+            out.message = std::format(
+                "Z/track cobunit mismatch in net '{}': Z={} track={}",
+                records[n].net_name,
+                z_choice[n],
+                derived_cob);
+            return out;
+        }
+        out.assignments.push_back(TobIlpNetAssignment {records[n].net_name, derived_cob});
+
+        TobIlpRecordTrackEndpoint endpoint {};
+        endpoint.record_id = records[n].record_id;
+        endpoint.cob_unit = derived_cob;
+        if (records[n].type == Net_type::Tnet && records[n].mcf_has_start_track) {
+            endpoint.has_start_track = true;
+            endpoint.start_track = records[n].mcf_start_track.index;
+        }
+        else if (!records[n].start_bumps.empty()) {
+            const auto it = chosen_track_by_bump.find(records[n].start_bumps.front());
+            if (it != chosen_track_by_bump.end()) {
+                endpoint.has_start_track = true;
+                endpoint.start_track = it->second;
+            }
+        }
+
+        if (records[n].type == Net_type::Bnet) {
+            if (!records[n].end_bumps.empty()) {
+                const auto it = chosen_track_by_bump.find(records[n].end_bumps.front());
+                if (it != chosen_track_by_bump.end()) {
+                    endpoint.has_end_track = true;
+                    endpoint.end_track = it->second;
+                }
+            }
+        }
+        else if (records[n].type == Net_type::Tnet) {
+            if (records[n].mcf_has_end_track) {
+                endpoint.has_end_track = true;
+                endpoint.end_track = records[n].mcf_end_track.index;
+            }
+            else if (!records[n].start_bumps.empty()) {
+                const auto it = chosen_track_by_bump.find(records[n].start_bumps.front());
+                if (it != chosen_track_by_bump.end()) {
+                    endpoint.has_end_track = true;
+                    endpoint.end_track = it->second;
+                }
+            }
+        }
+        else if (records[n].type == Net_type::PNnet) {
+            endpoint.has_end_track = true;
+            endpoint.end_track = pn_selected_end_track[n];
+        }
+        out.record_track_endpoints.push_back(endpoint);
     }
 
     out.route_details.reserve(records.size() * 4);

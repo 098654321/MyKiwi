@@ -173,6 +173,7 @@ target("test_ILP")
         "algorithm/test_ILP/tob_ilp_model.cc",
         "algorithm/test_ILP/highs.cc",
         "algorithm/test_ILP/ilp_speedup.cc",
+        "algorithm/test_ILP/ilp_reach_precompute.cc",
         "algorithm/test_ILP/cob_mcf_router.cc",
         "algorithm/test_ILP/ilp_maze_search.cc",
         "algorithm/test_ILP/ilp_maze_finalize.cc"
