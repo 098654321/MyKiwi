@@ -18,14 +18,4 @@ auto track_to_jk(const std::size_t track) -> std::Pair<std::size_t, std::size_t>
     return {v / 8, v % 8};
 }
 
-auto tnet_allowed_jk(const std::Vector<std::size_t>& fixed_cobunits) -> std::set<std::Pair<std::size_t, std::size_t>> {
-    auto allowed = std::set<std::Pair<std::size_t, std::size_t>> {};
-    for (const auto c : fixed_cobunits) {
-        for (const auto track : cobunit_to_tracks(c)) {
-            allowed.insert(track_to_jk(track));
-        }
-    }
-    return allowed;
-}
-
 } // namespace PR_tool

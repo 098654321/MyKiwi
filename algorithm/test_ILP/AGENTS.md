@@ -18,7 +18,10 @@
 - `algorithm/test_ILP/tob_ilp_model.cc`
 - `algorithm/test_ILP/highs.cc`
 - `algorithm/test_ILP/ilp_speedup.cc`
+- `algorithm/test_ILP/ilp_reach_precompute.cc`
 - `algorithm/test_ILP/cob_mcf_router.cc`
+- `algorithm/test_ILP/ilp_maze_search.cc`
+- `algorithm/test_ILP/ilp_maze_finalize.cc`
 
 常用命令（仓库根目录）：
 
@@ -106,6 +109,27 @@ xmake build test_ILP
   - COB/TOB 线性编号与坐标映射
   - `track_to_cob()` 规则封装（用于将 track 端点映射到 COB 图节点）
 
+### 3.6 ILP 加速辅助
+
+- `algorithm/test_ILP/ilp_speedup.hh/.cc`
+  - `cobunit_to_tracks()`：给定 cobunit 返回其包含的 track 列表
+  - `track_to_jk()`：track -> `(j, k)` 坐标映射
+  - `tnet_allowed_jk()`：根据 Tnet 的 `tnet_fixed_cobunits` 计算允许的 `(j, k)` 集合
+
+### 3.7 可达性预计算
+
+- `algorithm/test_ILP/ilp_reach_precompute.hh/.cc`
+  - `precompute_reach_for_records()`：在 ILP 求解前为每条 record 预计算可达 end_track / start_track 边集，并返回 `IlpReachPrecomputeStats` 统计信息
+
+### 3.8 Maze 搜索与终局
+
+- `algorithm/test_ILP/ilp_maze_search.hh/.cc`
+  - `collect_accessible_cobs()`：从 MCF 节点路径提取可访问 COB 坐标集
+  - `maze_search_accessible()`：在受 MCF 路径走廊约束的 COB 可达范围内执行 track 层 BFS maze
+
+- `algorithm/test_ILP/ilp_maze_finalize.hh/.cc`
+  - `run_ilp_maze_finalize()`：ILP + MCF 均成功后的终局入口；按 bit 粒度调度 maze 搜索并输出最终 track 级路径
+
 ---
 
 ## 4. Net 拆分与语义（必须先理解）
@@ -161,7 +185,7 @@ xmake build test_ILP
 
 日志输出（便于诊断）：
 
-- **ILP 路由细节**：`main.cc` 中明确 `j=horizontal line`、`k=vertical line`
+- **ILP 路由细节**：`main.cc` 中仅通过 `result.route_details` 输出每条 net 的完整分配信息（bump 坐标、j/k 线、s、orient、track、COBUnit），格式示例：`net "...": bump(T0,B0,G1,I1) -> j=1 (horizontal line), k=4 (vertical line), s=12, orient=straight(QS), track=12, COBUnit=4`
 - **MCF 按 net 视角汇总**：`run_mcf_global_routing_cob_units()` 会打印每个原始 `origin_key` net 使用到的 COBUnit 列表
 - **每个 unit 的路径明细**：按 `commodity -> path#i` 打印完整节点链（`TOB* / COB(r,c) / V_P / V_N`）
 - **路径长度定义**：`length` 按路径节点计数；每个 `TOB/COB` 记 `+1`，`V_P/V_N` 不计长度

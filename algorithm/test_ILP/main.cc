@@ -22,11 +22,9 @@
 #include <std/string.hh>
 
 #include <algorithm>
-#include <array>
 #include <chrono>
 #include <cstddef>
 #include <cstdlib>
-#include <limits>
 #include <format>
 #include <map>
 #include <sys/resource.h>
@@ -41,12 +39,9 @@ auto sort_and_unique(std::Vector<std::size_t>& values) -> void;
 auto sort_and_unique(std::Vector<Bump_coord>& values) -> void;
 auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record;
 auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vector<Net_cost_record>;
-auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<Net_cost_matrix>;
 auto write_mps_file(
     const std::Vector<Net_cost_record>& records,
-    const std::Vector<Net_cost_matrix>& costs,
-    const std::String& output_mps,
-    bool enable_objective
+    const std::String& output_mps
 ) -> void;
 auto get_peak_rss_mb() -> double;
 
@@ -60,7 +55,7 @@ auto run_main(int argc, char** argv) -> int {
     if (argc < 2) {
         debug::error("No config path given");
         debug::info(
-            "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-objective] [--enable-ilp-parallel] "
+            "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] "
             "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]");
         log_total_runtime();
         return 1;
@@ -68,7 +63,6 @@ auto run_main(int argc, char** argv) -> int {
 
     const auto config_path = std::String(argv[1]);
     auto output_mps = std::String {};
-    bool enable_objective = false;
     bool enable_ilp_parallel = false;
     bool enable_mcf = false;
     bool enable_mcf_parallel = false;
@@ -93,10 +87,6 @@ auto run_main(int argc, char** argv) -> int {
                 continue;
             }
         }
-        if (arg == "--enable-objective") {
-            enable_objective = true;
-            continue;
-        }
         if (arg == "--enable-ilp-parallel") {
             enable_ilp_parallel = true;
             continue;
@@ -110,7 +100,8 @@ auto run_main(int argc, char** argv) -> int {
             continue;
         }
         if (arg == "--enable-maze") {
-            enable_maze = true;
+            // enable_maze = true;
+            debug::info("enable_maze is disabled");
             continue;
         }
         if (arg == "--cob-rows") {
@@ -141,7 +132,7 @@ auto run_main(int argc, char** argv) -> int {
         }
         debug::error_fmt("Unexpected argument '{}'", arg);
         debug::info(
-            "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-objective] [--enable-ilp-parallel] "
+            "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] "
             "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]");
         log_total_runtime();
         return 1;
@@ -191,15 +182,13 @@ auto run_main(int argc, char** argv) -> int {
         reach_stats.pnnet_records,
         reach_stats.total_endtracks,
         reach_stats.total_starttrack_edges);
-    const auto costs = build_cost_matrix(records);
-
     if (!output_mps.empty()) {
-        write_mps_file(records, costs, output_mps, enable_objective);
+        write_mps_file(records, output_mps);
         debug::info_fmt("MPS written: {}", output_mps);
     }
 
     const auto solve_begin = std::chrono::steady_clock::now();
-    const auto result = solve_tob_ilp_with_highs(records, costs, enable_objective, enable_ilp_parallel);
+    const auto result = solve_tob_ilp_with_highs(records, enable_ilp_parallel);
     const auto solve_end = std::chrono::steady_clock::now();
     const auto solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
     const auto peak_rss_mb = get_peak_rss_mb();
@@ -210,9 +199,6 @@ auto run_main(int argc, char** argv) -> int {
         debug::error_fmt("HiGHS: {}", result.message);
         log_total_runtime();
         return 1;
-    }
-    for (const auto& a : result.assignments) {
-        debug::info_fmt("net \"{}\" -> COBUnit {}", a.net_name, a.cob_unit);
     }
     for (const auto& d : result.route_details) {
         debug::info_fmt(
@@ -324,7 +310,7 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     Net_cost_record record {
         net->name(),
         Net_type::Tnet,
-        static_cast<float>(net->port_number()) / 2.0F,
+        1.0F,
         1.0F,
         {},
         {},
@@ -351,7 +337,6 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     else if (const auto* bt_net = dynamic_cast<const circuit::BumpToTrackNet*>(net.get())) {
         const auto cobunit = map_track(bt_net->end_track()->coord().index);
         record.type = Net_type::Tnet;
-        record.lambda = 1.0F;
         record.start_bumps.emplace_back(bump_to_ilp_coord(bt_net->begin_bump()));
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
@@ -367,13 +352,13 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     else if (const auto* tb_net = dynamic_cast<const circuit::TrackToBumpNet*>(net.get())) {
         const auto cobunit = map_track(tb_net->begin_track()->coord().index);
         record.type = Net_type::Tnet;
-        record.lambda = 1.0F;
         record.start_bumps.emplace_back(bump_to_ilp_coord(tb_net->end_bump()));
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
         record.end_tracks.emplace_back(tb_net->begin_track()->coord().index);
         record.mcf_start_track = tb_net->begin_track()->coord();
         record.mcf_has_start_track = true;
+// MARK: DEBUG, 这里的start_kind是track，而不是bump；但是上面record填了end_bump，这里会不会有问题？
         record.mcf_start_kind = IlpEndpointKind::Track;
         record.mcf_end_kind = IlpEndpointKind::Bump;
     }
@@ -419,28 +404,28 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                 candidate_cobunits.emplace_back(map_track(track->coord().index));
                 pn_end_tracks.emplace_back(track->coord().index);
                 if (!pn_end_track_coord_by_index.contains(track->coord().index)) {
-                    pn_end_track_coord_by_index.emplace(track->coord().index, track->coord());
+                    pn_end_track_coord_by_index.emplace(track->coord().index, track->coord());  // 目前0/1 track的之间的index不重复，这里用index作为key暂时没问题
                 }
             }
             sort_and_unique(candidate_cobunits);
             sort_and_unique(pn_end_tracks);
-            for (auto* bump : tsb_net->end_bumps()) {
+            for (auto* bump : tsb_net->end_bumps()) {   // 对于每一个end_bump，都拆成一个PNnet
                 Net_cost_record record {
                     std::String(std::format("{}__split_{}", net->name(), records.size())),
                     Net_type::PNnet,
-                    static_cast<float>(net->port_number()) / 2.0F,
+                    1.0,
                     5.0F,
                     {bump_to_ilp_coord(bump)},
                     {},
                     candidate_cobunits,
                     {}
                 };
-                record.pn_end_tracks = pn_end_tracks;
+                record.pn_end_tracks = pn_end_tracks;           // 所有的0/1端口
                 record.pn_end_track_coord_by_index = pn_end_track_coord_by_index;
                 record.origin_key = net->name();
                 record.power_kind = (net->name() == std::String("Pose nets")) ? IlpPowerKind::Pose : IlpPowerKind::Nege;
                 record.mcf_start_kind = IlpEndpointKind::Bump;
-                record.mcf_end_kind = IlpEndpointKind::Bump;
+                record.mcf_end_kind = IlpEndpointKind::Track;
                 records.emplace_back(std::move(record));
             }
             continue;
@@ -452,7 +437,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                 Net_cost_record record {
                     std::String(std::format("{}__btb_{}", net->name(), records.size())),
                     Net_type::Bnet,
-                    static_cast<float>(btb->port_number()) / 2.0F,
+                    1.0,
                     10.0F,
                     {bump_to_ilp_coord(btb->begin_bump())},
                     {bump_to_ilp_coord(btb->end_bump())},
@@ -472,7 +457,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                 Net_cost_record record {
                     std::String(std::format("{}__btt_{}", net->name(), records.size())),
                     Net_type::Tnet,
-                    static_cast<float>(btt->port_number()) / 2.0F,
+                    1.0,
                     1.0F,
                     {bump_to_ilp_coord(btt->begin_bump())},
                     {},
@@ -492,7 +477,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                 Net_cost_record record {
                     std::String(std::format("{}__ttb_{}", net->name(), records.size())),
                     Net_type::Tnet,
-                    static_cast<float>(ttb->port_number()) / 2.0F,
+                    1.0,
                     1.0F,
                     {bump_to_ilp_coord(ttb->end_bump())},
                     {},
@@ -502,6 +487,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                 record.end_tracks.emplace_back(ttb->begin_track()->coord().index);
                 record.mcf_start_track = ttb->begin_track()->coord();
                 record.mcf_has_start_track = true;
+// MARK: DEBUG, 这里的start_kind是track，而不是bump；但是上面record填了start_bump，这里会不会有问题？
                 record.mcf_start_kind = IlpEndpointKind::Track;
                 record.mcf_end_kind = IlpEndpointKind::Bump;
                 record.origin_key = net->name();
@@ -546,75 +532,14 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
     return records;
 }
 
-auto build_cost_matrix(const std::Vector<Net_cost_record>& records) -> std::Vector<Net_cost_matrix> {
-    auto load = std::array<double, 16> {};
-    load.fill(0.0);
-
-    for (const auto& record : records) {
-        if (record.type == Net_type::Bnet) {
-            const auto share = static_cast<double>(record.bits) / 16.0;
-            for (std::size_t c = 0; c < 16; ++c) {
-                load[c] += share;
-            }
-            continue;
-        }
-
-        if (record.type == Net_type::PNnet) {
-            const auto unit_num = static_cast<double>(record.candidate_cobunits.size());
-            const auto share = static_cast<double>(record.bits) / unit_num;
-            for (const auto cobunit : record.candidate_cobunits) {
-                load[cobunit] += share;
-            }
-            continue;
-        }
-
-        // Tnet
-        const auto& fixed = record.tnet_fixed_cobunits.empty() ? record.candidate_cobunits : record.tnet_fixed_cobunits;
-        const auto unit_num = static_cast<double>(fixed.size());
-        const auto share = static_cast<double>(record.bits) / unit_num;
-        for (const auto cobunit : fixed) {
-            load[cobunit] += share;
-        }
-    }
-
-    // Per-COB load thresholds for piecewise cost: default +inf (linear Cost = load*lambda only).
-    static constexpr std::array<double, 16> kCobLoadThresholds = [] {
-        std::array<double, 16> t {};
-        t.fill(std::numeric_limits<double>::infinity());
-        return t;
-    }();
-    static constexpr double kLoadAboveThresholdMultiplier = 100.0;
-
-    auto costs = std::Vector<Net_cost_matrix> {};
-    costs.reserve(records.size());
-    for (const auto& record : records) {
-        auto per_net = Net_cost_matrix {};
-        for (const auto& bump : record.start_bumps) {
-            auto row = Bump_cost_row {};
-            row.fill(0.0);
-            for (std::size_t c = 0; c < 16; ++c) {
-                const double m = (load[c] > kCobLoadThresholds[c]) ? kLoadAboveThresholdMultiplier : 1.0;
-                row[c] = load[c] * static_cast<double>(record.lambda) * m;
-            }
-            per_net.emplace(bump, row);
-        }
-        costs.emplace_back(std::move(per_net));
-    }
-    return costs;
-}
-
-// MARK: write mps file (optional; same model as HiGHS)
 auto write_mps_file(
     const std::Vector<Net_cost_record>& records,
-    const std::Vector<Net_cost_matrix>& costs,
-    const std::String& output_mps,
-    const bool enable_objective
+    const std::String& output_mps
 ) -> void {
     TobIlpModel m {};
-    build_tob_ilp_model(m, records, costs, enable_objective);
+    build_tob_ilp_model(m, records);
     m.write_mps(output_mps);
 }
-// MARK: END of writing mps file
 
 auto get_peak_rss_mb() -> double {
     struct rusage usage {};

@@ -1,5 +1,4 @@
 #include "tob_ilp_model.hh"
-#include "ilp_speedup.hh"
 
 #include "highs/lp_data/HConst.h"
 
@@ -24,10 +23,6 @@ auto w_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String {
 
 auto s_var(const std::size_t t, const std::size_t v) -> std::String {
     return std::format("S_{}_{}", t, v);
-}
-
-auto z_var(const std::size_t n, const std::size_t c) -> std::String {
-    return std::format("Z_{}_{}", n, c);
 }
 
 auto qs_var(const Bump_coord& b, const std::size_t j, const std::size_t k) -> std::String {
@@ -112,7 +107,6 @@ auto TobIlpModel::write_mps(const std::String& path) const -> void {
 
 auto TobIlpModel::to_highs_lp(
     HighsLp& lp,
-    std::Vector<std::array<HighsInt, 16>>& z_col_index,
     std::map<std::String, HighsInt>* col_index
 ) const -> void {
     lp.clear();
@@ -143,20 +137,6 @@ auto TobIlpModel::to_highs_lp(
         *col_index = col_to_idx;
     }
     const HighsInt num_col = static_cast<HighsInt>(col_order.size());
-
-    z_col_index.clear();
-    z_col_index.resize(this->_net_count);
-    for (auto& row : z_col_index) {
-        row.fill(static_cast<HighsInt>(-1));
-    }
-    for (std::size_t n = 0; n < this->_net_count; ++n) {
-        for (std::size_t c = 0; c < 16; ++c) {
-            const std::String zn = z_var(n, c);
-            if (const auto it = col_to_idx.find(zn); it != col_to_idx.end()) {
-                z_col_index[n][c] = it->second;
-            }
-        }
-    }
 
     std::vector<HighsInt> a_start(static_cast<std::size_t>(num_col) + 1, 0);
     std::vector<HighsInt> a_index;
@@ -230,19 +210,12 @@ auto TobIlpModel::to_highs_lp(
     lp.setMatrixDimensions();
 }
 
-// MARK: build_tob_ilp_model (from former write_mps_file)
+// MARK: build_tob_ilp_model
 void build_tob_ilp_model(
     TobIlpModel& mps,
-    const std::Vector<Net_cost_record>& records,
-    const std::Vector<Net_cost_matrix>& costs,
-    const bool enable_objective
+    const std::Vector<Net_cost_record>& records
 ) {
-    if (records.size() != costs.size()) {
-        throw std::runtime_error("records and costs size mismatch");
-    }
     mps.set_net_count(records.size());
-
-    mps.add_row("OBJ", 'N');
 
     auto active_bumps = std::set<Bump_coord> {};
     auto active_i = std::map<std::tuple<std::size_t, std::size_t, std::size_t>, std::set<std::size_t>> {};
@@ -250,79 +223,6 @@ void build_tob_ilp_model(
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
 
-        const auto z_sum_row = std::format("R_ZSUM_{}", n);
-        mps.add_row(z_sum_row, 'E', 1.0);   // 约束4
-        for (std::size_t c = 0; c < 16; ++c) {
-            const auto z = z_var(n, c); // 创建变量z_{n, c}
-            mps.add_binary(z);
-            mps.add_coefficient(z, z_sum_row, 1.0);
-            double coeff = 0.0;
-            for (const auto& bump : record.start_bumps) {
-                const auto it = costs[n].find(bump);
-                if (it == costs[n].end()) {
-                    throw std::runtime_error(std::format(
-                        "missing bump cost at net '{}' bump({}, {}, {}, {})",
-                        record.net_name, bump.TOB, bump.Bank, bump.Group, bump.Index
-                    ));
-                }
-                coeff += it->second[c];
-            }
-            if (enable_objective) {
-                mps.add_objective(z, coeff); // 可选目标函数
-            }
-        }
-
-        // 约束5，分三种情况
-        // Tnet：直接设置等式约束
-        if (record.type == Net_type::Tnet) {
-            for (const auto fixed_c : record.tnet_fixed_cobunits) {
-                const auto row = std::format("R_TFIX_{}_{}", n, fixed_c);
-                mps.add_row(row, 'E', 1.0);
-                mps.add_coefficient(z_var(n, fixed_c), row, 1.0);
-            }
-            const auto allowed_jk = tnet_allowed_jk(record.tnet_fixed_cobunits);
-            for (const auto& b : record.start_bumps) {
-                const auto allow_row = std::format("R_TJK1_{}_{}_{}_{}_{}", n, b.TOB, b.Bank, b.Group, b.Index);
-                mps.add_row(allow_row, 'E', 1.0);
-                for (std::size_t j = 0; j < 8; ++j) {
-                    for (std::size_t k = 0; k < 8; ++k) {
-                        const auto w = w_var(b, j, k);
-                        mps.add_binary(w);
-                        if (allowed_jk.contains({j, k})) {
-                            mps.add_coefficient(w, allow_row, 1.0);
-                        }
-                        else {
-                            const auto zero_row = std::format(
-                                "R_TJK0_{}_{}_{}_{}_{}_{}_{}",
-                                n,
-                                b.TOB,
-                                b.Bank,
-                                b.Group,
-                                b.Index,
-                                j,
-                                k
-                            );
-                            mps.add_row(zero_row, 'E', 0.0);
-                            mps.add_coefficient(w, zero_row, 1.0);
-                        }
-                    }
-                }
-            }
-        }
-        // PNnet：设置等式约束
-        else if (record.type == Net_type::PNnet) {
-            std::set<std::size_t> allowed(record.candidate_cobunits.begin(), record.candidate_cobunits.end());
-            for (std::size_t c = 0; c < 16; ++c) {
-                if (allowed.contains(c)) {
-                    continue;
-                }
-                const auto row = std::format("R_PN0_{}_{}", n, c);
-                mps.add_row(row, 'E', 0.0);
-                mps.add_coefficient(z_var(n, c), row, 1.0);
-            }
-        }
-
-        // Bnet：先存下来，后面处理
         for (const auto& b : record.start_bumps) {
             active_bumps.insert(b);
             active_i[{b.TOB, b.Bank, b.Group}].insert(b.Index);
@@ -334,7 +234,7 @@ void build_tob_ilp_model(
     }
 
     // 约束1
-    for (const auto& b : active_bumps) {    // 约束6
+    for (const auto& b : active_bumps) {
         const auto row = std::format("R_WONE_{}_{}_{}_{}", b.TOB, b.Bank, b.Group, b.Index);
         mps.add_row(row, 'E', 1.0);
         for (std::size_t j = 0; j < 8; ++j) {
@@ -458,29 +358,7 @@ void build_tob_ilp_model(
         return straight ? (v + 64) : v;
     };
 
-    const auto cob_from_jk = [&](const std::size_t bank, const std::size_t j, const std::size_t k, const bool straight) -> std::size_t {
-        return map_track(track_from_jk(bank, j, k, straight));
-    };
-
     auto processed_q = std::set<std::tuple<Bump_coord, std::size_t, std::size_t>> {};
-
-    const auto add_u_equals_z_rows = [&](const std::size_t net_idx, const Bump_coord& b, const std::String& row_label) {
-        for (std::size_t c = 0; c < 16; ++c) {
-            const auto row = std::format("R_{}_{}_{}_{}_{}_{}_{}", row_label, net_idx, b.TOB, b.Bank, b.Group, b.Index, c);
-            mps.add_row(row, 'E', 0.0);
-            mps.add_coefficient(z_var(net_idx, c), row, -1.0);
-            for (std::size_t j = 0; j < 8; ++j) {
-                for (std::size_t k = 0; k < 8; ++k) {
-                    if (cob_from_jk(b.Bank, j, k, true) == c) {
-                        mps.add_coefficient(qs_var(b, j, k), row, 1.0);
-                    }
-                    if (cob_from_jk(b.Bank, j, k, false) == c) {
-                        mps.add_coefficient(qw_var(b, j, k), row, 1.0);
-                    }
-                }
-            }
-        }
-    };
 
     const auto ensure_qs_qw = [&](const Bump_coord& b) {
         for (std::size_t j = 0; j < 8; ++j) {
@@ -518,48 +396,14 @@ void build_tob_ilp_model(
         return allow;
     };
 
-    // Bnet 的约束5
-    for (std::size_t n = 0; n < records.size(); ++n) {
-        const auto& record = records[n];
-        if (record.type != Net_type::Bnet) {
-            continue;
-        }
-        auto relation_bumps = std::Vector<Bump_coord> {};
-        relation_bumps.insert(relation_bumps.end(), record.start_bumps.begin(), record.start_bumps.end());
-        relation_bumps.insert(relation_bumps.end(), record.end_bumps.begin(), record.end_bumps.end());
-        std::sort(relation_bumps.begin(), relation_bumps.end());
-        relation_bumps.erase(std::unique(relation_bumps.begin(), relation_bumps.end()), relation_bumps.end());
-
-        for (const auto& b : relation_bumps) {
-            ensure_qs_qw(b);
-            add_u_equals_z_rows(n, b, "BEQ");
-        }
-    }
-
-    for (std::size_t n = 0; n < records.size(); ++n) {
-        const auto& record = records[n];
-        if (record.type != Net_type::Tnet && record.type != Net_type::PNnet) {
-            continue;
-        }
-        for (const auto& b : record.start_bumps) {
-            ensure_qs_qw(b);
-            if (record.type == Net_type::Tnet) {
-                add_u_equals_z_rows(n, b, "UEQ_T");
-            }
-            else {
-                add_u_equals_z_rows(n, b, "UEQ_P");
-            }
-        }
-    }
-
-    // First-mod constraints: track-level reachability + PN end-track selection.
+    // Track-level reachability + PN end-track selection.
     for (std::size_t n = 0; n < records.size(); ++n) {
         const auto& record = records[n];
         if (record.type == Net_type::Bnet) {
             if (record.start_bumps.empty() || record.end_bumps.empty()) {
                 continue;
             }
-            const auto start_bump = record.start_bumps.front();
+            const auto start_bump = record.start_bumps.front();     // 目前start bump只有1个，end bump也只有1个
             const auto end_bump = record.end_bumps.front();
             ensure_qs_qw(start_bump);
             ensure_qs_qw(end_bump);

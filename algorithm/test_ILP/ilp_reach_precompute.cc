@@ -248,18 +248,18 @@ auto fill_horizontal_case(
             return std::array<std::array<std::Pair<TurnDir, TurnDir>, 2>, 2> {
                 std::array<std::Pair<TurnDir, TurnDir>, 2> {
                     std::Pair<TurnDir, TurnDir> {TurnDir::Down, TurnDir::Left},
-                    std::Pair<TurnDir, TurnDir> {TurnDir::Right, TurnDir::Up}},
+                    std::Pair<TurnDir, TurnDir> {TurnDir::Right, TurnDir::Down}},
                 std::array<std::Pair<TurnDir, TurnDir>, 2> {
                     std::Pair<TurnDir, TurnDir> {TurnDir::Up, TurnDir::Left},
-                    std::Pair<TurnDir, TurnDir> {TurnDir::Right, TurnDir::Down}}};
+                    std::Pair<TurnDir, TurnDir> {TurnDir::Right, TurnDir::Up}}};
         }
         return std::array<std::array<std::Pair<TurnDir, TurnDir>, 2>, 2> {
             std::array<std::Pair<TurnDir, TurnDir>, 2> {
                 std::Pair<TurnDir, TurnDir> {TurnDir::Down, TurnDir::Right},
-                std::Pair<TurnDir, TurnDir> {TurnDir::Left, TurnDir::Up}},
+                std::Pair<TurnDir, TurnDir> {TurnDir::Left, TurnDir::Down}},
             std::array<std::Pair<TurnDir, TurnDir>, 2> {
                 std::Pair<TurnDir, TurnDir> {TurnDir::Up, TurnDir::Right},
-                std::Pair<TurnDir, TurnDir> {TurnDir::Left, TurnDir::Down}}};
+                std::Pair<TurnDir, TurnDir> {TurnDir::Left, TurnDir::Up}}};
     }();
     for (const auto& seq_fixed : seqs) {
         auto seq = std::Vector<std::Pair<TurnDir, TurnDir>> {};
@@ -281,7 +281,7 @@ auto fill_diagonal_case(
     const auto pair = diagonal_pair_for(ctx);
     auto delta = std::min(ctx.delta_rows, ctx.delta_cols);
     if (delta == 0) {
-        delta = 1;
+        throw std::logic_error("precompute: diagonal case with delta == 0");
     }
     for (std::size_t repeat = 1; repeat <= delta; ++repeat) {
         auto seq = std::Vector<std::Pair<TurnDir, TurnDir>> {};
@@ -318,7 +318,9 @@ auto fill_endtrack_reach(
     else if (ctx.is_diagonal) {
         fill_diagonal_case(ctx, end_track, starts, reaches);
     }
-    ensure_non_empty_startset(end_track, starts, reaches);
+    if (starts.empty()) {
+        throw std::logic_error("precompute: endtrack reach with empty starts");
+    }
     sort_unique(starts);
 }
 
@@ -386,11 +388,7 @@ auto precompute_reach_for_records(std::Vector<Net_cost_record>& records) -> IlpR
             }
             record.end_tracks = record.pn_end_tracks;
             if (record.end_tracks.empty()) {
-                for (const auto c : record.candidate_cobunits) {
-                    for (const auto tr : cobunit_to_tracks(c)) {
-                        record.end_tracks.push_back(tr);
-                    }
-                }
+                throw std::runtime_error(std::format("precompute: PNnet '{}' missing end tracks", record.net_name));
             }
             sort_unique(record.end_tracks);
             for (const auto end_track : record.end_tracks) {
@@ -401,12 +399,8 @@ auto precompute_reach_for_records(std::Vector<Net_cost_record>& records) -> IlpR
                     fill_endtrack_reach(ctx, end_track, starts, reaches);
                 }
                 else {
-                    // Fallback: keep ILP feasible even if track geometry is absent.
-                    starts = all_track_indices();
-                    reaches.clear();
+                    throw std::runtime_error(std::format("precompute: PNnet '{}' missing end track coord by index", record.net_name));
                 }
-                ensure_non_empty_startset(end_track, starts, reaches);
-                sort_unique(starts);
                 record.starttrack_by_endtrack[end_track] = std::move(starts);
                 record.reach_by_end_start[end_track] = std::move(reaches);
             }

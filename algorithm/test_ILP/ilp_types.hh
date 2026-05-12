@@ -1,6 +1,5 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <map>
 #include <std/collection.hh>
@@ -82,9 +81,6 @@ struct Net_cost_record {
     std::map<std::size_t, std::Vector<std::size_t>> starttrack_by_endtrack {};
     std::map<std::size_t, std::map<std::size_t, std::Vector<IlpReachStep>>> reach_by_end_start {};
 };
-
-using Bump_cost_row = std::array<double, 16>;
-using Net_cost_matrix = std::map<Bump_coord, Bump_cost_row>;
 
 inline auto map_track(std::size_t track) -> std::size_t {
     return track < 64 ? track % 8 : track % 8 + 8;

@@ -4,7 +4,6 @@
 #include "highs/lp_data/HighsLp.h"
 #include "highs/util/HighsInt.h"
 
-#include <array>
 #include <cstddef>
 #include <map>
 #include <set>
@@ -23,10 +22,8 @@ public:
 
     auto write_mps(const std::String& path) const -> void;
 
-    /// Fills `lp`, `z_col_index[n][c]` and optionally `col_index` map.
     auto to_highs_lp(
         HighsLp& lp,
-        std::Vector<std::array<HighsInt, 16>>& z_col_index,
         std::map<std::String, HighsInt>* col_index = nullptr
     ) const -> void;
 
@@ -49,16 +46,13 @@ private:
 
 auto w_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
 auto s_var(std::size_t t, std::size_t v) -> std::String;
-auto z_var(std::size_t n, std::size_t c) -> std::String;
 auto qs_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
 auto qw_var(const Bump_coord& b, std::size_t j, std::size_t k) -> std::String;
 auto y_var(std::size_t n, std::size_t r) -> std::String;
 
 void build_tob_ilp_model(
     TobIlpModel& model,
-    const std::Vector<Net_cost_record>& records,
-    const std::Vector<Net_cost_matrix>& costs,
-    bool enable_objective = false
+    const std::Vector<Net_cost_record>& records
 );
 
 } // namespace PR_tool

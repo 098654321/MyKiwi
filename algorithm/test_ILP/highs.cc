@@ -16,19 +16,16 @@ namespace PR_tool {
 
 auto solve_tob_ilp_with_highs(
     const std::Vector<Net_cost_record>& records,
-    const std::Vector<Net_cost_matrix>& costs,
-    const bool enable_objective,
     const bool enable_parallel
 )
     -> TobIlpResult {
     TobIlpResult out {};
     TobIlpModel model {};
-    build_tob_ilp_model(model, records, costs, enable_objective); // 建模ILP
+    build_tob_ilp_model(model, records);
 
     HighsLp lp {};
-    std::Vector<std::array<HighsInt, 16>> z_col_index {};
     std::map<std::String, HighsInt> col_index {};
-    model.to_highs_lp(lp, z_col_index, &col_index); // 转换为HiGHS LP
+    model.to_highs_lp(lp, &col_index);
 
     Highs highs {};
     highs.setOptionValue("output_flag", false);
@@ -129,42 +126,6 @@ auto solve_tob_ilp_with_highs(
         relation_bumps.erase(std::unique(relation_bumps.begin(), relation_bumps.end()), relation_bumps.end());
         return relation_bumps;
     };
-
-    auto z_choice = std::Vector<std::size_t> {};
-    z_choice.resize(records.size(), std::numeric_limits<std::size_t>::max());
-    for (std::size_t n = 0; n < records.size(); ++n) {
-        std::size_t chosen = std::numeric_limits<std::size_t>::max();
-        int count = 0;
-        for (std::size_t c = 0; c < 16; ++c) {
-            // 获取z列索引
-            const HighsInt zi = z_col_index[n][c];
-            if (zi < 0) {
-                continue;
-            }
-            // 检查z列索引是否超出范围
-            if (static_cast<std::size_t>(zi) >= sol.col_value.size()) {
-                out.ok = false;
-                out.message = std::format("z column index out of range for net {}", n);
-                return out;
-            }
-            const double v = sol.col_value[static_cast<std::size_t>(zi)];    // 获取z列的值
-            if (v > z_tol) {    // 判断是否激活
-                chosen = c;
-                ++count;
-            }
-        }
-        if (count != 1) {
-            out.ok = false;
-            out.message = std::format(
-                "expected exactly one active Z for net index {} ('{}'), got {}",
-                n,
-                records[n].net_name,
-                count
-            );
-            return out;
-        }
-        z_choice[n] = chosen;
-    }
 
     auto pn_selected_end_track = std::Vector<std::size_t> {};
     pn_selected_end_track.resize(records.size(), std::numeric_limits<std::size_t>::max());
@@ -305,20 +266,6 @@ auto solve_tob_ilp_with_highs(
                     cob);
                 return out;
             }
-        }
-        if (z_choice[n] == std::numeric_limits<std::size_t>::max()) {
-            out.ok = false;
-            out.message = std::format("missing active Z for net '{}'", records[n].net_name);
-            return out;
-        }
-        if (z_choice[n] != derived_cob) {
-            out.ok = false;
-            out.message = std::format(
-                "Z/track cobunit mismatch in net '{}': Z={} track={}",
-                records[n].net_name,
-                z_choice[n],
-                derived_cob);
-            return out;
         }
         out.assignments.push_back(TobIlpNetAssignment {records[n].net_name, derived_cob});
 

@@ -188,9 +188,9 @@ auto build_track_graph(const CobMcfGridDims& grid) -> GlobalGraph {
     g.num_cob = grid.rows * grid.cols;
 
     for (std::size_t unit = 0; unit < 16; ++unit) {
-        const auto tracks = cobunit_to_tracks(unit);
+        const auto tracks = cobunit_to_tracks(unit);        // 128个
         for (int cob = 0; cob < g.num_cob; ++cob) {
-            for (const auto tr : tracks) {
+            for (const auto tr : tracks) {                                      // 一个cob建128个node
                 add_node(g, NodeMeta {false, 0, unit, cob, tr});
             }
         }
@@ -645,7 +645,7 @@ auto solve_stage(
         if (edge_row.contains({u, v})) {
             continue;
         }
-        auto cap = 8;
+        auto cap = 1;
         if (edge_capacity_override.contains({u, v})) {
             cap = edge_capacity_override.at({u, v});
         }
@@ -700,7 +700,7 @@ auto solve_stage(
         if (graph.nodes[static_cast<std::size_t>(n)].is_virtual) {
             continue;
         }
-        auto cap = 8;
+        auto cap = 1;
         if (node_capacity_override.contains(n)) {
             cap = node_capacity_override.at(n);
         }
@@ -730,8 +730,8 @@ auto solve_stage(
         }
         const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
         for (const auto& step : c.reach_steps) {
-            const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
-            const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
+            const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_out);
+            const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_in);
             auto matched = std::Vector<int> {};
             for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
                 const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
@@ -747,9 +747,12 @@ auto solve_stage(
                 matched.push_back(j);
             }
             if (matched.empty()) {
+                debug::warning_fmt(
+                    "MCF {}: commodity {} reach step ({}->{}, {}->{}) has no matching arc in bbox",
+                    stage_name, c.label, step.from_dir, step.to_dir, step.index_in, step.index_out);
                 continue;
             }
-            const auto row = add_le(1.0);
+            const auto row = add_eq(1.0);
             for (const auto j : matched) {
                 x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
             }
@@ -1012,11 +1015,11 @@ auto run_mcf_global_routing_cob_units(
     auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true);
     auto edge_cap_for_simple = std::map<std::pair<int, int>, int> {};
     for (const auto& [e, used] : bus_res.used_edges) {
-        edge_cap_for_simple[e] = std::max(0, 8 - used);
+        edge_cap_for_simple[e] = std::max(0, 1 - used);
     }
     auto node_cap_for_simple = std::map<int, int> {};
     for (const auto& [n, used] : bus_res.used_nodes) {
-        node_cap_for_simple[n] = std::max(0, 8 - used);
+        node_cap_for_simple[n] = std::max(0, 1 - used);
     }
     auto simple_res = solve_stage("SimpleMCF", graph, commodities, simple_ids, edge_cap_for_simple, node_cap_for_simple, false);
     const auto solve_t1 = std::chrono::steady_clock::now();
