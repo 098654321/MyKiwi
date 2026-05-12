@@ -22,11 +22,11 @@ inline auto linear_to_cob(std::size_t i) -> hardware::COBCoord {
                               static_cast<std::i64>(i % hardware::Interposer::COB_ARRAY_WIDTH)};
 }
 
-// TOB (tr, tc) in 4x4 array lies between two vertically adjacent COBs: (1+2*tr, 3*tc) and (2+2*tr, 3*tc)
+// TOB (tr, tc) in 4x4 array lies between two vertically adjacent COBs: upper (1+2*tr, 3*tc) and lower (2*tr, 3*tc)
 inline auto tob_pair_cob_coords(std::size_t tob_tr, std::size_t tob_tc)
     -> std::pair<hardware::COBCoord, hardware::COBCoord> {
     const auto c0 = hardware::COBCoord{static_cast<std::i64>(1 + 2 * static_cast<std::i64>(tob_tr)), static_cast<std::i64>(3 * static_cast<std::i64>(tob_tc))};
-    const auto c1 = hardware::COBCoord{static_cast<std::i64>(2 + 2 * static_cast<std::i64>(tob_tr)), static_cast<std::i64>(3 * static_cast<std::i64>(tob_tc))};
+    const auto c1 = hardware::COBCoord{static_cast<std::i64>(2 * static_cast<std::i64>(tob_tr)), static_cast<std::i64>(3 * static_cast<std::i64>(tob_tc))};
     return {c0, c1};
 }
 

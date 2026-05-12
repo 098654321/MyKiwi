@@ -42,8 +42,10 @@ struct NodeMeta {
     bool is_virtual{false};
     int virtual_kind{0}; // 0: physical, 1: VP, 2: VN
     std::size_t unit{0};
-    int cob{-1};
-    std::size_t track{0};
+    int track_dir{0};     // 0: Horizontal, 1: Vertical
+    int track_row{0};
+    int track_col{0};
+    std::size_t track{0}; // global track index (0-127)
 };
 
 struct Arc {
@@ -55,7 +57,11 @@ struct Arc {
     int cob{-1};
     std::size_t track_in{0};
     std::size_t track_out{0};
+    hardware::COBDirection from_dir{hardware::COBDirection::Left};
+    hardware::COBDirection to_dir{hardware::COBDirection::Left};
 };
+
+using NodeKey = std::tuple<std::size_t, int, int, int, std::size_t>;
 
 struct GlobalGraph {
     int rows{0};
@@ -65,7 +71,7 @@ struct GlobalGraph {
     int vn_node{-1};
     std::Vector<NodeMeta> nodes;
     std::Vector<Arc> arcs;
-    std::map<std::tuple<std::size_t, int, std::size_t>, int> node_id_by_key;
+    std::map<NodeKey, int> node_id_by_key;
     std::set<std::pair<int, int>> directed_arc_set;
 };
 
@@ -139,21 +145,28 @@ auto node_text(const GlobalGraph& g, const int node) -> std::String {
     if (meta.is_virtual) {
         return meta.virtual_kind == 1 ? std::String("V_P") : std::String("V_N");
     }
-    const auto c = linear_to_cob(static_cast<std::size_t>(meta.cob));
-    return std::format("U{} COB({},{}) T{}", meta.unit, c.row, c.col, meta.track);
+    const auto dir_str = meta.track_dir == 0 ? "H" : "V";
+    return std::format("U{} {}({},{}) T{}", meta.unit, dir_str, meta.track_row, meta.track_col, meta.track);
 }
 
 auto add_node(GlobalGraph& g, const NodeMeta& node) -> int {
     const int id = static_cast<int>(g.nodes.size());
     g.nodes.push_back(node);
     if (!node.is_virtual) {
-        g.node_id_by_key[{node.unit, node.cob, node.track}] = id;
+        g.node_id_by_key[NodeKey{node.unit, node.track_dir, node.track_row, node.track_col, node.track}] = id;
     }
     return id;
 }
 
-auto get_node_id(const GlobalGraph& g, const std::size_t unit, const int cob, const std::size_t track) -> int {
-    const auto it = g.node_id_by_key.find({unit, cob, track});
+auto get_node_id(
+    const GlobalGraph& g,
+    const std::size_t unit,
+    const int dir,
+    const int row,
+    const int col,
+    const std::size_t track
+) -> int {
+    const auto it = g.node_id_by_key.find(NodeKey{unit, dir, row, col, track});
     if (it == g.node_id_by_key.end()) {
         return -1;
     }
@@ -169,7 +182,9 @@ auto add_arc(
     const std::size_t unit,
     const int cob,
     const std::size_t track_in,
-    const std::size_t track_out
+    const std::size_t track_out,
+    const hardware::COBDirection from_dir = hardware::COBDirection::Left,
+    const hardware::COBDirection to_dir = hardware::COBDirection::Left
 ) -> void {
     if (u < 0 || v < 0 || u >= static_cast<int>(g.nodes.size()) || v >= static_cast<int>(g.nodes.size())) {
         return;
@@ -178,7 +193,40 @@ auto add_arc(
         return;
     }
     g.directed_arc_set.insert({u, v});
-    g.arcs.push_back(Arc {u, v, is_virtual, is_turn, unit, cob, track_in, track_out});
+    g.arcs.push_back(Arc {u, v, is_virtual, is_turn, unit, cob, track_in, track_out, from_dir, to_dir});
+}
+
+auto side_track_pos(
+    const hardware::COBDirection side,
+    const int cob_r,
+    const int cob_c
+) -> std::tuple<int, int, int> {
+    switch (side) {
+        case hardware::COBDirection::Down:  return {1, cob_r, cob_c};
+        case hardware::COBDirection::Up:    return {1, cob_r + 1, cob_c};
+        case hardware::COBDirection::Left:  return {0, cob_r, cob_c};
+        case hardware::COBDirection::Right: return {0, cob_r, cob_c + 1};
+    }
+    return {0, 0, 0};
+}
+
+auto is_straight_through(
+    const hardware::COBDirection from,
+    const hardware::COBDirection to
+) -> bool {
+    return (from == hardware::COBDirection::Left && to == hardware::COBDirection::Right)
+        || (from == hardware::COBDirection::Right && to == hardware::COBDirection::Left)
+        || (from == hardware::COBDirection::Up && to == hardware::COBDirection::Down)
+        || (from == hardware::COBDirection::Down && to == hardware::COBDirection::Up);
+}
+
+auto char_to_cobdir(const char c) -> hardware::COBDirection {
+    switch (c) {
+        case 'R': return hardware::COBDirection::Right;
+        case 'U': return hardware::COBDirection::Up;
+        case 'D': return hardware::COBDirection::Down;
+        default:  return hardware::COBDirection::Left;
+    }
 }
 
 auto build_track_graph(const CobMcfGridDims& grid) -> GlobalGraph {
@@ -188,68 +236,51 @@ auto build_track_graph(const CobMcfGridDims& grid) -> GlobalGraph {
     g.num_cob = grid.rows * grid.cols;
 
     for (std::size_t unit = 0; unit < 16; ++unit) {
-        const auto tracks = cobunit_to_tracks(unit);        // 128个
-        for (int cob = 0; cob < g.num_cob; ++cob) {
-            for (const auto tr : tracks) {                                      // 一个cob建128个node
-// MARK: DEBUG, 这里COB的track数量不对
-                add_node(g, NodeMeta {false, 0, unit, cob, tr});
+        for (std::size_t inner = 0; inner < 8; ++inner) {
+            const auto tr = track_from_unit_inner(unit, inner);
+            for (int r = 0; r <= g.rows; ++r) {
+                for (int c = 0; c < g.cols; ++c) {
+                    add_node(g, NodeMeta {false, 0, unit, 1, r, c, tr});
+                }
             }
-        }
-    }
-    g.vp_node = add_node(g, NodeMeta {true, 1, 0, -1, 0});
-    g.vn_node = add_node(g, NodeMeta {true, 2, 0, -1, 0});
-
-    // Mesh edges between neighboring COB tiles: same track index.
-    for (std::size_t unit = 0; unit < 16; ++unit) {
-        const auto tracks = cobunit_to_tracks(unit);
-        for (int r = 0; r < g.rows; ++r) {
-            for (int c = 0; c < g.cols; ++c) {
-                const int cob = r * g.cols + c;
-                for (const auto tr : tracks) {
-                    const int u = get_node_id(g, unit, cob, tr);
-                    if (r + 1 < g.rows) {
-                        const int cob_d = (r + 1) * g.cols + c;
-                        const int v = get_node_id(g, unit, cob_d, tr);
-                        add_arc(g, u, v, false, false, unit, -1, tr, tr);
-                        add_arc(g, v, u, false, false, unit, -1, tr, tr);
-                    }
-                    if (c + 1 < g.cols) {
-                        const int cob_r = r * g.cols + (c + 1);
-                        const int v = get_node_id(g, unit, cob_r, tr);
-                        add_arc(g, u, v, false, false, unit, -1, tr, tr);
-                        add_arc(g, v, u, false, false, unit, -1, tr, tr);
-                    }
+            for (int r = 0; r < g.rows; ++r) {
+                for (int c = 0; c <= g.cols; ++c) {
+                    add_node(g, NodeMeta {false, 0, unit, 0, r, c, tr});
                 }
             }
         }
     }
+    g.vp_node = add_node(g, NodeMeta {true, 1, 0, 0, 0, 0, 0});
+    g.vn_node = add_node(g, NodeMeta {true, 2, 0, 0, 0, 0, 0});
 
-    // Intra-COB Wilton turn edges.
     constexpr auto dirs = std::array {
         hardware::COBDirection::Left,
         hardware::COBDirection::Right,
         hardware::COBDirection::Up,
         hardware::COBDirection::Down
     };
-    for (std::size_t unit = 0; unit < 16; ++unit) {
-        const auto u_local = unit_local(unit);
-        const auto bank = unit_bank(unit);
-        for (int cob = 0; cob < g.num_cob; ++cob) {
-            for (std::size_t inner = 0; inner < 8; ++inner) {
-                const auto track_in = bank * 64 + inner * 8 + u_local;
-                for (const auto from : dirs) {
-                    for (const auto to : dirs) {
-                        if (from == to) {
-                            continue;
+    for (int cob_r = 0; cob_r < g.rows; ++cob_r) {
+        for (int cob_c = 0; cob_c < g.cols; ++cob_c) {
+            const int cob_linear = cob_r * g.cols + cob_c;
+            for (std::size_t unit = 0; unit < 16; ++unit) {
+                for (std::size_t inner = 0; inner < 8; ++inner) {
+                    for (const auto from : dirs) {
+                        for (const auto to : dirs) {
+                            if (from == to) {
+                                continue;
+                            }
+                            const auto mapped = static_cast<std::size_t>(
+                                hardware::COBUnit::index_map(from, inner, to));
+                            const auto tr_in = track_from_unit_inner(unit, inner);
+                            const auto tr_out = track_from_unit_inner(unit, mapped);
+                            const auto [in_dir, in_r, in_c] = side_track_pos(from, cob_r, cob_c);
+                            const auto [out_dir, out_r, out_c] = side_track_pos(to, cob_r, cob_c);
+                            const int u = get_node_id(g, unit, in_dir, in_r, in_c, tr_in);
+                            const int v = get_node_id(g, unit, out_dir, out_r, out_c, tr_out);
+                            const bool turn = !is_straight_through(from, to);
+                            add_arc(g, u, v, false, turn, unit, cob_linear,
+                                    tr_in, tr_out, from, to);
                         }
-                        const auto mapped = static_cast<std::size_t>(hardware::COBUnit::index_map(from, inner, to));
-                        const auto track_out = bank * 64 + mapped * 8 + u_local;
-                        if (track_in == track_out) {
-                            continue;
-                        }
-                        const int u = get_node_id(g, unit, cob, track_in);
-                        const int v = get_node_id(g, unit, cob, track_out);
-                        add_arc(g, u, v, false, true, unit, cob, track_in, track_out);
                     }
                 }
             }
@@ -296,15 +327,10 @@ auto node_from_bump_track(
     const std::size_t tob_linear,
     const std::size_t track
 ) -> int {
-    const auto [tr, tc] = tob_index_from_linear(tob_linear);
-    const auto pair = tob_pair_cob_coords(tr, tc);
-    const auto c0 = static_cast<int>(cob_to_linear(pair.first));
-    const auto c1 = static_cast<int>(cob_to_linear(pair.second));
-    const int n0 = get_node_id(g, unit, c0, track);
-    if (n0 >= 0) {
-        return n0;
-    }
-    return get_node_id(g, unit, c1, track);
+    const auto tob = tob_from_linear(tob_linear);
+    const int r = static_cast<int>(1 + 2 * tob.row);
+    const int c = static_cast<int>(3 * tob.col);
+    return get_node_id(g, unit, 1, r, c, track);
 }
 
 auto node_from_track_coord(
@@ -313,8 +339,8 @@ auto node_from_track_coord(
     const hardware::TrackCoord& tc,
     const std::size_t track
 ) -> int {
-    const auto c = track_to_cob(tc);
-    return get_node_id(g, unit, static_cast<int>(cob_to_linear(c)), track);
+    const int dir = tc.dir == hardware::TrackDirection::Horizontal ? 0 : 1;
+    return get_node_id(g, unit, dir, static_cast<int>(tc.row), static_cast<int>(tc.col), track);
 }
 
 auto prepare_commodities(
@@ -731,8 +757,10 @@ auto solve_stage(
         }
         const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
         for (const auto& step : c.reach_steps) {
-            const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_out);
-            const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_in);
+            const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
+            const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
+            const auto step_from = char_to_cobdir(step.from_dir);
+            const auto step_to = char_to_cobdir(step.to_dir);
             auto matched = std::Vector<int> {};
             for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
                 const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
@@ -740,6 +768,9 @@ auto solve_stage(
                     continue;
                 }
                 if (arc.track_in != tr_in || arc.track_out != tr_out) {
+                    continue;
+                }
+                if (arc.from_dir != step_from || arc.to_dir != step_to) {
                     continue;
                 }
                 if (!bbox.empty() && arc.cob >= 0 && !bbox.contains(arc.cob)) {
