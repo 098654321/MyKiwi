@@ -191,6 +191,7 @@ auto build_track_graph(const CobMcfGridDims& grid) -> GlobalGraph {
         const auto tracks = cobunit_to_tracks(unit);        // 128个
         for (int cob = 0; cob < g.num_cob; ++cob) {
             for (const auto tr : tracks) {                                      // 一个cob建128个node
+// MARK: DEBUG, 这里COB的track数量不对
                 add_node(g, NodeMeta {false, 0, unit, cob, tr});
             }
         }
