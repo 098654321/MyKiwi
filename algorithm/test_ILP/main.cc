@@ -356,11 +356,10 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.candidate_cobunits.emplace_back(cobunit);
         record.tnet_fixed_cobunits.emplace_back(cobunit);
         record.end_tracks.emplace_back(tb_net->begin_track()->coord().index);
-        record.mcf_start_track = tb_net->begin_track()->coord();
-        record.mcf_has_start_track = true;
-// MARK: DEBUG, 这里的start_kind是track，而不是bump；但是上面record填了end_bump，这里会不会有问题？
-        record.mcf_start_kind = IlpEndpointKind::Track;
-        record.mcf_end_kind = IlpEndpointKind::Bump;
+        record.mcf_end_track = tb_net->begin_track()->coord();
+        record.mcf_has_end_track = true;
+        record.mcf_start_kind = IlpEndpointKind::Bump;
+        record.mcf_end_kind = IlpEndpointKind::Track;
     }
     else if (dynamic_cast<const circuit::TrackToBumpsNet*>(net.get()) != nullptr) {
         throw std::runtime_error(std::format("unsupported net type TrackToBumpsNet: '{}'", net->name()));
@@ -485,11 +484,10 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
                     {cobunit}
                 };
                 record.end_tracks.emplace_back(ttb->begin_track()->coord().index);
-                record.mcf_start_track = ttb->begin_track()->coord();
-                record.mcf_has_start_track = true;
-// MARK: DEBUG, 这里的start_kind是track，而不是bump；但是上面record填了start_bump，这里会不会有问题？
-                record.mcf_start_kind = IlpEndpointKind::Track;
-                record.mcf_end_kind = IlpEndpointKind::Bump;
+                record.mcf_end_track = ttb->begin_track()->coord();
+                record.mcf_has_end_track = true;
+                record.mcf_start_kind = IlpEndpointKind::Bump;
+                record.mcf_end_kind = IlpEndpointKind::Track;
                 record.origin_key = net->name();
                 records.emplace_back(std::move(record));
             }

@@ -354,6 +354,7 @@ auto prepare_commodities(
         throw std::runtime_error("MCF prepare: record_track_endpoints size mismatch");
     }
 
+    // 统计除了PNnet以外每一条net被拆分成了多少条2-pin net
     auto split_count = std::map<std::String, int> {};
     for (const auto& record : records) {
         if (record.type == Net_type::PNnet) {
@@ -363,6 +364,7 @@ auto prepare_commodities(
         split_count[std::format("{}#{}", origin, static_cast<int>(record.type))] += 1;
     }
 
+    // 遍历每一条net，构造PreparedCommodity 
     for (std::size_t i = 0; i < records.size(); ++i) {
         const auto& record = records[i];
         const auto& endpoint = ilp_result.record_track_endpoints[i];
@@ -394,17 +396,11 @@ auto prepare_commodities(
 
         hardware::COBCoord bbox_start {};
         hardware::COBCoord bbox_end {};
-        if (record.type == Net_type::Tnet && record.mcf_has_start_track) {
-            c.src = node_from_track_coord(graph, c.cob_unit, record.mcf_start_track, endpoint.start_track);
-            bbox_start = track_to_cob(record.mcf_start_track);
+        if (record.start_bumps.empty()) {
+            continue;
         }
-        else {
-            if (record.start_bumps.empty()) {
-                continue;
-            }
-            c.src = node_from_bump_track(graph, c.cob_unit, record.start_bumps.front().TOB, endpoint.start_track);
-            bbox_start = tob_anchor_cob(record.start_bumps.front().TOB);
-        }
+        c.src = node_from_bump_track(graph, c.cob_unit, record.start_bumps.front().TOB, endpoint.start_track);
+        bbox_start = tob_anchor_cob(record.start_bumps.front().TOB);
 
         if (record.type == Net_type::PNnet) {
             if (record.power_kind == IlpPowerKind::Pose) {
@@ -470,20 +466,11 @@ auto prepare_commodities(
         }
         else if (record.type == Net_type::Tnet) {
             c.cls = McfClass::Plain;
-            if (record.mcf_has_end_track) {
-                if (!endpoint.has_end_track) {
-                    continue;
-                }
-                c.snk = node_from_track_coord(graph, c.cob_unit, record.mcf_end_track, endpoint.end_track);
-                bbox_end = track_to_cob(record.mcf_end_track);
+            if (!endpoint.has_end_track) {
+                continue;
             }
-            else {
-                if (!endpoint.has_end_track || record.start_bumps.empty()) {
-                    continue;
-                }
-                c.snk = node_from_bump_track(graph, c.cob_unit, record.start_bumps.front().TOB, endpoint.end_track);
-                bbox_end = tob_anchor_cob(record.start_bumps.front().TOB);
-            }
+            c.snk = node_from_track_coord(graph, c.cob_unit, record.mcf_end_track, endpoint.end_track);
+            bbox_end = track_to_cob(record.mcf_end_track);
         }
         else {
             c.cls = McfClass::Plain;
@@ -633,6 +620,7 @@ auto solve_stage(
         return out;
     }
 
+    // 构建约束
     auto row_lo = std::vector<double> {};
     auto row_up = std::vector<double> {};
     auto add_eq = [&](const double rhs) -> int {
@@ -648,6 +636,7 @@ auto solve_stage(
         return id;
     };
 
+    // 节点流量守恒约束
     auto flow_row = std::map<std::pair<int, int>, int> {};
     const auto ensure_flow_row = [&](const int k, const int n) -> int {
         const auto key = std::make_pair(k, n);
@@ -659,6 +648,7 @@ auto solve_stage(
         return row;
     };
 
+    // 边容量约束
     auto edge_row = std::map<std::pair<int, int>, int> {};
     for (const auto& arc : graph.arcs) {
         if (arc.is_virtual) {
@@ -715,6 +705,7 @@ auto solve_stage(
         row_up[static_cast<std::size_t>(rt)] = static_cast<double>(-d);
     }
 
+    // 构建物理节点占用约束
     auto o_entries = std::Vector<std::Vector<std::pair<int, double>>> {};
     auto o_vars = std::Vector<OVar> {};
     auto node_row = std::map<int, int> {};
@@ -750,47 +741,49 @@ auto solve_stage(
         o_entries.push_back(std::move(col));
     }
 
-    for (int k = 0; k < K; ++k) {
-        const auto& c = local_com[static_cast<std::size_t>(k)];
-        if (c.reach_steps.empty()) {
-            continue;
-        }
-        const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
-        for (const auto& step : c.reach_steps) {
-            const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
-            const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
-            const auto step_from = char_to_cobdir(step.from_dir);
-            const auto step_to = char_to_cobdir(step.to_dir);
-            auto matched = std::Vector<int> {};
-            for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
-                const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
-                if (!arc.is_turn) {
-                    continue;
-                }
-                if (arc.track_in != tr_in || arc.track_out != tr_out) {
-                    continue;
-                }
-                if (arc.from_dir != step_from || arc.to_dir != step_to) {
-                    continue;
-                }
-                if (!bbox.empty() && arc.cob >= 0 && !bbox.contains(arc.cob)) {
-                    continue;
-                }
-                matched.push_back(j);
-            }
-            if (matched.empty()) {
-                debug::warning_fmt(
-                    "MCF {}: commodity {} reach step ({}->{}, {}->{}) has no matching arc in bbox",
-                    stage_name, c.label, step.from_dir, step.to_dir, step.index_in, step.index_out);
-                continue;
-            }
-            const auto row = add_eq(1.0);
-            for (const auto j : matched) {
-                x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
-            }
-        }
-    }
+    // 构建Wilton转弯约束
+    // for (int k = 0; k < K; ++k) {
+    //     const auto& c = local_com[static_cast<std::size_t>(k)];
+    //     if (c.reach_steps.empty()) {
+    //         continue;
+    //     }
+    //     const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
+    //     for (const auto& step : c.reach_steps) {
+    //         const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
+    //         const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
+    //         const auto step_from = char_to_cobdir(step.from_dir);
+    //         const auto step_to = char_to_cobdir(step.to_dir);
+    //         auto matched = std::Vector<int> {};
+    //         for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
+    //             const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
+    //             if (!arc.is_turn) {
+    //                 continue;
+    //             }
+    //             if (arc.track_in != tr_in || arc.track_out != tr_out) {
+    //                 continue;
+    //             }
+    //             if (arc.from_dir != step_from || arc.to_dir != step_to) {
+    //                 continue;
+    //             }
+    //             if (!bbox.empty() && arc.cob >= 0 && !bbox.contains(arc.cob)) {
+    //                 continue;
+    //             }
+    //             matched.push_back(j);
+    //         }
+    //         if (matched.empty()) {
+    //             debug::warning_fmt(
+    //                 "MCF {}: commodity {} reach step ({}->{}, {}->{}) has no matching arc in bbox",
+    //                 stage_name, c.label, step.from_dir, step.to_dir, step.index_in, step.index_out);
+    //             continue;
+    //         }
+    //         const auto row = add_eq(1.0);
+    //         for (const auto j : matched) {
+    //             x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
+    //         }
+    //     }
+    // }
 
+    // 构建Bus等长约束
     if (enforce_bus_equal_length) {
         auto by_bus = std::map<std::String, std::Vector<int>> {};
         for (int k = 0; k < K; ++k) {

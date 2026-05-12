@@ -272,11 +272,7 @@ auto solve_tob_ilp_with_highs(
         TobIlpRecordTrackEndpoint endpoint {};
         endpoint.record_id = records[n].record_id;
         endpoint.cob_unit = derived_cob;
-        if (records[n].type == Net_type::Tnet && records[n].mcf_has_start_track) {
-            endpoint.has_start_track = true;
-            endpoint.start_track = records[n].mcf_start_track.index;
-        }
-        else if (!records[n].start_bumps.empty()) {
+        if (!records[n].start_bumps.empty()) {
             const auto it = chosen_track_by_bump.find(records[n].start_bumps.front());
             if (it != chosen_track_by_bump.end()) {
                 endpoint.has_start_track = true;
@@ -297,13 +293,6 @@ auto solve_tob_ilp_with_highs(
             if (records[n].mcf_has_end_track) {
                 endpoint.has_end_track = true;
                 endpoint.end_track = records[n].mcf_end_track.index;
-            }
-            else if (!records[n].start_bumps.empty()) {
-                const auto it = chosen_track_by_bump.find(records[n].start_bumps.front());
-                if (it != chosen_track_by_bump.end()) {
-                    endpoint.has_end_track = true;
-                    endpoint.end_track = it->second;
-                }
             }
         }
         else if (records[n].type == Net_type::PNnet) {

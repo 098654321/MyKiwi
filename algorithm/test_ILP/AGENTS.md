@@ -124,7 +124,7 @@ ILP 约束组：
 
 - `algorithm/test_ILP/highs.hh/.cc`
   - `TobIlpResult`：包含 `assignments`、`active_w`、`active_s`、`route_details`、`record_track_endpoints`
-  - `TobIlpRecordTrackEndpoint`：每条 record 的 `(record_id, cob_unit, start_track, end_track)` 元组
+  - `TobIlpRecordTrackEndpoint`：每条 record 的 `(record_id, cob_unit, has_start_track, start_track, has_end_track, end_track)` 结构
   - `solve_tob_ilp_with_highs()`：设置 HiGHS 选项、运行求解、解析 W/S/QS/QW 决策变量、推导 track 和 cobunit、构建 `record_track_endpoints`
   - 支持并行配置与线程信息输出
 
@@ -134,8 +134,10 @@ ILP 约束组：
   - 负责 track 级全局 MCF 的完整流水线
   - 入口函数 `run_mcf_global_routing_cob_units()`
   - 内部关键步骤：`build_track_graph()` → `prepare_commodities()` → `solve_stage()` × 2（Bus + Simple）
-  - `GlobalGraph`：track 级全局路由图（节点 = `(unit, cob, track)` 三元组 + VP/VN 虚拟节点）
-  - `PreparedCommodity`：每个 commodity 的源/汇节点、类别（`Plain`/`P`/`N`）、bus 标识、reach 步序列、bbox
+  - `GlobalGraph`：track 级全局路由图（节点 = `(unit, dir, row, col, track)` 五元组 + VP/VN 虚拟节点）
+  - `NodeMeta`：节点元数据，包含 `track_dir`（0=Horizontal, 1=Vertical）、`track_row`、`track_col`、`unit`、`track`
+  - `Arc`：有向弧，包含 `u`/`v` 端点、`is_virtual`/`is_turn` 标记、`unit`、`cob`（所属 COB 线性编号）、`track_in`/`track_out`（输入/输出 track）、`from_dir`/`to_dir`（COBDirection，Wilton 转弯方向）
+  - `PreparedCommodity`：每个 commodity 的 `label`、`origin_name`、源/汇节点、类别（`Plain`/`P`/`N`）、bus 标识、reach 步序列、bbox
   - `StageSolveResult`：单阶段求解结果（已用边/节点、路径）
   - `arc_usable_for_class()`：按 `unit` 和 P/N 类别过滤 arc
   - `extract_path()`：从整数流解中通过 BFS 提取单 commodity 路径
@@ -178,7 +180,7 @@ ILP 约束组：
 ### 4.1 基本类型
 
 - `Bnet`：bump -> bump
-- `Tnet`：bump -> track 或 track -> bump（都归入 Tnet）
+- `Tnet`：bump -> track（统一方向：起点是 bump，终点是 track。`BumpToTrackNet` 和 `TrackToBumpNet` 均按此约定构造 record）
 - `PNnet`：由 `TracksToBumpsNet` 拆分得到（通常来自 pose/nege 固定网）
 
 ### 4.2 SyncNet 展平
@@ -187,7 +189,7 @@ ILP 约束组：
 
 - `btb` -> `Bnet`
 - `btt` -> `Tnet`（含 end_track）
-- `ttb` -> `Tnet`（含 start_track）
+- `ttb` -> `Tnet`（含 end_track，原始 begin_track 存为 `mcf_end_track`，bump 存为 `start_bumps`）
 
 并统一写入 `origin_key = 原始 SyncNet 名`，用于后续 MCF 回并。
 
@@ -218,13 +220,22 @@ ILP 约束组：
 
 图节点（`NodeMeta`）：
 
-- **物理节点**：每个节点对应 `(unit, cob, track)` 三元组。16 个 COBUnit × 每 unit 8 条 track = 每个 COB tile 128 个节点。总物理节点数 = `128 × num_cob`
+- **物理节点**：每个节点对应 `(unit, track_dir, track_row, track_col, track)` 五元组，表示 COB 网格边界上的一个 track 位置。`track_dir=0` 为 Horizontal（位于 COB 左/右侧边界），`track_dir=1` 为 Vertical（位于 COB 上/下侧边界）。每个 `(unit, inner)` 组合产生 `(rows+1)×cols` 个 Vertical 节点和 `rows×(cols+1)` 个 Horizontal 节点。总物理节点数 = `16 × 8 × ((rows+1)×cols + rows×(cols+1))`
 - **虚拟节点**：`V_P`（`virtual_kind=1`）和 `V_N`（`virtual_kind=2`），用于 pose/nege commodity 的汇聚
+- **节点显示**：`node_text()` 格式为 `"U{unit} H/V({row},{col}) T{track}"` 或 `"V_P"` / `"V_N"`
 
 图边（`Arc`）：
 
-- **Mesh 直通边**（`is_turn=false`）：相邻 COB tile 之间、同一条 track 的双向连接。同一 unit 内，垂直相邻 `(r, c)↔(r+1, c)` 和水平相邻 `(r, c)↔(r, c+1)` 各一对有向边
-- **Wilton 转弯边**（`is_turn=true`）：同一 COB 内部不同方向 track 之间的有向连接，通过 `hardware::COBUnit::index_map(from, inner, to)` 计算映射。转弯只改变 inner index，不改变 bank 和 unit_local
+所有物理边在统一的单循环中构建：遍历每个 COB tile `(cob_r, cob_c)`，对每个 `(unit, inner)`，枚举所有 `(from_dir, to_dir)` 方向对（`from != to`）：
+
+- `side_track_pos(from, cob_r, cob_c)` 计算入节点在 COB 网格上的位置（Down→V(r,c)，Up→V(r+1,c)，Left→H(r,c)，Right→H(r,c+1)）
+- `side_track_pos(to, cob_r, cob_c)` 计算出节点位置
+- `hardware::COBUnit::index_map(from, inner, to)` 计算 Wilton 映射后的输出 inner index
+- `is_straight_through(from, to)` 判断是否为直通（Left↔Right / Up↔Down）：直通时 `is_turn=false`，否则 `is_turn=true`
+
+按此方式，直通边和转弯边统一生成：
+- **直通边**（`is_turn=false`）：相对方向对（如 Left→Right），连接同一 COB tile 两侧的边界节点
+- **Wilton 转弯边**（`is_turn=true`）：非相对方向对（如 Left→Up），连接同一 COB tile 不同侧的边界节点，inner index 通过 Wilton 映射改变，bank 和 unit_local 不变
 - **虚拟边**（`is_virtual=true`）：由 `prepare_commodities()` 按需添加，连接 PNnet 的 end_track 节点到 `V_P`/`V_N`
 
 边去重：`directed_arc_set` 保证同一 `(u, v)` 有向边不重复添加。
@@ -233,8 +244,8 @@ ILP 约束组：
 
 从 ILP 的 `record_track_endpoints` 和 `records` 构建 `PreparedCommodity` 列表：
 
-- **src 节点**：若 record 有 `mcf_start_track`，通过 `node_from_track_coord()` 定位；否则通过 `node_from_bump_track()` 从 start_bump 的 TOB 位置定位
-- **snk 节点**：PNnet 连到 `V_P`/`V_N`；Tnet 有 `mcf_end_track` 时直接定位，否则通过 end_bump 定位；Bnet 通过 end_bump 定位
+- **src 节点**：通过 `node_from_bump_track()` 从 `start_bumps.front().TOB` 位置定位（所有 Tnet 均统一为 bump=start 方向）
+- **snk 节点**：PNnet 连到 `V_P`/`V_N`（通过遍历 `starttrack_by_endtrack` 找到与 `start_track` 可达的 `end_track`，为其添加虚拟边）；Tnet 通过 `node_from_track_coord()` 从 `mcf_end_track` 定位；Bnet 通过 `end_bumps.front().TOB` 定位
 - **类别（McfClass）**：PNnet Pose → `P`，PNnet Nege → `N`，其余 → `Plain`
 - **bus 标识**：同一 `origin_key` 下有多条非 PNnet 记录的 commodity 标记为 `is_bus=true`，共享 `bus_key`
 - **reach_steps**：从 `record.reach_by_end_start` 提取该 commodity 对应的 Wilton 转弯约束
@@ -262,9 +273,13 @@ ILP 约束组：
 ### 5.4 路径输出
 
 求解结果存入 `CobMcfFullResult.paths_by_unit[16]`，每个 `McfPathInfo` 包含：
-- `unit_paths`：节点 id 序列（可用 `node_text()` 格式化为 `"U{unit} COB(r,c) T{track}"` 或 `"V_P"` / `"V_N"`）
-- `track_paths`：从节点路径提取的去重 track index 序列
+- `label`：commodity 标签（`"{net_name}#{record_id}"`）
+- `origin_name`：原始 net 标识（用于回并）
 - `record_id`、`start_track`、`end_track`、`cob_unit`：关联信息
+- `src`、`snk`、`demand`：源汇节点和需求量
+- `record_indices`：关联的 record_id 列表
+- `unit_paths`：节点 id 序列（可用 `node_text()` 格式化为 `"U{unit} H/V({row},{col}) T{track}"` 或 `"V_P"` / `"V_N"`）
+- `track_paths`：从节点路径提取的去重 track index 序列
 
 ### 5.5 日志输出（便于诊断）
 
@@ -272,7 +287,7 @@ ILP 约束组：
 - **ILP W 变量明细**：输出所有 active W 及其对应 bump、j、k、orient、track
 - **ILP S 变量明细**：输出所有 active S 及其对应 TOB、v、j、k
 - **MCF 按 unit 汇总**：每个 unit 的 bus/simple commodity 数量及求解状态
-- **每个 commodity 的路径明细**：按 `commodity -> path#i` 打印完整节点链（`U{unit} COB(r,c) T{track}` / `V_P` / `V_N`）
+- **每个 commodity 的路径明细**：按 `commodity -> path#i` 打印完整节点链（`U{unit} H/V({row},{col}) T{track}` / `V_P` / `V_N`）
 
 ---
 
@@ -375,12 +390,12 @@ ILP 约束组：
 - **bit_id**：同一 `origin_key` 内的位序号
 - **origin_key**：原始 net 标识，用于回并
 - **assignment**：ILP 输出的 record -> cobunit 结果
-- **record_track_endpoint**：ILP 输出的 record -> `(cob_unit, start_track, end_track)` 元组
+- **record_track_endpoint**：ILP 输出的 record -> `(cob_unit, has_start_track, start_track, has_end_track, end_track)` 结构
 - **commodity**：MCF 中单一供需流对象（`PreparedCommodity`）
 - **cobunit**：16 个布线资源分区之一（由 `map_track()` 规则定义）
-- **track graph**：track 级全局路由图（`GlobalGraph`），节点粒度为 `(unit, cob, track)`
-- **mesh 边**：相邻 COB 之间同 track 的直通连接
-- **Wilton 转弯边**：同一 COB 内部不同方向 track 之间的转弯连接
+- **track graph**：track 级全局路由图（`GlobalGraph`），节点粒度为 `(unit, dir, row, col, track)`，节点位于 COB 网格边界上
+- **直通边**：同一 COB tile 内相对方向对（Left↔Right / Up↔Down）的边，`is_turn=false`
+- **Wilton 转弯边**：同一 COB tile 内非相对方向对的边，`is_turn=true`，inner index 通过 Wilton 映射改变
 - **BusMCF**：第一阶段求解，处理 bus commodity（同 origin_key 下多条非 PNnet 记录），带等长约束
 - **SimpleMCF**：第二阶段求解，处理非 bus commodity，使用 BusMCF 的残余容量
 - **reach_steps**：Wilton 转弯步序列（`IlpReachStep`），描述 end_track 到 start_track 的转弯路径
