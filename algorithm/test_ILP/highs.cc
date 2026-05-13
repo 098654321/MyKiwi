@@ -8,6 +8,7 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <string_view>
 #include <thread>
 #include <debug/debug.hh>
 
@@ -127,6 +128,21 @@ auto solve_tob_ilp_with_highs(
         return relation_bumps;
     };
 
+    const auto pn_bumps_text = [](const Net_cost_record& r) -> std::String {
+        if (r.start_bumps.empty()) {
+            return std::String("(none)");
+        }
+        auto s = std::String {};
+        for (std::size_t i = 0; i < r.start_bumps.size(); ++i) {
+            if (i != 0) {
+                s += "; ";
+            }
+            const auto& b = r.start_bumps[i];
+            s += std::format("T{},B{},G{},I{}", b.TOB, b.Bank, b.Group, b.Index);
+        }
+        return s;
+    };
+
     auto pn_selected_end_track = std::Vector<std::size_t> {};
     pn_selected_end_track.resize(records.size(), std::numeric_limits<std::size_t>::max());
     for (std::size_t n = 0; n < records.size(); ++n) {
@@ -144,10 +160,25 @@ auto solve_tob_ilp_with_highs(
         }
         if (selected != 1) {
             out.ok = false;
+            const auto& rpn = records[n];
+            const auto logical_name = rpn.origin_key.empty() ? std::String("(empty origin_key; use net_name)") : rpn.origin_key;
+            auto power_lab = std::string_view {"None"};
+            if (rpn.power_kind == IlpPowerKind::Pose) {
+                power_lab = "Pose";
+            }
+            else if (rpn.power_kind == IlpPowerKind::Nege) {
+                power_lab = "Nege";
+            }
             out.message = std::format(
-                "expected exactly one active Y for PN net index {} ('{}'), got {}",
+                "expected exactly one active Y for PNnet: records_index={} record_id={} bit_id={} "
+                "2pin_record=\"{}\" logical_net(origin_key)=\"{}\" power_kind={} bump(s)=[{}], got {}",
                 n,
-                records[n].net_name,
+                rpn.record_id,
+                rpn.bit_id,
+                rpn.net_name,
+                logical_name,
+                power_lab,
+                pn_bumps_text(rpn),
                 selected);
             return out;
         }
