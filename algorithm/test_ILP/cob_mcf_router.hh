@@ -56,13 +56,15 @@ struct CobMcfFullResult {
 
 /// Per-cobunit MCF: getNetinCOBUnit → merge → build_commodities → build LP + HiGHS.
 /// When \p enable_mcf_parallel is true, each unit is solved concurrently (separate HiGHS instances).
+/// When \p enable_direction_constraints is true, MCF adds equality rows forcing each ILP \p reach_steps Wilton turn to appear on the route (optional; see 问题定义.md).
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
     const TobIlpResult& ilp_result,
     const hardware::Interposer& interposer,
     const circuit::BaseDie& basedie,
     CobMcfGridDims cob_grid,
-    bool enable_mcf_parallel = false
+    bool enable_mcf_parallel = false,
+    bool enable_direction_constraints = false
 ) -> CobMcfFullResult;
 
 } // namespace PR_tool

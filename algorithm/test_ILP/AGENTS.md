@@ -20,14 +20,12 @@
 - `algorithm/test_ILP/ilp_speedup.cc`
 - `algorithm/test_ILP/ilp_reach_precompute.cc`
 - `algorithm/test_ILP/cob_mcf_router.cc`
-- `algorithm/test_ILP/ilp_maze_search.cc`
-- `algorithm/test_ILP/ilp_maze_finalize.cc`
 
 常用命令（仓库根目录）：
 
 ```bash
 xmake build test_ILP
-./output/test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] [--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]
+./output/test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] [--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints]
 ```
 
 参数语义（以 `main.cc` 为准）：
@@ -39,7 +37,8 @@ xmake build test_ILP
 - `--cob-rows N` / `--cob-cols M`：可选，**必须成对出现或均省略**。省略时 MCF 构图使用 `hardware::Interposer::COB_ARRAY_HEIGHT` 与 `COB_ARRAY_WIDTH`。若显式传入，数值必须与上述常量完全一致，否则程序报错退出（保证 `track_to_cob`、Bump/TOB 坐标与 MCF 物理假设一致）
 - `--enable-mcf-routing`：在 ILP 分配成功后继续执行 MCF 阶段
 - `--enable-mcf-parallel`：CLI 仍接受此开关，但当前实现中 `run_mcf_global_routing_cob_units()` 内部 `(void)enable_mcf_parallel;`，即**并行未生效**
-- `--enable-maze`：**当前已禁用**（代码中 `enable_maze = true` 被注释掉，仅打印 `"enable_maze is disabled"`）。设计上该阶段在 ILP+MCF 均成功后按 bit 粒度执行受 MCF 路径走廊约束的 track 层 BFS maze；必须与 `--enable-mcf-routing` 同时使用
+- `--enable-direction-contraints`：与 `--enable-mcf-routing` 联用时，在 BusMCF / SimpleMCF 的 `solve_stage()` 中加入 **ILP `reach_steps` 对应的 Wilton 转弯等式约束**（问题定义第二版中的可选约束）；**省略时默认不加**（与旧版「始终加约束」行为不同，需与文档对照）
+- MCF 成功后，`cob_mcf_router.cc` 会按 **`origin_key`（与 `build_nets()` 得到的逻辑 net 名一致）** 分组打印 track 级路径；仍保留按 COBUnit 的 commodity 摘要行便于对照容量
 
 ---
 
@@ -86,7 +85,7 @@ xmake build test_ILP
 `Net_cost_record` 关键字段：
 
 - `origin_key`：把拆分后的 2-pin 子网回并到原始 net
-- `record_id`：`build_records` 输出序中的全局唯一 id（用于 ILP/MCF/maze 对齐）
+- `record_id`：`build_records` 输出序中的全局唯一 id（用于 ILP/MCF 对齐）
 - `bit_id`：同一 `origin_key` 内的位序号
 - `power_kind`：`Pose / Nege / None`
 - `mcf_start_kind / mcf_end_kind`
@@ -158,18 +157,14 @@ ILP 约束组：
 - `algorithm/test_ILP/ilp_reach_precompute.hh/.cc`
   - `precompute_reach_for_records()`：在 ILP 求解前为每条 record 预计算可达 end_track / start_track 边集，并通过 Wilton 转弯映射（`hardware::COBUnit::index_map`）生成 `IlpReachStep` 序列
   - 分三种空间关系处理：vertical（同列直通）、horizontal（水平两步转弯）、diagonal（对角多步转弯）
-  - 预计算结果写入 `record.starttrack_by_endtrack` 和 `record.reach_by_end_start`，供 ILP 约束和 MCF reach 约束共同使用
+  - 预计算结果写入 `record.starttrack_by_endtrack` 和 `record.reach_by_end_start`，供 **ILP** 约束使用；`reach_by_end_start` 中的 `IlpReachStep` 序列仅在 MCF 传入 `--enable-direction-contraints` 时作为 **可选 Wilton 转弯等式约束** 注入 `solve_stage()`
   - 返回 `IlpReachPrecomputeStats` 统计信息
 
-### 3.8 Maze 搜索与终局（当前禁用）
+### 3.8 MCF 结果展示
 
-- `algorithm/test_ILP/ilp_maze_search.hh/.cc`
-  - `collect_accessible_cobs()`：从 MCF 节点路径提取可访问 COB 坐标集
-  - `maze_search_accessible()`：在受 MCF 路径走廊约束的 COB 可达范围内执行 track 层 BFS maze
+- `run_mcf_global_routing_cob_units()` 末尾：先按 COBUnit 打印每条 commodity 的摘要（`path_count` 等），再按 **`origin_key` / `McfPathInfo::origin_name`** 分组输出完整 `path_to_text` track 路径，便于与 `build_nets()` 得到的原始 net 对应（SyncNet / TracksToBumpsNet 拆分出的子 record 共享同一 `origin_key`）
 
-- `algorithm/test_ILP/ilp_maze_finalize.hh/.cc`
-  - `run_ilp_maze_finalize()`：ILP + MCF 均成功后的终局入口；按 bit 粒度调度 maze 搜索并输出最终 track 级路径
-  - 注意：当前 `main.cc` 中 `--enable-maze` 已被禁用，MCF 阶段本身已直接输出 track 级路径
+第一版文档中的「MCF 走廊内 mazeRoute」实验代码（`ilp_maze_search` / `ilp_maze_finalize`）已从本目标中移除；track 级结果以 MCF 直接输出的路径为准。
 
 ---
 
@@ -248,7 +243,7 @@ ILP 约束组：
 - **snk 节点**：PNnet 连到 `V_P`/`V_N`（通过遍历 `starttrack_by_endtrack` 找到与 `start_track` 可达的 `end_track`，为其添加虚拟边）；Tnet 通过 `node_from_track_coord()` 从 `mcf_end_track` 定位；Bnet 通过 `end_bumps.front().TOB` 定位
 - **类别（McfClass）**：PNnet Pose → `P`，PNnet Nege → `N`，其余 → `Plain`
 - **bus 标识**：同一 `origin_key` 下有多条非 PNnet 记录的 commodity 标记为 `is_bus=true`，共享 `bus_key`
-- **reach_steps**：从 `record.reach_by_end_start` 提取该 commodity 对应的 Wilton 转弯约束
+- **reach_steps**：从 `record.reach_by_end_start` 提取该 commodity 对应的 Wilton 转弯步序列；仅当运行 `test_ILP` 时传入 `--enable-direction-contraints` 才会在 `solve_stage()` 中变成硬等式约束
 - **bbox_cobs**：src 和 snk 的 COB 坐标构成的矩形范围内的 COB 列表
 
 ### 5.3 两阶段求解（`solve_stage()`）
@@ -265,7 +260,7 @@ ILP 约束组：
 - **流守恒约束**：每个 `(k, node)` 对一个等式行，src 行 = demand，snk 行 = -demand，中间节点 = 0
 - **边容量约束**：每对 `(u, v)`（取 min/max 归一化）的所有 commodity 流量之和 ≤ 容量（默认 1）
 - **节点容量约束**：每个物理节点被占用次数 ≤ 容量（默认 1）；通过 `o` 变量和 link 行实现
-- **reach 步约束**：对有 `reach_steps` 的 commodity，要求指定的 Wilton 转弯边恰好被使用 1 次
+- **reach 步约束**（可选）：当 CLI 传入 `--enable-direction-contraints` 且 commodity 有 `reach_steps` 时，要求每个 `IlpReachStep` 匹配的 Wilton 转弯弧上流量之和 = 1；未传该开关时不添加此类行
 - **bus 等长约束**（仅 BusMCF）：同一 bus_key 内所有 commodity 的非虚拟 arc 使用数相等
 
 求解后通过 `extract_path()` 从整数流解中 BFS 提取每个 commodity 的节点路径。
@@ -347,7 +342,7 @@ ILP 约束组：
    每个 unit 的 bus/simple commodity 数、可行性、目标值、耗时应有日志。
 
 6. **record_id 全局唯一**  
-   `record_id` 由 `build_records()` 按输出顺序分配，ILP/MCF/maze 各阶段通过 `record_id` 对齐数据。
+   `record_id` 由 `build_records()` 按输出顺序分配，ILP/MCF 各阶段通过 `record_id` 对齐数据。
 
 ---
 
@@ -374,7 +369,7 @@ ILP 约束组：
 
 （将 `<H>`/`<W>` 替换为当前 `Interposer::COB_ARRAY_HEIGHT` / `COB_ARRAY_WIDTH` 的数值。）
 
-注意：`--enable-maze` 当前已禁用，传入该参数仅打印提示信息。`--enable-mcf-parallel` 可传入但并行未实际生效。
+注意：`--enable-mcf-parallel` 可传入但并行未实际生效。`--enable-direction-contraints` 仅在同时启用 `--enable-mcf-routing` 时生效；否则 `main.cc` 会给出 warning 并忽略。
 
 4) 若改了模型结构，建议附带：
 

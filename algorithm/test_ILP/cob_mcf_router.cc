@@ -576,7 +576,8 @@ auto solve_stage(
     const std::Vector<std::size_t>& commodity_ids,
     const std::map<std::pair<int, int>, int>& edge_capacity_override,
     const std::map<int, int>& node_capacity_override,
-    const bool enforce_bus_equal_length
+    const bool enforce_bus_equal_length,
+    const bool enable_direction_constraints
 ) -> StageSolveResult {
     StageSolveResult out {};
     if (commodity_ids.empty()) {
@@ -741,47 +742,49 @@ auto solve_stage(
         o_entries.push_back(std::move(col));
     }
 
-    // 构建Wilton转弯约束
-    // for (int k = 0; k < K; ++k) {
-    //     const auto& c = local_com[static_cast<std::size_t>(k)];
-    //     if (c.reach_steps.empty()) {
-    //         continue;
-    //     }
-    //     const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
-    //     for (const auto& step : c.reach_steps) {
-    //         const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
-    //         const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
-    //         const auto step_from = char_to_cobdir(step.from_dir);
-    //         const auto step_to = char_to_cobdir(step.to_dir);
-    //         auto matched = std::Vector<int> {};
-    //         for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
-    //             const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
-    //             if (!arc.is_turn) {
-    //                 continue;
-    //             }
-    //             if (arc.track_in != tr_in || arc.track_out != tr_out) {
-    //                 continue;
-    //             }
-    //             if (arc.from_dir != step_from || arc.to_dir != step_to) {
-    //                 continue;
-    //             }
-    //             if (!bbox.empty() && arc.cob >= 0 && !bbox.contains(arc.cob)) {
-    //                 continue;
-    //             }
-    //             matched.push_back(j);
-    //         }
-    //         if (matched.empty()) {
-    //             debug::warning_fmt(
-    //                 "MCF {}: commodity {} reach step ({}->{}, {}->{}) has no matching arc in bbox",
-    //                 stage_name, c.label, step.from_dir, step.to_dir, step.index_in, step.index_out);
-    //             continue;
-    //         }
-    //         const auto row = add_eq(1.0);
-    //         for (const auto j : matched) {
-    //             x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
-    //         }
-    //     }
-    // }
+    // 可选：Reach 预计算得到的 Wilton 拐弯方向约束（问题定义第二版「可加可不加」）
+    if (enable_direction_constraints) {
+        for (int k = 0; k < K; ++k) {
+            const auto& c = local_com[static_cast<std::size_t>(k)];
+            if (c.reach_steps.empty()) {
+                continue;
+            }
+            const auto bbox = std::set<int>(c.bbox_cobs.begin(), c.bbox_cobs.end());
+            for (const auto& step : c.reach_steps) {
+                const auto tr_in = track_from_unit_inner(c.cob_unit, step.index_in);
+                const auto tr_out = track_from_unit_inner(c.cob_unit, step.index_out);
+                const auto step_from = char_to_cobdir(step.from_dir);
+                const auto step_to = char_to_cobdir(step.to_dir);
+                auto matched = std::Vector<int> {};
+                for (const auto j : x_by_k[static_cast<std::size_t>(k)]) {
+                    const auto& arc = graph.arcs[static_cast<std::size_t>(x_vars[static_cast<std::size_t>(j)].a)];
+                    if (!arc.is_turn) {
+                        continue;
+                    }
+                    if (arc.track_in != tr_in || arc.track_out != tr_out) {
+                        continue;
+                    }
+                    if (arc.from_dir != step_from || arc.to_dir != step_to) {
+                        continue;
+                    }
+                    if (!bbox.empty() && arc.cob >= 0 && !bbox.contains(arc.cob)) {
+                        continue;
+                    }
+                    matched.push_back(j);
+                }
+                if (matched.empty()) {
+                    debug::warning_fmt(
+                        "MCF {}: commodity {} reach step ({}->{}, {}->{}) has no matching arc in bbox",
+                        stage_name, c.label, step.from_dir, step.to_dir, step.index_in, step.index_out);
+                    continue;
+                }
+                const auto row = add_eq(1.0);
+                for (const auto j : matched) {
+                    x_entries[static_cast<std::size_t>(j)].push_back({row, 1.0});
+                }
+            }
+        }
+    }
 
     // 构建Bus等长约束
     if (enforce_bus_equal_length) {
@@ -984,6 +987,70 @@ auto path_to_text(const GlobalGraph& graph, const std::Vector<int>& path) -> std
     return s;
 }
 
+auto log_mcf_paths_by_origin_net(
+    const GlobalGraph& graph,
+    const std::array<std::Vector<McfPathInfo>, 16>& paths_by_unit,
+    const std::Vector<Net_cost_record>& records
+) -> void {
+    struct PathRef {
+        const McfPathInfo* info;
+        std::size_t cob_unit;
+    };
+    auto refs = std::Vector<PathRef> {};
+    for (std::size_t u = 0; u < 16; ++u) {
+        for (const auto& info : paths_by_unit[u]) {
+            refs.push_back(PathRef {&info, u});
+        }
+    }
+    if (refs.empty()) {
+        debug::info("MCF paths grouped by origin net (build_nets): (no paths)");
+        return;
+    }
+    std::sort(refs.begin(), refs.end(), [&](const PathRef& a, const PathRef& b) {
+        if (a.info->origin_name != b.info->origin_name) {
+            return a.info->origin_name < b.info->origin_name;
+        }
+        const auto bit_a = (a.info->record_id < records.size()) ? records[a.info->record_id].bit_id : 0U;
+        const auto bit_b = (b.info->record_id < records.size()) ? records[b.info->record_id].bit_id : 0U;
+        if (bit_a != bit_b) {
+            return bit_a < bit_b;
+        }
+        if (a.cob_unit != b.cob_unit) {
+            return a.cob_unit < b.cob_unit;
+        }
+        return a.info->label < b.info->label;
+    });
+
+    debug::info("MCF paths grouped by origin net (logical net from build_nets / origin_key):");
+    std::String current_origin {};
+    for (const auto& pr : refs) {
+        const auto& info = *pr.info;
+        if (info.origin_name != current_origin) {
+            current_origin = info.origin_name;
+            debug::info_fmt("  origin net \"{}\"", current_origin);
+        }
+        std::size_t bit_id = 0;
+        auto rec_name = std::String("(record_id out of range)");
+        if (info.record_id < records.size()) {
+            bit_id = records[info.record_id].bit_id;
+            rec_name = records[info.record_id].net_name;
+        }
+        debug::info_fmt(
+            "    bit={} 2pin_record=\"{}\" record_id={} COBUnit={} commodity={} start_track={} end_track={} path_count={}",
+            bit_id,
+            rec_name,
+            info.record_id,
+            pr.cob_unit,
+            info.label,
+            info.start_track,
+            info.end_track,
+            info.unit_paths.size());
+        for (std::size_t pi = 0; pi < info.unit_paths.size(); ++pi) {
+            debug::info_fmt("      path#{} {}", pi, path_to_text(graph, info.unit_paths[pi]));
+        }
+    }
+}
+
 } // namespace
 
 auto run_mcf_global_routing_cob_units(
@@ -992,7 +1059,8 @@ auto run_mcf_global_routing_cob_units(
     const hardware::Interposer& interposer,
     const circuit::BaseDie& basedie,
     const CobMcfGridDims cob_grid,
-    const bool enable_mcf_parallel
+    const bool enable_mcf_parallel,
+    const bool enable_direction_constraints
 ) -> CobMcfFullResult {
     (void)interposer;
     (void)basedie;
@@ -1000,6 +1068,9 @@ auto run_mcf_global_routing_cob_units(
 
     const auto mcf_start = std::chrono::steady_clock::now();
     const auto peak_before = get_peak_rss_mb();
+    debug::info_fmt(
+        "MCF: optional ILP Reach / Wilton turn-direction constraints: {}",
+        enable_direction_constraints ? "enabled (--enable-direction-contraints)" : "disabled");
 
     CobMcfFullResult out {};
     out.summary.per_cob.resize(16);
@@ -1037,7 +1108,7 @@ auto run_mcf_global_routing_cob_units(
     }
 
     const auto solve_t0 = std::chrono::steady_clock::now();
-    auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true);
+    auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true, enable_direction_constraints);
     auto edge_cap_for_simple = std::map<std::pair<int, int>, int> {};
     for (const auto& [e, used] : bus_res.used_edges) {
         edge_cap_for_simple[e] = std::max(0, 1 - used);
@@ -1046,7 +1117,8 @@ auto run_mcf_global_routing_cob_units(
     for (const auto& [n, used] : bus_res.used_nodes) {
         node_cap_for_simple[n] = std::max(0, 1 - used);
     }
-    auto simple_res = solve_stage("SimpleMCF", graph, commodities, simple_ids, edge_cap_for_simple, node_cap_for_simple, false);
+    auto simple_res = solve_stage(
+        "SimpleMCF", graph, commodities, simple_ids, edge_cap_for_simple, node_cap_for_simple, false, enable_direction_constraints);
     const auto solve_t1 = std::chrono::steady_clock::now();
     const auto solve_ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(solve_t1 - solve_t0).count());
 
@@ -1085,17 +1157,15 @@ auto run_mcf_global_routing_cob_units(
             out.summary.all_ok);
         for (const auto& info : out.paths_by_unit[u]) {
             debug::info_fmt(
-                "  commodity {} rec={} start_track={} end_track={} path_count={}",
+                "  commodity {} rec={} start_track={} end_track={} path_count={} (track path text under origin net below)",
                 info.label,
                 info.record_id,
                 info.start_track,
                 info.end_track,
                 info.unit_paths.size());
-            for (std::size_t pi = 0; pi < info.unit_paths.size(); ++pi) {
-                debug::info_fmt("    path#{} {}", pi, path_to_text(graph, info.unit_paths[pi]));
-            }
         }
     }
+    log_mcf_paths_by_origin_net(graph, out.paths_by_unit, records);
 
     const auto mcf_end = std::chrono::steady_clock::now();
     const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(mcf_end - mcf_start).count();

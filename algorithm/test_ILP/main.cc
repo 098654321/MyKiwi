@@ -56,7 +56,7 @@ auto run_main(int argc, char** argv) -> int {
         debug::error("No config path given");
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] "
-            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]");
+            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints]");
         log_total_runtime();
         return 1;
     }
@@ -66,7 +66,7 @@ auto run_main(int argc, char** argv) -> int {
     bool enable_ilp_parallel = false;
     bool enable_mcf = false;
     bool enable_mcf_parallel = false;
-    bool enable_maze = false;
+    bool enable_direction_constraints = false;
     int verbose_v_count = 0;
     bool cob_rows_set = false;
     bool cob_cols_set = false;
@@ -99,9 +99,8 @@ auto run_main(int argc, char** argv) -> int {
             enable_mcf_parallel = true;
             continue;
         }
-        if (arg == "--enable-maze") {
-            // enable_maze = true;
-            debug::info("enable_maze is disabled");
+        if (arg == "--enable-direction-contraints") {
+            enable_direction_constraints = true;
             continue;
         }
         if (arg == "--cob-rows") {
@@ -133,7 +132,7 @@ auto run_main(int argc, char** argv) -> int {
         debug::error_fmt("Unexpected argument '{}'", arg);
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] "
-            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-maze]");
+            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints]");
         log_total_runtime();
         return 1;
     }
@@ -254,10 +253,8 @@ auto run_main(int argc, char** argv) -> int {
     debug::info_fmt("objective value: {}", result.objective);
     debug::info_fmt("nets solved: {}", records.size());
 
-    if (enable_maze && !enable_mcf) {
-        debug::error("--enable-maze requires --enable-mcf-routing");
-        log_total_runtime();
-        return 1;
+    if (enable_direction_constraints && !enable_mcf) {
+        debug::warning("--enable-direction-contraints applies only with --enable-mcf-routing; ignored");
     }
 
     if (enable_mcf) {
@@ -265,14 +262,17 @@ auto run_main(int argc, char** argv) -> int {
             debug::info("MCF: solving 16 COB units in parallel (std::async)");
         }
         const auto mcf_full = run_mcf_global_routing_cob_units(
-            records, result, *interposer.get(), *basedie.get(), cob_grid, enable_mcf_parallel);
+            records,
+            result,
+            *interposer.get(),
+            *basedie.get(),
+            cob_grid,
+            enable_mcf_parallel,
+            enable_direction_constraints);
         if (!mcf_full.summary.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
             log_total_runtime();
             return 1;
-        }
-        if (enable_maze) {
-            debug::warning("Maze finalize is skipped: detailed MCF already outputs final track-level paths.");
         }
     }
     log_total_runtime();
@@ -518,7 +518,7 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
     debug::info_fmt("number of Tnet: {}", tnet_count);
     debug::info_fmt("total number of nets: {}", records.size());
 
-    // Assign stable ids for downstream ILP/MCF/maze alignment.
+    // Assign stable ids for downstream ILP/MCF alignment.
     auto origin_bit_counter = std::map<std::String, std::size_t> {};
     for (std::size_t i = 0; i < records.size(); ++i) {
         records[i].record_id = i;
