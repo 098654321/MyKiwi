@@ -160,6 +160,7 @@ ILP 约束组：
   - 分三种空间关系处理：vertical（同列直通）、horizontal（水平两步转弯）、diagonal（对角多步转弯）
   - 预计算结果写入 `record.starttrack_by_endtrack` 和 `record.reach_by_end_start`，供 **ILP** 约束使用；`reach_by_end_start` 中的 `IlpReachStep` 序列仅在 MCF 传入 `--enable-direction-contraints` 时作为 **可选 Wilton 转弯等式约束** 注入 `solve_stage()`
   - 返回 `IlpReachPrecomputeStats` 统计信息
+  - 内部 `std::logic_error`（如 diagonal 上 `delta == 0`、或 `starts` 为空）会在消息中带 **`net_name` / `origin_key` / `record_id` / `end_track`** 及几何标志，便于定位是哪条 2-pin record 触发异常
 
 ### 3.8 MCF 结果展示
 

@@ -10,6 +10,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <format>
 #include <stdexcept>
 #include <tuple>
 #include <utility>
@@ -194,7 +195,7 @@ auto maybe_horizontal_front_step(const RelationContext& ctx) -> std::Option<std:
         return std::nullopt;
     }
     const auto from = ctx.end_right ? TurnDir::Right : TurnDir::Left;
-    const auto to = ctx.end_down ? TurnDir::Down : TurnDir::Up;
+    const auto to = ctx.end_down ? TurnDir::Up : TurnDir::Down;
     return std::Pair<TurnDir, TurnDir> {from, to};
 }
 
@@ -273,6 +274,7 @@ auto fill_horizontal_case(
 }
 
 auto fill_diagonal_case(
+    const Net_cost_record& record,
     const RelationContext& ctx,
     std::size_t end_track,
     std::Vector<std::size_t>& starts,
@@ -280,12 +282,21 @@ auto fill_diagonal_case(
 ) -> void {
     const auto pair = diagonal_pair_for(ctx);
     auto delta = std::min(ctx.delta_rows, ctx.delta_cols);
-    if (delta == 0) {
-        throw std::logic_error("precompute: diagonal case with delta == 0");
+    if (delta == 0) {   // 如果是Tnet，只需要一次水平到垂直的转弯；如果是Bnet，不可能出现这样的情况
+        if (const auto first = maybe_horizontal_front_step(ctx); first.has_value()) {
+            auto seq = std::Vector<std::Pair<TurnDir, TurnDir>> {};
+            seq.push_back(*first);
+            auto steps = std::Vector<IlpReachStep> {};
+            const auto start_track = apply_sequence(end_track, seq, steps);
+            starts.push_back(start_track);
+            if (!reaches.contains(start_track)) {
+                reaches[start_track] = std::move(steps);
+            }
+        }
     }
     for (std::size_t repeat = 1; repeat <= delta; ++repeat) {
         auto seq = std::Vector<std::Pair<TurnDir, TurnDir>> {};
-        if (const auto first = maybe_horizontal_front_step(ctx); first.has_value()) {
+        if (const auto first = maybe_horizontal_front_step(ctx); first.has_value()) {   
             seq.push_back(*first);
         }
         for (std::size_t i = 0; i < repeat; ++i) {
@@ -302,6 +313,7 @@ auto fill_diagonal_case(
 }
 
 auto fill_endtrack_reach(
+    const Net_cost_record& record,
     const RelationContext& ctx,
     std::size_t end_track,
     std::Vector<std::size_t>& starts,
@@ -316,10 +328,21 @@ auto fill_endtrack_reach(
         fill_horizontal_case(ctx, end_track, starts, reaches);
     }
     else if (ctx.is_diagonal) {
-        fill_diagonal_case(ctx, end_track, starts, reaches);
+        fill_diagonal_case(record, ctx, end_track, starts, reaches);
     }
     if (starts.empty()) {
-        throw std::logic_error("precompute: endtrack reach with empty starts");
+        throw std::logic_error(std::format(
+            "precompute: endtrack reach with empty starts (2pin_record=\"{}\", origin_key=\"{}\", record_id={}, end_track={}, "
+            "is_vertical={}, is_horizontal={}, is_diagonal={}, delta_rows={}, delta_cols={})",
+            record.net_name,
+            record.origin_key,
+            record.record_id,
+            end_track,
+            ctx.is_vertical,
+            ctx.is_horizontal,
+            ctx.is_diagonal,
+            ctx.delta_rows,
+            ctx.delta_cols));
     }
     sort_unique(starts);
 }
@@ -355,7 +378,7 @@ auto precompute_reach_for_records(std::Vector<Net_cost_record>& records) -> IlpR
             for (const auto end_track : record.end_tracks) {
                 auto starts = std::Vector<std::size_t> {};
                 auto reaches = std::map<std::size_t, std::Vector<IlpReachStep>> {};
-                fill_endtrack_reach(ctx, end_track, starts, reaches);
+                fill_endtrack_reach(record, ctx, end_track, starts, reaches);
                 record.starttrack_by_endtrack[end_track] = std::move(starts);
                 record.reach_by_end_start[end_track] = std::move(reaches);
             }
@@ -376,7 +399,7 @@ auto precompute_reach_for_records(std::Vector<Net_cost_record>& records) -> IlpR
             for (const auto end_track : record.end_tracks) {
                 auto starts = std::Vector<std::size_t> {};
                 auto reaches = std::map<std::size_t, std::Vector<IlpReachStep>> {};
-                fill_endtrack_reach(ctx, end_track, starts, reaches);
+                fill_endtrack_reach(record, ctx, end_track, starts, reaches);
                 record.starttrack_by_endtrack[end_track] = std::move(starts);
                 record.reach_by_end_start[end_track] = std::move(reaches);
             }
@@ -396,7 +419,7 @@ auto precompute_reach_for_records(std::Vector<Net_cost_record>& records) -> IlpR
                 auto reaches = std::map<std::size_t, std::Vector<IlpReachStep>> {};
                 if (const auto it = record.pn_end_track_coord_by_index.find(end_track); it != record.pn_end_track_coord_by_index.end()) {
                     const auto ctx = relation_tnet(record.start_bumps.front().TOB, it->second);
-                    fill_endtrack_reach(ctx, end_track, starts, reaches);
+                    fill_endtrack_reach(record, ctx, end_track, starts, reaches);
                 }
                 else {
                     throw std::runtime_error(std::format("precompute: PNnet '{}' missing end track coord by index", record.net_name));
