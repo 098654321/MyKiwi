@@ -64,7 +64,8 @@ auto run_mcf_global_routing_cob_units(
     const circuit::BaseDie& basedie,
     CobMcfGridDims cob_grid,
     bool enable_mcf_parallel = false,
-    bool enable_direction_constraints = false
+    bool enable_direction_constraints = false,
+    bool enable_pre_routing = false
 ) -> CobMcfFullResult;
 
 } // namespace PR_tool

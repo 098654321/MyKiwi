@@ -10,6 +10,7 @@
 #include <set>
 #include <string_view>
 #include <thread>
+#include <vector>
 #include <debug/debug.hh>
 
 
@@ -17,7 +18,8 @@ namespace PR_tool {
 
 auto solve_tob_ilp_with_highs(
     const std::Vector<Net_cost_record>& records,
-    const bool enable_parallel
+    const bool enable_parallel,
+    const TobIlpWarmStart* warm_start
 )
     -> TobIlpResult {
     TobIlpResult out {};
@@ -49,6 +51,45 @@ auto solve_tob_ilp_with_highs(
         out.message = std::format("HiGHS passModel failed (status={})", static_cast<int>(pass_st));
         return out;
     }
+    if (warm_start != nullptr && !warm_start->values.empty()) {
+        auto warm_cols = std::vector<HighsInt> {};
+        auto warm_values = std::vector<double> {};
+        warm_cols.reserve(warm_start->values.size());
+        warm_values.reserve(warm_start->values.size());
+        for (const auto& [name, value] : warm_start->values) {
+            const auto it = col_index.find(name);
+            if (it == col_index.end()) {
+                continue;
+            }
+            warm_cols.push_back(it->second);
+            warm_values.push_back(value);
+        }
+        if (!warm_cols.empty()) {
+            (void)highs.setOptionValue("mip_max_start_nodes", static_cast<HighsInt>(0));
+            const auto start_st = highs.setSolution(
+                static_cast<HighsInt>(warm_cols.size()),
+                warm_cols.data(),
+                warm_values.data());
+            if (start_st != HighsStatus::kOk) {
+                debug::warning_fmt(
+                    "HiGHS ILP warm start rejected (status={}, requested_values={}, matched_values={})",
+                    static_cast<int>(start_st),
+                    warm_start->values.size(),
+                    warm_cols.size());
+            }
+            else {
+                debug::info_fmt(
+                    "HiGHS ILP warm start accepted: requested_values={}, matched_values={}, routed_nets={}, failed_nets={}",
+                    warm_start->values.size(),
+                    warm_cols.size(),
+                    warm_start->routed_nets,
+                    warm_start->failed_nets);
+            }
+        }
+        else {
+            debug::warning_fmt("HiGHS ILP warm start had no matching variables (requested_values={})", warm_start->values.size());
+        }
+    }
     // show actual parallel setting accepted by HiGHS
     HighsInt configured_threads = 1;
     const HighsStatus get_threads_st = highs.getOptionValue("threads", configured_threads);
@@ -78,6 +119,17 @@ auto solve_tob_ilp_with_highs(
 
     out.model_status = highs.getModelStatus();    // 获取模型状态
     out.objective = highs.getObjectiveValue();    // 获取目标值
+    if (out.model_status != HighsModelStatus::kOptimal) {
+        if (warm_start != nullptr) {
+            debug::warning_fmt(
+                "HiGHS ILP warm start led to non-optimal status ({}); retrying without warm start",
+                static_cast<int>(out.model_status));
+            return solve_tob_ilp_with_highs(records, enable_parallel, nullptr);
+        }
+        out.ok = false;
+        out.message = std::format("model status is not optimal ({})", static_cast<int>(out.model_status));
+        return out;
+    }
 
     const auto& sol = highs.getSolution();
     if (sol.col_value.empty()) {
@@ -361,13 +413,8 @@ auto solve_tob_ilp_with_highs(
         }
     }
 
-    out.ok = (out.model_status == HighsModelStatus::kOptimal);
-    if (!out.ok && out.message.empty()) {
-        out.message = std::format("model status is not optimal ({})", static_cast<int>(out.model_status));
-    }
-    else if (out.ok) {
-        out.message = "ok";
-    }
+    out.ok = true;
+    out.message = "ok";
     return out;
 }
 

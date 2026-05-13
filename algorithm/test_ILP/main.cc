@@ -4,6 +4,7 @@
 #include "highs.hh"
 #include "ilp_types.hh"
 #include "ilp_reach_precompute.hh"
+#include "pre_routing_warm_start.hh"
 #include "tob_ilp_model.hh"
 
 #include <algo/netbuilder/netbuilder.hh>
@@ -67,7 +68,8 @@ auto run_main(int argc, char** argv) -> int {
         debug::error("No config path given");
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] "
-            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints]");
+            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints] "
+            "[--enable-pre-routing]");
         log_total_runtime();
         return 1;
     }
@@ -78,6 +80,7 @@ auto run_main(int argc, char** argv) -> int {
     bool enable_mcf = false;
     bool enable_mcf_parallel = false;
     bool enable_direction_constraints = false;
+    bool enable_pre_routing = false;
     int verbose_v_count = 0;
     bool cob_rows_set = false;
     bool cob_cols_set = false;
@@ -114,6 +117,10 @@ auto run_main(int argc, char** argv) -> int {
             enable_direction_constraints = true;
             continue;
         }
+        if (arg == "--enable-pre-routing") {
+            enable_pre_routing = true;
+            continue;
+        }
         if (arg == "--cob-rows") {
             if (argi + 1 >= argc) {
                 debug::error("--cob-rows requires an integer argument");
@@ -143,7 +150,8 @@ auto run_main(int argc, char** argv) -> int {
         debug::error_fmt("Unexpected argument '{}'", arg);
         debug::info(
             "Usage: xmake run test_ILP <config_path> [output_mps_path] [-v|-vv|...] [--enable-ilp-parallel] "
-            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints]");
+            "[--cob-rows N --cob-cols M] [--enable-mcf-routing] [--enable-mcf-parallel] [--enable-direction-contraints] "
+            "[--enable-pre-routing]");
         log_total_runtime();
         return 1;
     }
@@ -204,8 +212,15 @@ auto run_main(int argc, char** argv) -> int {
         debug::info_fmt("MPS written: {}", output_mps);
     }
 
+    auto ilp_warm_start = TobIlpWarmStart {};
+    const TobIlpWarmStart* ilp_warm_start_ptr = nullptr;
+    if (enable_pre_routing) {
+        ilp_warm_start = build_ilp_warm_start_from_maze(config_path, records);
+        ilp_warm_start_ptr = &ilp_warm_start;
+    }
+
     const auto solve_begin = std::chrono::steady_clock::now();
-    const auto result = solve_tob_ilp_with_highs(records, enable_ilp_parallel);
+    const auto result = solve_tob_ilp_with_highs(records, enable_ilp_parallel, ilp_warm_start_ptr);
     const auto solve_end = std::chrono::steady_clock::now();
     const auto solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
     const auto peak_rss_mb = get_peak_rss_mb();
@@ -291,7 +306,8 @@ auto run_main(int argc, char** argv) -> int {
             *basedie.get(),
             cob_grid,
             enable_mcf_parallel,
-            enable_direction_constraints);
+            enable_direction_constraints,
+            enable_pre_routing);
         if (!mcf_full.summary.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
             log_total_runtime();

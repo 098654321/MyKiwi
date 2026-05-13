@@ -174,6 +174,7 @@ target("test_ILP")
         "algorithm/test_ILP/highs.cc",
         "algorithm/test_ILP/ilp_speedup.cc",
         "algorithm/test_ILP/ilp_reach_precompute.cc",
+        "algorithm/test_ILP/pre_routing_warm_start.cc",
         "algorithm/test_ILP/cob_mcf_router.cc"
     )
     add_files(

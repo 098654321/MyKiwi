@@ -1,6 +1,5 @@
 #include "cob_mcf_router.hh"
 
-#include "ilp_speedup.hh"
 #include "mcf_hw_map.hh"
 
 #include "circuit/basedie.hh"
@@ -102,6 +101,10 @@ struct StageSolveResult {
     std::map<std::pair<int, int>, int> used_edges;
     std::map<int, int> used_nodes;
     std::Vector<McfPathInfo> paths;
+};
+
+struct StageWarmStart {
+    std::map<std::size_t, std::Vector<int>> nodes_by_record_id;
 };
 
 struct ArcVar {
@@ -570,6 +573,127 @@ auto extract_path(
     return nodes;
 }
 
+auto normalized_edge_key(int u, int v) -> std::pair<int, int> {
+    if (u > v) {
+        std::swap(u, v);
+    }
+    return {u, v};
+}
+
+auto route_one_mcf_warm_path(
+    const GlobalGraph& graph,
+    const PreparedCommodity& commodity,
+    const std::Vector<std::Vector<int>>& outgoing_arcs,
+    const std::map<std::pair<int, int>, int>& used_edges,
+    const std::map<int, int>& used_nodes
+) -> std::Vector<int> {
+    auto prev_node = std::vector<int>(graph.nodes.size(), -1);
+    auto q = std::queue<int> {};
+    q.push(commodity.src);
+    prev_node[static_cast<std::size_t>(commodity.src)] = commodity.src;
+
+    while (!q.empty()) {
+        const auto node = q.front();
+        q.pop();
+        if (node == commodity.snk) {
+            break;
+        }
+        for (const auto arc_id : outgoing_arcs[static_cast<std::size_t>(node)]) {
+            const auto& arc = graph.arcs[static_cast<std::size_t>(arc_id)];
+            if (!arc_usable_for_class(arc, commodity.cls, commodity.cob_unit, graph.vp_node, graph.vn_node)) {
+                continue;
+            }
+            if (!arc.is_virtual) {
+                const auto edge_key = normalized_edge_key(arc.u, arc.v);
+                if (const auto it = used_edges.find(edge_key); it != used_edges.end() && it->second >= 1) {
+                    continue;
+                }
+            }
+            if (!graph.nodes[static_cast<std::size_t>(arc.v)].is_virtual) {
+                if (const auto it = used_nodes.find(arc.v); it != used_nodes.end() && it->second >= 1) {
+                    continue;
+                }
+            }
+            if (prev_node[static_cast<std::size_t>(arc.v)] != -1) {
+                continue;
+            }
+            prev_node[static_cast<std::size_t>(arc.v)] = node;
+            q.push(arc.v);
+        }
+    }
+
+    if (prev_node[static_cast<std::size_t>(commodity.snk)] == -1) {
+        return {};
+    }
+    auto path = std::Vector<int> {};
+    auto cur = commodity.snk;
+    while (cur != commodity.src) {
+        path.push_back(cur);
+        cur = prev_node[static_cast<std::size_t>(cur)];
+    }
+    path.push_back(commodity.src);
+    std::reverse(path.begin(), path.end());
+    return path;
+}
+
+auto mark_mcf_warm_path_used(
+    const GlobalGraph& graph,
+    const std::Vector<int>& path,
+    std::map<std::pair<int, int>, int>& used_edges,
+    std::map<int, int>& used_nodes
+) -> void {
+    for (const auto node : path) {
+        if (!graph.nodes[static_cast<std::size_t>(node)].is_virtual) {
+            used_nodes[node] = 1;
+        }
+    }
+    for (std::size_t i = 0; i + 1 < path.size(); ++i) {
+        const auto u = path[i];
+        const auto v = path[i + 1];
+        for (const auto& arc : graph.arcs) {
+            if (arc.u != u || arc.v != v) {
+                continue;
+            }
+            if (!arc.is_virtual) {
+                used_edges[normalized_edge_key(u, v)] = 1;
+            }
+            break;
+        }
+    }
+}
+
+auto route_mcf_stage_warm_start(
+    const std::String& stage_name,
+    const GlobalGraph& graph,
+    const std::Vector<PreparedCommodity>& commodities,
+    const std::Vector<std::size_t>& commodity_ids,
+    const std::Vector<std::Vector<int>>& outgoing_arcs,
+    std::map<std::pair<int, int>, int>& used_edges,
+    std::map<int, int>& used_nodes
+) -> StageWarmStart {
+    auto warm = StageWarmStart {};
+    std::size_t routed = 0;
+    std::size_t failed = 0;
+    for (const auto cid : commodity_ids) {
+        const auto& commodity = commodities[cid];
+        auto path = route_one_mcf_warm_path(graph, commodity, outgoing_arcs, used_edges, used_nodes);
+        if (path.empty()) {
+            ++failed;
+            debug::warning_fmt("pre-routing {} warm start failed for commodity {}", stage_name, commodity.label);
+            continue;
+        }
+        mark_mcf_warm_path_used(graph, path, used_edges, used_nodes);
+        warm.nodes_by_record_id.emplace(commodity.record_id, std::move(path));
+        ++routed;
+    }
+    debug::info_fmt(
+        "pre-routing {} warm start: routed_commodities={} failed_commodities={}",
+        stage_name,
+        routed,
+        failed);
+    return warm;
+}
+
 auto solve_stage(
     const std::String& stage_name,
     const GlobalGraph& graph,
@@ -578,7 +702,8 @@ auto solve_stage(
     const std::map<std::pair<int, int>, int>& edge_capacity_override,
     const std::map<int, int>& node_capacity_override,
     const bool enforce_bus_equal_length,
-    const bool enable_direction_constraints
+    const bool enable_direction_constraints,
+    const StageWarmStart* warm_start
 ) -> StageSolveResult {
     StageSolveResult out {};
     if (commodity_ids.empty()) {
@@ -884,6 +1009,80 @@ auto solve_stage(
         out.message = std::format("{}: passModel failed", stage_name);
         return out;
     }
+    if (warm_start != nullptr && !warm_start->nodes_by_record_id.empty()) {
+        auto warm_values_by_col = std::map<HighsInt, double> {};
+        auto o_col_by_k_node = std::map<std::pair<int, int>, int> {};
+        for (std::size_t oi = 0; oi < o_vars.size(); ++oi) {
+            const auto& ov = o_vars[oi];
+            o_col_by_k_node[{ov.k, ov.node}] = num_x + static_cast<int>(oi);
+        }
+
+        std::size_t matched_paths = 0;
+        for (int k = 0; k < K; ++k) {
+            const auto& commodity = local_com[static_cast<std::size_t>(k)];
+            const auto path_it = warm_start->nodes_by_record_id.find(commodity.record_id);
+            if (path_it == warm_start->nodes_by_record_id.end()) {
+                continue;
+            }
+            const auto& path = path_it->second;
+            if (path.size() < 2) {
+                continue;
+            }
+            ++matched_paths;
+            for (std::size_t i = 0; i + 1 < path.size(); ++i) {
+                const auto u = path[i];
+                const auto v = path[i + 1];
+                for (const auto x_col : x_by_k[static_cast<std::size_t>(k)]) {
+                    const auto arc_id = x_vars[static_cast<std::size_t>(x_col)].a;
+                    const auto& arc = graph.arcs[static_cast<std::size_t>(arc_id)];
+                    if (arc.u == u && arc.v == v) {
+                        warm_values_by_col[static_cast<HighsInt>(x_col)] = 1.0;
+                        break;
+                    }
+                }
+            }
+            for (const auto node : path) {
+                if (graph.nodes[static_cast<std::size_t>(node)].is_virtual) {
+                    continue;
+                }
+                const auto it = o_col_by_k_node.find({k, node});
+                if (it != o_col_by_k_node.end()) {
+                    warm_values_by_col[static_cast<HighsInt>(it->second)] = 1.0;
+                }
+            }
+        }
+
+        if (!warm_values_by_col.empty()) {
+            auto warm_cols = std::vector<HighsInt> {};
+            auto warm_values = std::vector<double> {};
+            warm_cols.reserve(warm_values_by_col.size());
+            warm_values.reserve(warm_values_by_col.size());
+            for (const auto& [col, value] : warm_values_by_col) {
+                warm_cols.push_back(col);
+                warm_values.push_back(value);
+            }
+            (void)highs.setOptionValue("mip_max_start_nodes", static_cast<HighsInt>(0));
+            const auto start_st = highs.setSolution(
+                static_cast<HighsInt>(warm_cols.size()),
+                warm_cols.data(),
+                warm_values.data());
+            if (start_st != HighsStatus::kOk) {
+                debug::warning_fmt(
+                    "{} warm start rejected by HiGHS (status={}, matched_paths={}, values={})",
+                    stage_name,
+                    static_cast<int>(start_st),
+                    matched_paths,
+                    warm_cols.size());
+            }
+            else {
+                debug::info_fmt(
+                    "{} warm start accepted by HiGHS: matched_paths={}, values={}",
+                    stage_name,
+                    matched_paths,
+                    warm_cols.size());
+            }
+        }
+    }
     if (highs.run() != HighsStatus::kOk) {
         out.ok = false;
         out.message = std::format("{}: solver run failed", stage_name);
@@ -893,6 +1092,22 @@ auto solve_stage(
     const auto status = highs.getModelStatus();
     out.model_status = static_cast<int>(status);
     if (status != HighsModelStatus::kOptimal) {
+        if (warm_start != nullptr) {
+            debug::warning_fmt(
+                "{} warm start led to non-optimal status ({}); retrying stage without warm start",
+                stage_name,
+                static_cast<int>(status));
+            return solve_stage(
+                stage_name,
+                graph,
+                commodities,
+                commodity_ids,
+                edge_capacity_override,
+                node_capacity_override,
+                enforce_bus_equal_length,
+                enable_direction_constraints,
+                nullptr);
+        }
         out.ok = false;
         out.message = std::format("{}: model not optimal ({})", stage_name, static_cast<int>(status));
         return out;
@@ -1132,7 +1347,8 @@ auto run_mcf_global_routing_cob_units(
     const circuit::BaseDie& basedie,
     const CobMcfGridDims cob_grid,
     const bool enable_mcf_parallel,
-    const bool enable_direction_constraints
+    const bool enable_direction_constraints,
+    const bool enable_pre_routing
 ) -> CobMcfFullResult {
     (void)basedie;
     (void)enable_mcf_parallel;
@@ -1178,8 +1394,39 @@ auto run_mcf_global_routing_cob_units(
         }
     }
 
+    auto bus_warm_start = StageWarmStart {};
+    auto simple_warm_start = StageWarmStart {};
+    const StageWarmStart* bus_warm_start_ptr = nullptr;
+    const StageWarmStart* simple_warm_start_ptr = nullptr;
+    if (enable_pre_routing) {
+        auto outgoing_arcs = std::Vector<std::Vector<int>>(graph.nodes.size());
+        for (std::size_t a = 0; a < graph.arcs.size(); ++a) {
+            outgoing_arcs[static_cast<std::size_t>(graph.arcs[a].u)].push_back(static_cast<int>(a));
+        }
+        auto warm_used_edges = std::map<std::pair<int, int>, int> {};
+        auto warm_used_nodes = std::map<int, int> {};
+        bus_warm_start = route_mcf_stage_warm_start(
+            "BusMCF",
+            graph,
+            commodities,
+            bus_ids,
+            outgoing_arcs,
+            warm_used_edges,
+            warm_used_nodes);
+        simple_warm_start = route_mcf_stage_warm_start(
+            "SimpleMCF",
+            graph,
+            commodities,
+            simple_ids,
+            outgoing_arcs,
+            warm_used_edges,
+            warm_used_nodes);
+        bus_warm_start_ptr = &bus_warm_start;
+        simple_warm_start_ptr = &simple_warm_start;
+    }
+
     const auto solve_t0 = std::chrono::steady_clock::now();
-    auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true, enable_direction_constraints);
+    auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true, enable_direction_constraints, bus_warm_start_ptr);
     auto edge_cap_for_simple = std::map<std::pair<int, int>, int> {};
     for (const auto& [e, used] : bus_res.used_edges) {
         edge_cap_for_simple[e] = std::max(0, 1 - used);
@@ -1189,7 +1436,15 @@ auto run_mcf_global_routing_cob_units(
         node_cap_for_simple[n] = std::max(0, 1 - used);
     }
     auto simple_res = solve_stage(
-        "SimpleMCF", graph, commodities, simple_ids, edge_cap_for_simple, node_cap_for_simple, false, enable_direction_constraints);
+        "SimpleMCF",
+        graph,
+        commodities,
+        simple_ids,
+        edge_cap_for_simple,
+        node_cap_for_simple,
+        false,
+        enable_direction_constraints,
+        simple_warm_start_ptr);
     const auto solve_t1 = std::chrono::steady_clock::now();
     const auto solve_ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(solve_t1 - solve_t0).count());
 
