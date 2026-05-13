@@ -6,6 +6,7 @@
 #include "circuit/basedie.hh"
 #include "debug/debug.hh"
 #include "hardware/cob/cobunit.hh"
+#include "hardware/track/trackcoord.hh"
 #include "highs/Highs.h"
 #include "highs/lp_data/HConst.h"
 #include "highs/lp_data/HighsLp.h"
@@ -987,6 +988,77 @@ auto path_to_text(const GlobalGraph& graph, const std::Vector<int>& path) -> std
     return s;
 }
 
+auto track_from_node_meta(hardware::Interposer* interposer, const NodeMeta& m) -> hardware::Track* {
+    if (interposer == nullptr || m.is_virtual) {
+        return nullptr;
+    }
+    const auto dir = m.track_dir == 0 ? hardware::TrackDirection::Horizontal : hardware::TrackDirection::Vertical;
+    const auto tc = hardware::TrackCoord {
+        static_cast<std::i64>(m.track_row),
+        static_cast<std::i64>(m.track_col),
+        dir,
+        static_cast<std::usize>(m.track)};
+    const auto opt = interposer->get_track(tc);
+    return opt.has_value() ? opt.value() : nullptr;
+}
+
+auto suspend_mcf_paths_on_interposer(
+    hardware::Interposer* interposer,
+    const GlobalGraph& graph,
+    const std::array<std::Vector<McfPathInfo>, 16>& paths_by_unit
+) -> void {
+    if (interposer == nullptr) {
+        return;
+    }
+    int suspended = 0;
+    int skipped_no_adj = 0;
+    for (std::size_t u = 0; u < 16; ++u) {
+        for (const auto& info : paths_by_unit[u]) {
+            for (const auto& path : info.unit_paths) {
+                for (std::size_t i = 1; i < path.size(); ++i) {
+                    const int na = path[i - 1];
+                    const int nb = path[i];
+                    if (na < 0 || nb < 0 || static_cast<std::size_t>(na) >= graph.nodes.size()
+                        || static_cast<std::size_t>(nb) >= graph.nodes.size()) {
+                        continue;
+                    }
+                    const auto& ma = graph.nodes[static_cast<std::size_t>(na)];
+                    const auto& mb = graph.nodes[static_cast<std::size_t>(nb)];
+                    if (ma.is_virtual || mb.is_virtual) {
+                        continue;
+                    }
+                    auto* ta = track_from_node_meta(interposer, ma);
+                    auto* tb = track_from_node_meta(interposer, mb);
+                    if (ta == nullptr || tb == nullptr) {
+                        continue;
+                    }
+                    bool found = false;
+                    for (auto [tn, conn] : interposer->adjacent_tracks(ta)) {
+                        if (tn != tb) {
+                            continue;
+                        }
+                        found = true;
+                        if (!conn.is_occupied()) {
+                            conn.suspend();
+                            suspended += 1;
+                        }
+                        break;
+                    }
+                    if (!found) {
+                        skipped_no_adj += 1;
+                    }
+                }
+            }
+        }
+    }
+    if (skipped_no_adj > 0) {
+        debug::warning_fmt(
+            "MCF→Interposer: {} hop(s) had no matching adjacent_tracks() edge (graph vs hardware mismatch?)",
+            skipped_no_adj);
+    }
+    debug::info_fmt("MCF→Interposer: suspended {} COBConnector(s) along MCF paths", suspended);
+}
+
 auto log_mcf_paths_by_origin_net(
     const GlobalGraph& graph,
     const std::array<std::Vector<McfPathInfo>, 16>& paths_by_unit,
@@ -1056,13 +1128,12 @@ auto log_mcf_paths_by_origin_net(
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
     const TobIlpResult& ilp_result,
-    const hardware::Interposer& interposer,
+    hardware::Interposer* interposer,
     const circuit::BaseDie& basedie,
     const CobMcfGridDims cob_grid,
     const bool enable_mcf_parallel,
     const bool enable_direction_constraints
 ) -> CobMcfFullResult {
-    (void)interposer;
     (void)basedie;
     (void)enable_mcf_parallel;
 
@@ -1176,6 +1247,9 @@ auto run_mcf_global_routing_cob_units(
         elapsed_ms,
         peak_after,
         stage_peak_delta);
+    if (out.summary.all_ok && interposer != nullptr) {
+        suspend_mcf_paths_on_interposer(interposer, graph, out.paths_by_unit);
+    }
     return out;
 }
 

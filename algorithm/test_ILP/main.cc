@@ -7,6 +7,8 @@
 #include "tob_ilp_model.hh"
 
 #include <algo/netbuilder/netbuilder.hh>
+#include <algo/router/common/maze/mazeroutestrategy.hh>
+#include <algo/router/routeerror.hh>
 #include <circuit/net/types/bbnet.hh>
 #include <circuit/net/types/bbsnet.hh>
 #include <circuit/net/types/btnet.hh>
@@ -37,8 +39,17 @@ namespace PR_tool {
 auto bump_to_ilp_coord(const hardware::Bump* bump) -> Bump_coord;
 auto sort_and_unique(std::Vector<std::size_t>& values) -> void;
 auto sort_and_unique(std::Vector<Bump_coord>& values) -> void;
+struct BuildRecordsResult {
+    std::Vector<Net_cost_record> records {};
+    std::Vector<std::Rc<circuit::Net>> deferred_multi_fanout {};
+};
+
 auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record;
-auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vector<Net_cost_record>;
+auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> BuildRecordsResult;
+auto run_deferred_multi_fanout_maze(
+    hardware::Interposer* interposer,
+    const std::Vector<std::Rc<circuit::Net>>& deferred
+) -> void;
 auto write_mps_file(
     const std::Vector<Net_cost_record>& records,
     const std::String& output_mps
@@ -171,7 +182,14 @@ auto run_main(int argc, char** argv) -> int {
     algo::build_nets(basedie.get(), interposer.get());
 
     const auto nets = basedie->nets_to_vector();
-    auto records = build_records(nets);
+    auto built = build_records(nets);
+    auto records = std::move(built.records);
+    const auto& deferred_multi_fanout = built.deferred_multi_fanout;
+    if (!deferred_multi_fanout.empty()) {
+        debug::info_fmt(
+            "Deferred multi-fanout nets (BumpToBumpsNet / BumpToTracksNet / TrackToBumpsNet): {} — excluded from ILP+MCF",
+            deferred_multi_fanout.size());
+    }
     const auto reach_stats = precompute_reach_for_records(records);
     debug::info_fmt(
         "reach precompute: records={} (B={}, T={}, PN={}), total_endtracks={}, total_starttrack_edges={}",
@@ -257,6 +275,11 @@ auto run_main(int argc, char** argv) -> int {
         debug::warning("--enable-direction-contraints applies only with --enable-mcf-routing; ignored");
     }
 
+    if (!enable_mcf && !deferred_multi_fanout.empty()) {
+        debug::info(
+            "Deferred multi-fanout nets: skipping post-MCF maze because --enable-mcf-routing was not set (maze runs only after a successful MCF pass).");
+    }
+
     if (enable_mcf) {
         if (enable_mcf_parallel) {
             debug::info("MCF: solving 16 COB units in parallel (std::async)");
@@ -264,7 +287,7 @@ auto run_main(int argc, char** argv) -> int {
         const auto mcf_full = run_mcf_global_routing_cob_units(
             records,
             result,
-            *interposer.get(),
+            interposer.get(),
             *basedie.get(),
             cob_grid,
             enable_mcf_parallel,
@@ -273,6 +296,9 @@ auto run_main(int argc, char** argv) -> int {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
             log_total_runtime();
             return 1;
+        }
+        if (!deferred_multi_fanout.empty()) {
+            run_deferred_multi_fanout_maze(interposer.get(), deferred_multi_fanout);
         }
     }
     log_total_runtime();
@@ -331,8 +357,11 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.mcf_start_kind = IlpEndpointKind::Bump;
         record.mcf_end_kind = IlpEndpointKind::Bump;
     }
-    else if (dynamic_cast<const circuit::BumpToBumpsNet*>(net.get()) != nullptr) {
-        throw std::runtime_error(std::format("unsupported net type BumpToBumpsNet: '{}'", net->name()));
+    else if (dynamic_cast<const circuit::BumpToBumpsNet*>(net.get()) != nullptr
+             || dynamic_cast<const circuit::BumpToTracksNet*>(net.get()) != nullptr
+             || dynamic_cast<const circuit::TrackToBumpsNet*>(net.get()) != nullptr) {
+        throw std::logic_error(
+            std::format("internal: multi-fanout net must be deferred in build_records, not classify_net: '{}'", net->name()));
     }
     else if (const auto* bt_net = dynamic_cast<const circuit::BumpToTrackNet*>(net.get())) {
         const auto cobunit = map_track(bt_net->end_track()->coord().index);
@@ -346,9 +375,6 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.mcf_start_kind = IlpEndpointKind::Bump;
         record.mcf_end_kind = IlpEndpointKind::Track;
     }
-    else if (dynamic_cast<const circuit::BumpToTracksNet*>(net.get()) != nullptr) {
-        throw std::runtime_error(std::format("unsupported net type BumpToTracksNet: '{}'", net->name()));
-    }
     else if (const auto* tb_net = dynamic_cast<const circuit::TrackToBumpNet*>(net.get())) {
         const auto cobunit = map_track(tb_net->begin_track()->coord().index);
         record.type = Net_type::Tnet;
@@ -360,9 +386,6 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
         record.mcf_has_end_track = true;
         record.mcf_start_kind = IlpEndpointKind::Bump;
         record.mcf_end_kind = IlpEndpointKind::Track;
-    }
-    else if (dynamic_cast<const circuit::TrackToBumpsNet*>(net.get()) != nullptr) {
-        throw std::runtime_error(std::format("unsupported net type TrackToBumpsNet: '{}'", net->name()));
     }
     else if (dynamic_cast<const circuit::TracksToBumpsNet*>(net.get()) != nullptr) {
         throw std::runtime_error(std::format("TracksToBumpsNet should be expanded in build_records: '{}'", net->name()));
@@ -390,10 +413,17 @@ auto classify_net(const std::Rc<circuit::Net>& net) -> Net_cost_record {
     return record;
 }
 
-auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vector<Net_cost_record> {
-    auto records = std::Vector<Net_cost_record> {};
+auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> BuildRecordsResult {
+    BuildRecordsResult out {};
+    auto& records = out.records;
     records.reserve(nets.size());
     for (const auto& net : nets) {
+        if (dynamic_cast<const circuit::BumpToBumpsNet*>(net.get()) != nullptr
+            || dynamic_cast<const circuit::BumpToTracksNet*>(net.get()) != nullptr
+            || dynamic_cast<const circuit::TrackToBumpsNet*>(net.get()) != nullptr) {
+            out.deferred_multi_fanout.emplace_back(net);
+            continue;
+        }
         if (const auto* tsb_net = dynamic_cast<const circuit::TracksToBumpsNet*>(net.get())) {
             // Split one TracksToBumpsNet into multiple "bump -> tracks" pseudo nets.
             auto candidate_cobunits = std::Vector<std::size_t> {};
@@ -527,7 +557,40 @@ auto build_records(const std::Vector<std::Rc<circuit::Net>>& nets) -> std::Vecto
         origin_bit_counter[origin] += 1;
     }
 
-    return records;
+    return out;
+}
+
+auto run_deferred_multi_fanout_maze(
+    hardware::Interposer* interposer,
+    const std::Vector<std::Rc<circuit::Net>>& deferred
+) -> void {
+    if (interposer == nullptr || deferred.empty()) {
+        return;
+    }
+    debug::info_fmt("Deferred multi-fanout maze: routing {} net(s) with MazeRouteStrategy", deferred.size());
+    const algo::MazeRouteStrategy maze {};
+    for (const auto& net : deferred) {
+        try {
+            if (auto* bbn = dynamic_cast<circuit::BumpToBumpsNet*>(net.get())) {
+                maze.route_bump_to_bumps_net(interposer, bbn);
+            }
+            else if (auto* bttn = dynamic_cast<circuit::BumpToTracksNet*>(net.get())) {
+                maze.route_bump_to_tracks_net(interposer, bttn);
+            }
+            else if (auto* ttbn = dynamic_cast<circuit::TrackToBumpsNet*>(net.get())) {
+                maze.route_track_to_bumps_net(interposer, ttbn);
+            }
+            else {
+                debug::warning_fmt("Deferred maze: unexpected net type for \"{}\"", net->name());
+            }
+        }
+        catch (const algo::RouteExpt& e) {
+            debug::error_fmt("Deferred maze failed ({}): {}", net->name(), e.what());
+        }
+        catch (const std::exception& e) {
+            debug::error_fmt("Deferred maze failed ({}): {}", net->name(), e.what());
+        }
+    }
 }
 
 auto write_mps_file(

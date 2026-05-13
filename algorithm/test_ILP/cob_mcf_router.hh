@@ -60,7 +60,7 @@ struct CobMcfFullResult {
 auto run_mcf_global_routing_cob_units(
     const std::Vector<Net_cost_record>& records,
     const TobIlpResult& ilp_result,
-    const hardware::Interposer& interposer,
+    hardware::Interposer* interposer,
     const circuit::BaseDie& basedie,
     CobMcfGridDims cob_grid,
     bool enable_mcf_parallel = false,
