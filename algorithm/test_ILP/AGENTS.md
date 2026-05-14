@@ -63,6 +63,19 @@ xmake build test_ILP
 - **阶段 A（ILP）**：先决定每条 2-pin net 落在哪个 `COBUnit`，同时确定每个 bump 对应的 track
 - **阶段 B（MCF）**：在 track 级全局图上按 commodity 做容量约束整数流路由，分 BusMCF（等长约束）和 SimpleMCF（残余容量）两阶段
 
+### 2.1 分阶段耗时（写入 `debug.log`）
+
+与「ILP 预热 → ILP 求解 → MCF 预热 → MCF 求解」四段直接相关的墙钟时间会单独打日志（单位 ms）：
+
+| 日志前缀 | 含义 |
+| --- | --- |
+| `timing phase=ilp_warm_start` | `build_ilp_warm_start_from_maze()`；未使用 `--enable-pre-routing` 时为 **0** |
+| `timing phase=ilp_solve` | `solve_tob_ilp_with_highs()` 整体（含 HiGHS 在 warm start 不佳时自动无初值重试） |
+| `timing phase=mcf_warm_start` | MCF 前在 `GlobalGraph` 上的 warm path 构造；未使用 `--enable-pre-routing` 时约为 **0** |
+| `timing phase=mcf_solve` | BusMCF 与 SimpleMCF 两次 `solve_stage()` 中 HiGHS 求解之和 |
+
+`run_main` 在成功或 ILP/MCF 失败退出前会再打一行汇总：`timing breakdown (ms): ilp_warm_start=..., ilp_solve=..., mcf_warm_start=..., mcf_solve=...`（未执行 MCF 时后两项为 **0**）。另：`run_main total elapsed` 表示整个 `run_main` 墙钟；`MCF detailed(track-level) summary` 中的 `total_elapsed` 表示 `run_mcf_global_routing_cob_units()` 整段墙钟（含 `prepare_commodities`、路径打印等），一般会大于 `mcf_warm_start + mcf_solve`。`CobMcfRunSummary::mcf_warm_start_ms` / `mcf_solve_ms` 与上述 MCF 两段一致，便于程序内读取。
+
 ---
 
 ## 3. 关键文件与职责

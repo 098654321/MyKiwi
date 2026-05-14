@@ -32,6 +32,10 @@ struct CobMcfCobUnitSummary {
 struct CobMcfRunSummary {
     std::Vector<CobMcfCobUnitSummary> per_cob;
     bool all_ok{true};
+    /// Wall time for MCF graph warm-start routing (`--enable-pre-routing`); 0 if disabled.
+    int mcf_warm_start_ms{0};
+    /// Wall time for BusMCF + SimpleMCF HiGHS solves only.
+    int mcf_solve_ms{0};
 };
 
 struct McfPathInfo {

@@ -181,6 +181,7 @@ auto run_main(int argc, char** argv) -> int {
     }
     const CobMcfGridDims cob_grid {cob_rows, cob_cols};
 
+    // read file and build nets
     debug::initial_log("./debug.log");
     if (verbose_v_count > 0) {
         debug::set_debug_level(debug::DebugLevel::Debug);
@@ -189,6 +190,7 @@ auto run_main(int argc, char** argv) -> int {
     auto [interposer, basedie] = PR_tool::parse::read_config(config_path, 0, false);
     algo::build_nets(basedie.get(), interposer.get());
 
+    // build records
     const auto nets = basedie->nets_to_vector();
     auto built = build_records(nets);
     auto records = std::move(built.records);
@@ -198,6 +200,8 @@ auto run_main(int argc, char** argv) -> int {
             "Deferred multi-fanout nets (BumpToBumpsNet / BumpToTracksNet / TrackToBumpsNet): {} — excluded from ILP+MCF",
             deferred_multi_fanout.size());
     }
+
+    // precompute reach
     const auto reach_stats = precompute_reach_for_records(records);
     debug::info_fmt(
         "reach precompute: records={} (B={}, T={}, PN={}), total_endtracks={}, total_starttrack_edges={}",
@@ -212,23 +216,36 @@ auto run_main(int argc, char** argv) -> int {
         debug::info_fmt("MPS written: {}", output_mps);
     }
 
+    // pre-routing warm start
     auto ilp_warm_start = TobIlpWarmStart {};
     const TobIlpWarmStart* ilp_warm_start_ptr = nullptr;
+    long long ilp_warm_start_ms = 0;
     if (enable_pre_routing) {
+        const auto ilp_warm_t0 = std::chrono::steady_clock::now();
         ilp_warm_start = build_ilp_warm_start_from_maze(config_path, records);
+        const auto ilp_warm_t1 = std::chrono::steady_clock::now();
+        ilp_warm_start_ms = std::chrono::duration_cast<std::chrono::milliseconds>(ilp_warm_t1 - ilp_warm_t0).count();
         ilp_warm_start_ptr = &ilp_warm_start;
     }
+    debug::info_fmt("timing phase=ilp_warm_start ms={}", ilp_warm_start_ms);
 
+    // solve ILP
     const auto solve_begin = std::chrono::steady_clock::now();
     const auto result = solve_tob_ilp_with_highs(records, enable_ilp_parallel, ilp_warm_start_ptr);
     const auto solve_end = std::chrono::steady_clock::now();
-    const auto solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
+    const auto ilp_solve_ms = std::chrono::duration_cast<std::chrono::milliseconds>(solve_end - solve_begin).count();
     const auto peak_rss_mb = get_peak_rss_mb();
-    debug::info_fmt("ILP solve elapsed: {} ms", solve_ms);
+    debug::info_fmt("timing phase=ilp_solve ms={}", ilp_solve_ms);
     debug::info_fmt("Process peak RSS: {:.2f} MB", peak_rss_mb);
 
     if (!result.ok) {
         debug::error_fmt("HiGHS: {}", result.message);
+        debug::info_fmt(
+            "timing breakdown (ms): ilp_warm_start={}, ilp_solve={}, mcf_warm_start={}, mcf_solve={}",
+            ilp_warm_start_ms,
+            ilp_solve_ms,
+            0,
+            0);
         log_total_runtime();
         return 1;
     }
@@ -295,6 +312,8 @@ auto run_main(int argc, char** argv) -> int {
             "Deferred multi-fanout nets: skipping post-MCF maze because --enable-mcf-routing was not set (maze runs only after a successful MCF pass).");
     }
 
+    long long mcf_warm_start_ms = 0;
+    long long mcf_solve_ms = 0;
     if (enable_mcf) {
         if (enable_mcf_parallel) {
             debug::info("MCF: solving 16 COB units in parallel (std::async)");
@@ -308,8 +327,16 @@ auto run_main(int argc, char** argv) -> int {
             enable_mcf_parallel,
             enable_direction_constraints,
             enable_pre_routing);
+        mcf_warm_start_ms = mcf_full.summary.mcf_warm_start_ms;
+        mcf_solve_ms = mcf_full.summary.mcf_solve_ms;
         if (!mcf_full.summary.all_ok) {
             debug::error("MCF global routing: one or more COB unit solves failed; see MCF log lines");
+            debug::info_fmt(
+                "timing breakdown (ms): ilp_warm_start={}, ilp_solve={}, mcf_warm_start={}, mcf_solve={}",
+                ilp_warm_start_ms,
+                ilp_solve_ms,
+                mcf_warm_start_ms,
+                mcf_solve_ms);
             log_total_runtime();
             return 1;
         }
@@ -317,6 +344,12 @@ auto run_main(int argc, char** argv) -> int {
             run_deferred_multi_fanout_maze(interposer.get(), deferred_multi_fanout);
         }
     }
+    debug::info_fmt(
+        "timing breakdown (ms): ilp_warm_start={}, ilp_solve={}, mcf_warm_start={}, mcf_solve={}",
+        ilp_warm_start_ms,
+        ilp_solve_ms,
+        mcf_warm_start_ms,
+        mcf_solve_ms);
     log_total_runtime();
     return 0;
 }

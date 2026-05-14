@@ -1,4 +1,5 @@
 #include "highs.hh"
+#include "lp_data/HConst.h"
 #include "tob_ilp_model.hh"
 
 #include "highs/Highs.h"
@@ -22,14 +23,18 @@ auto solve_tob_ilp_with_highs(
     const TobIlpWarmStart* warm_start
 )
     -> TobIlpResult {
+    
+    // build model
     TobIlpResult out {};
     TobIlpModel model {};
     build_tob_ilp_model(model, records);
 
+    // convert to HiGHS LP
     HighsLp lp {};
     std::map<std::String, HighsInt> col_index {};
     model.to_highs_lp(lp, &col_index);
 
+    // set HiGHS options
     Highs highs {};
     highs.setOptionValue("output_flag", false);
     const unsigned int hw_threads = std::thread::hardware_concurrency();
@@ -45,12 +50,13 @@ auto solve_tob_ilp_with_highs(
     if (thread_st != HighsStatus::kOk) {
         (void)highs.setOptionValue("threads", static_cast<HighsInt>(1));
     }
-    const HighsStatus pass_st = highs.passModel(std::move(lp));  // 传递LP给HiGHS
+    const HighsStatus pass_st = highs.passModel(std::move(lp));     // 装填模型
     if (pass_st != HighsStatus::kOk) {
         out.ok = false;
         out.message = std::format("HiGHS passModel failed (status={})", static_cast<int>(pass_st));
         return out;
     }
+    // set warm start
     if (warm_start != nullptr && !warm_start->values.empty()) {
         auto warm_cols = std::vector<HighsInt> {};
         auto warm_values = std::vector<double> {};
@@ -69,7 +75,9 @@ auto solve_tob_ilp_with_highs(
             const auto start_st = highs.setSolution(
                 static_cast<HighsInt>(warm_cols.size()),
                 warm_cols.data(),
-                warm_values.data());
+                warm_values.data()
+            );
+            // HiGHS是否接受这个初始解(例如解是否满足当前模型的约束)
             if (start_st != HighsStatus::kOk) {
                 debug::warning_fmt(
                     "HiGHS ILP warm start rejected (status={}, requested_values={}, matched_values={})",
@@ -117,27 +125,19 @@ auto solve_tob_ilp_with_highs(
         return out;
     }
 
-    out.model_status = highs.getModelStatus();    // 获取模型状态
-    out.objective = highs.getObjectiveValue();    // 获取目标值
-    if (out.model_status != HighsModelStatus::kOptimal) {
-        if (warm_start != nullptr) {
-            debug::warning_fmt(
-                "HiGHS ILP warm start led to non-optimal status ({}); retrying without warm start",
-                static_cast<int>(out.model_status));
-            return solve_tob_ilp_with_highs(records, enable_parallel, nullptr);
-        }
-        out.ok = false;
-        out.message = std::format("model status is not optimal ({})", static_cast<int>(out.model_status));
-        return out;
-    }
-
+    out.model_status = highs.getModelStatus();    
+    out.objective = highs.getObjectiveValue();    
     const auto& sol = highs.getSolution();
     if (sol.col_value.empty()) {
         out.ok = false;
         out.message = "HiGHS returned empty solution";
         return out;
     }
+    if(out.model_status != HighsModelStatus::kOptimal) {
+        debug::info_fmt("HiGHS model status is not optimal (status={})", static_cast<int>(out.model_status));
+    }
 
+    // parse solution
     constexpr double z_tol = 0.5;
     const auto is_active = [&](const std::String& var_name) -> bool {
         const auto it = col_index.find(var_name);

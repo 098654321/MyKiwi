@@ -1398,6 +1398,7 @@ auto run_mcf_global_routing_cob_units(
     auto simple_warm_start = StageWarmStart {};
     const StageWarmStart* bus_warm_start_ptr = nullptr;
     const StageWarmStart* simple_warm_start_ptr = nullptr;
+    const auto mcf_warm_t0 = std::chrono::steady_clock::now();
     if (enable_pre_routing) {
         auto outgoing_arcs = std::Vector<std::Vector<int>>(graph.nodes.size());
         for (std::size_t a = 0; a < graph.arcs.size(); ++a) {
@@ -1424,6 +1425,10 @@ auto run_mcf_global_routing_cob_units(
         bus_warm_start_ptr = &bus_warm_start;
         simple_warm_start_ptr = &simple_warm_start;
     }
+    const auto mcf_warm_t1 = std::chrono::steady_clock::now();
+    out.summary.mcf_warm_start_ms = static_cast<int>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(mcf_warm_t1 - mcf_warm_t0).count());
+    debug::info_fmt("timing phase=mcf_warm_start ms={}", out.summary.mcf_warm_start_ms);
 
     const auto solve_t0 = std::chrono::steady_clock::now();
     auto bus_res = solve_stage("BusMCF", graph, commodities, bus_ids, {}, {}, true, enable_direction_constraints, bus_warm_start_ptr);
@@ -1447,6 +1452,8 @@ auto run_mcf_global_routing_cob_units(
         simple_warm_start_ptr);
     const auto solve_t1 = std::chrono::steady_clock::now();
     const auto solve_ms = static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(solve_t1 - solve_t0).count());
+    out.summary.mcf_solve_ms = solve_ms;
+    debug::info_fmt("timing phase=mcf_solve ms={}", solve_ms);
 
     if (!bus_res.ok) {
         debug::error_fmt("BusMCF failed: {}", bus_res.message);
@@ -1498,8 +1505,11 @@ auto run_mcf_global_routing_cob_units(
     const auto peak_after = get_peak_rss_mb();
     const auto stage_peak_delta = std::max(0.0, peak_after - peak_before);
     debug::info_fmt(
-        "MCF detailed(track-level) summary: elapsed={} ms, peak_rss={:.2f} MB, stage_peak_delta={:.2f} MB",
+        "MCF detailed(track-level) summary: total_elapsed={} ms (mcf_warm_start={} ms, mcf_solve={} ms), peak_rss={:.2f} MB, "
+        "stage_peak_delta={:.2f} MB",
         elapsed_ms,
+        out.summary.mcf_warm_start_ms,
+        out.summary.mcf_solve_ms,
         peak_after,
         stage_peak_delta);
     if (out.summary.all_ok && interposer != nullptr) {
